@@ -22,6 +22,13 @@ import {
   HEMI_SEPOLIA_CONFIG,
 } from './utils/wallet';
 import {
+  getOrCreateAccountProfile,
+  saveAccountProfile,
+  getActiveRoomCode,
+  setActiveRoomCode,
+  AccountProfile,
+} from './utils/account';
+import {
   Volume2,
   VolumeX,
   HelpCircle,
@@ -30,11 +37,14 @@ import {
   Eye,
   MessageSquare,
   Users,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('reconnecting');
+  const [account, setAccount] = useState<AccountProfile>(() => getOrCreateAccountProfile());
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [emotes, setEmotes] = useState<FloatingEmote[]>([]);
@@ -51,6 +61,14 @@ export default function App() {
     error: null,
     walletName: null,
   });
+
+  // Sync wallet address with persistent account profile
+  useEffect(() => {
+    if (wallet.address && wallet.address !== account.address) {
+      const updated = saveAccountProfile({ address: wallet.address });
+      setAccount(updated);
+    }
+  }, [wallet.address, account.address]);
 
   // Check initial connected wallet and listen to account/chain events
   useEffect(() => {
@@ -237,23 +255,82 @@ export default function App() {
       .catch(() => {});
   };
 
-  // Initialize Socket.IO connection
+  // Initialize Socket.IO connection with auto-reconnect and session resume
   useEffect(() => {
     const s = io(window.location.origin, {
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 4000,
+      timeout: 20000,
     });
 
     s.on('connect', () => {
       setSocketConnected(true);
+      setConnectionStatus('connected');
+
+      // Attempt to resume session with persistent accountId & dual-key resolution
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlCode = urlParams.get('room') || urlParams.get('join');
+      const activeCode = getActiveRoomCode() || (urlCode ? urlCode.toUpperCase().trim() : null);
+
+      s.emit(
+        'session:resume',
+        {
+          accountId: account.id,
+          roomCode: activeCode,
+          address: wallet.address || account.address,
+        },
+        (res: any) => {
+          if (res?.success && res?.gameState) {
+            console.log('Session resumed successfully for room:', res.roomCode);
+            setGameState(res.gameState);
+            setActiveRoomCode(res.roomCode);
+            // Synchronize browser URL query param
+            const currentUrl = new URL(window.location.href);
+            if (currentUrl.searchParams.get('room') !== res.roomCode) {
+              currentUrl.searchParams.set('room', res.roomCode);
+              currentUrl.searchParams.delete('join');
+              window.history.replaceState({}, '', currentUrl.toString());
+            }
+          } else if (res?.roomNotFound && activeCode) {
+            // Room no longer active on server
+            setActiveRoomCode(null);
+            const currentUrl = new URL(window.location.href);
+            if (currentUrl.searchParams.has('room') || currentUrl.searchParams.has('join')) {
+              currentUrl.searchParams.delete('room');
+              currentUrl.searchParams.delete('join');
+              window.history.replaceState({}, '', currentUrl.pathname);
+            }
+          }
+        }
+      );
+
       refreshLiveRooms(s);
     });
 
     s.on('disconnect', () => {
       setSocketConnected(false);
+      setConnectionStatus('reconnecting');
+    });
+
+    s.on('connect_error', () => {
+      setSocketConnected(false);
+      setConnectionStatus('reconnecting');
     });
 
     s.on('game:state', (state: GameState) => {
       setGameState(state);
+      if (state?.roomCode) {
+        setActiveRoomCode(state.roomCode);
+        const currentUrl = new URL(window.location.href);
+        if (currentUrl.searchParams.get('room') !== state.roomCode) {
+          currentUrl.searchParams.set('room', state.roomCode);
+          currentUrl.searchParams.delete('join');
+          window.history.replaceState({}, '', currentUrl.toString());
+        }
+      }
     });
 
     s.on('game:sound', ({ soundName }: { soundName: string }) => {
@@ -311,7 +388,7 @@ export default function App() {
       clearInterval(interval);
       s.disconnect();
     };
-  }, []);
+  }, [account.id]);
 
   // Fetch private chat history whenever entering a new room code
   useEffect(() => {
@@ -328,10 +405,24 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('join') || params.get('room');
     if (code && socket && !gameState) {
-      const storedName = `Player_${Math.floor(Math.random() * 899 + 100)}`;
-      socket.emit('room:join', { roomCode: code.toUpperCase(), playerName: storedName, avatar: '🦁' });
+      socket.emit(
+        'room:join',
+        {
+          roomCode: code.toUpperCase(),
+          accountId: account.id,
+          playerName: account.name,
+          avatar: account.avatar,
+          address: wallet.address || account.address,
+        },
+        (res: any) => {
+          if (res?.success && res?.gameState) {
+            setGameState(res.gameState);
+            setActiveRoomCode(res.roomCode);
+          }
+        }
+      );
     }
-  }, [socket, gameState]);
+  }, [socket, gameState, account.id, account.name, account.avatar, wallet.address, account.address]);
 
   // When opening chat, reset unread counter
   const handleToggleChat = () => {
@@ -350,43 +441,120 @@ export default function App() {
     soundEngine.setMuted(nextMuted);
   };
 
+  // Explicit resume session action from UI
+  const handleResumeSession = (roomCode?: string | null) => {
+    if (!socket) return;
+    const targetCode = roomCode || getActiveRoomCode();
+    socket.emit(
+      'session:resume',
+      {
+        accountId: account.id,
+        roomCode: targetCode,
+        address: wallet.address || account.address,
+      },
+      (res: any) => {
+        if (res?.success && res?.gameState) {
+          setGameState(res.gameState);
+          setActiveRoomCode(res.roomCode);
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('room', res.roomCode);
+          currentUrl.searchParams.delete('join');
+          window.history.replaceState({}, '', currentUrl.toString());
+        } else {
+          setActiveRoomCode(null);
+          setErrorMessage('Room is no longer active on the server.');
+        }
+      }
+    );
+  };
+
   // Lobby actions
   const handleCreateRoom = (playerName: string, avatar: string, buyIn: string, address?: string) => {
     if (!socket) return;
     setErrorMessage(null);
-    const playerAddress = address || wallet.address || undefined;
-    socket.emit('room:create', { playerName, avatar, buyIn, address: playerAddress }, (res: any) => {
-      if (!res.success) {
-        setErrorMessage(res.error || 'Failed to create room');
-      } else {
-        setChatMessages([]);
+    const playerAddress = address || wallet.address || account.address || undefined;
+    socket.emit(
+      'room:create',
+      {
+        accountId: account.id,
+        playerName: playerName || account.name,
+        avatar: avatar || account.avatar,
+        buyIn,
+        address: playerAddress,
+      },
+      (res: any) => {
+        if (!res.success) {
+          setErrorMessage(res.error || 'Failed to create room');
+        } else {
+          setActiveRoomCode(res.roomCode);
+          if (res.gameState) {
+            setGameState(res.gameState);
+          }
+          setChatMessages([]);
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('room', res.roomCode);
+          currentUrl.searchParams.delete('join');
+          window.history.replaceState({}, '', currentUrl.toString());
+        }
       }
-    });
+    );
   };
 
   const handleJoinRoom = (roomCode: string, playerName: string, avatar: string, address?: string) => {
     if (!socket) return;
     setErrorMessage(null);
-    const playerAddress = address || wallet.address || undefined;
-    socket.emit('room:join', { roomCode: roomCode.toUpperCase(), playerName, avatar, address: playerAddress }, (res: any) => {
-      if (!res.success) {
-        setErrorMessage(res.error || 'Failed to join room');
-      } else {
-        setChatMessages([]);
+    const playerAddress = address || wallet.address || account.address || undefined;
+    socket.emit(
+      'room:join',
+      {
+        roomCode: roomCode.toUpperCase(),
+        accountId: account.id,
+        playerName: playerName || account.name,
+        avatar: avatar || account.avatar,
+        address: playerAddress,
+      },
+      (res: any) => {
+        if (!res.success) {
+          setErrorMessage(res.error || 'Failed to join room');
+        } else {
+          setActiveRoomCode(res.roomCode);
+          if (res.gameState) {
+            setGameState(res.gameState);
+          }
+          setChatMessages([]);
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('room', res.roomCode);
+          currentUrl.searchParams.delete('join');
+          window.history.replaceState({}, '', currentUrl.toString());
+        }
       }
-    });
+    );
   };
 
   const handleSpectateRoom = (roomCode: string, spectatorName: string, avatar: string) => {
     if (!socket) return;
     setErrorMessage(null);
-    socket.emit('room:spectate', { roomCode: roomCode.toUpperCase(), spectatorName, avatar }, (res: any) => {
-      if (!res.success) {
-        setErrorMessage(res.error || 'Failed to spectate room');
-      } else {
-        setChatMessages([]);
+    socket.emit(
+      'room:spectate',
+      {
+        roomCode: roomCode.toUpperCase(),
+        accountId: account.id,
+        spectatorName: spectatorName || account.name,
+        avatar: avatar || account.avatar,
+      },
+      (res: any) => {
+        if (!res.success) {
+          setErrorMessage(res.error || 'Failed to spectate room');
+        } else {
+          setActiveRoomCode(res.roomCode);
+          setChatMessages([]);
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('room', res.roomCode);
+          currentUrl.searchParams.delete('join');
+          window.history.replaceState({}, '', currentUrl.toString());
+        }
       }
-    });
+    );
   };
 
   const handleToggleReady = () => {
@@ -416,7 +584,7 @@ export default function App() {
   // Game actions
   const handlePlayCard = (card: Card) => {
     if (!socket || !gameState) return;
-    if (gameState.currentTurnPlayerId !== socket.id) return;
+    if (gameState.currentTurnPlayerId !== myPlayerId) return;
 
     if (card.color === 'wild') {
       // Prompt color picker
@@ -491,12 +659,17 @@ export default function App() {
     if (socket) {
       socket.emit('room:leave');
     }
+    setActiveRoomCode(null);
     setGameState(null);
     setChatMessages([]);
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.delete('room');
+    currentUrl.searchParams.delete('join');
+    window.history.replaceState({}, '', currentUrl.pathname);
     refreshLiveRooms();
   };
 
-  const myPlayerId = socket?.id || '';
+  const myPlayerId = account.id;
   const isSpectator = !!gameState?.isSpectator;
   const myPlayer = gameState?.players.find((p) => p.id === myPlayerId);
   const isMyTurn = gameState?.currentTurnPlayerId === myPlayerId;
@@ -567,9 +740,21 @@ export default function App() {
             </div>
             <div className="text-[11px] text-slate-400 flex items-center gap-1.5 font-mono">
               <span
-                className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'}`}
+                className={`w-2 h-2 rounded-full ${
+                  connectionStatus === 'connected'
+                    ? 'bg-emerald-400'
+                    : connectionStatus === 'reconnecting'
+                    ? 'bg-amber-400 animate-pulse'
+                    : 'bg-rose-500'
+                }`}
               />
-              <span>{socketConnected ? 'Authoritative Node Connected' : 'Connecting...'}</span>
+              <span>
+                {connectionStatus === 'connected'
+                  ? 'Authoritative Node Connected'
+                  : connectionStatus === 'reconnecting'
+                  ? 'Reconnecting...'
+                  : 'Disconnected'}
+              </span>
             </div>
           </div>
         </div>
@@ -644,6 +829,12 @@ export default function App() {
             gameState={gameState}
             myPlayerId={myPlayerId}
             wallet={wallet}
+            account={account}
+            onUpdateProfile={(name, avatar) => {
+              const updated = saveAccountProfile({ name, avatar });
+              setAccount(updated);
+            }}
+            connectionStatus={connectionStatus}
             onConnectWallet={handleConnectWallet}
             onCreateRoom={handleCreateRoom}
             onJoinRoom={handleJoinRoom}
@@ -656,12 +847,21 @@ export default function App() {
             liveRooms={liveRooms}
             onRefreshLiveRooms={() => refreshLiveRooms()}
             error={errorMessage}
+            activeRoomCode={getActiveRoomCode()}
+            onResumeSession={handleResumeSession}
           />
         )}
 
         {/* View: Active Game Table */}
         {gameState && gameState.status !== 'lobby' && (
           <div className="w-full max-w-5xl flex-1 flex flex-col justify-between items-center py-2 sm:py-4">
+            {/* Reconnecting banner if temporarily disconnected */}
+            {connectionStatus === 'reconnecting' && (
+              <div className="w-full max-w-md mx-auto mb-2 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center gap-2 shadow-lg backdrop-blur-md animate-pulse z-30">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Re-syncing match state with server...</span>
+              </div>
+            )}
             {/* Opponents Area around table */}
             <div className="w-full flex items-center justify-around px-2 sm:px-6 pt-1 pb-4 flex-wrap gap-2">
               {opponents.map((opp) => (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameState, Player, PublicRoomSummary } from '../types';
 import { WalletState, formatAddress } from '../utils/wallet';
 import {
@@ -22,6 +22,9 @@ interface LobbyViewProps {
   gameState: GameState | null;
   myPlayerId: string;
   wallet: WalletState;
+  account?: { id: string; name: string; avatar: string };
+  onUpdateProfile?: (name: string, avatar: string) => void;
+  connectionStatus?: 'connected' | 'reconnecting' | 'offline';
   onConnectWallet: () => Promise<void>;
   onCreateRoom: (playerName: string, avatar: string, buyIn: string, address?: string) => void;
   onJoinRoom: (roomCode: string, playerName: string, avatar: string, address?: string) => void;
@@ -34,6 +37,8 @@ interface LobbyViewProps {
   liveRooms?: PublicRoomSummary[];
   onRefreshLiveRooms?: () => void;
   error?: string | null;
+  activeRoomCode?: string | null;
+  onResumeSession?: (code: string) => void;
 }
 
 const AVATARS = ['🦊', '🦁', '🐸', '🤖', '⚡', '💎', '🐉', '🐱'];
@@ -43,6 +48,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   gameState,
   myPlayerId,
   wallet,
+  account,
+  onUpdateProfile,
+  connectionStatus = 'connected',
   onConnectWallet,
   onCreateRoom,
   onJoinRoom,
@@ -55,14 +63,35 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   liveRooms = [],
   onRefreshLiveRooms,
   error,
+  activeRoomCode,
+  onResumeSession,
 }) => {
-  const [playerName, setPlayerName] = useState('ChadCard');
-  const [selectedAvatar, setSelectedAvatar] = useState('🦊');
+  const [playerName, setPlayerName] = useState(account?.name || 'ChadCard');
+  const [selectedAvatar, setSelectedAvatar] = useState(account?.avatar || '🦊');
   const [buyIn, setBuyIn] = useState('0.005');
   const [joinCode, setJoinCode] = useState('');
   const [spectateCode, setSpectateCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'play' | 'spectate'>('play');
+
+  useEffect(() => {
+    if (account?.name) setPlayerName(account.name);
+    if (account?.avatar) setSelectedAvatar(account.avatar);
+  }, [account?.name, account?.avatar]);
+
+  const handleNameChange = (newName: string) => {
+    setPlayerName(newName);
+    if (onUpdateProfile) {
+      onUpdateProfile(newName, selectedAvatar);
+    }
+  };
+
+  const handleAvatarSelect = (newAvatar: string) => {
+    setSelectedAvatar(newAvatar);
+    if (onUpdateProfile) {
+      onUpdateProfile(playerName, newAvatar);
+    }
+  };
 
   // If in room lobby
   if (gameState && gameState.status === 'lobby') {
@@ -217,6 +246,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {!p.isConnected && (
+                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold animate-pulse flex items-center gap-1">
+                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                      <span>Reconnecting...</span>
+                    </span>
+                  )}
+
                   {p.isReady || p.isHost ? (
                     <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1">
                       <Check className="w-3.5 h-3.5" />
@@ -351,6 +387,38 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         <div className="mb-6 p-3 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-300 text-xs flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {/* Active Ongoing Match Resume Banner */}
+      {activeRoomCode && (
+        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-slate-900 to-slate-950 border-2 border-emerald-500/50 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-pulse">
+          <div className="flex items-center gap-3 text-left w-full sm:w-auto">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-lg shrink-0">
+              ⚡
+            </div>
+            <div>
+              <div className="text-xs font-black text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
+                <span>Active Server Match Found</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              </div>
+              <div className="text-sm font-black text-white font-mono">
+                Room Code: <span className="text-amber-400">{activeRoomCode}</span>
+              </div>
+              <div className="text-[11px] text-slate-300">
+                Your hand and seat are reserved. Click to return immediately!
+              </div>
+            </div>
+          </div>
+          {onResumeSession && (
+            <button
+              onClick={() => onResumeSession(activeRoomCode)}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95 shrink-0 flex items-center justify-center gap-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Return to Game</span>
+            </button>
+          )}
         </div>
       )}
 

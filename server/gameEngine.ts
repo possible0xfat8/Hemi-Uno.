@@ -112,7 +112,7 @@ export class GameRoom {
   public buyInAmount: string = '0.005';
   public currency: string = 'ETH';
 
-  public spectators: Map<string, { id: string; name: string; avatar: string }> = new Map();
+  public spectators: Map<string, { id: string; socketId: string; name: string; avatar: string }> = new Map();
   public messages: ChatMessage[] = [];
 
   private turnInterval: NodeJS.Timeout | null = null;
@@ -147,15 +147,18 @@ export class GameRoom {
     }
   }
 
-  public addSpectator(id: string, name: string, avatar: string): void {
-    this.spectators.set(id, { id, name, avatar });
-    this.addChatMessage({
-      senderId: 'system',
-      senderName: 'SYSTEM',
-      senderAvatar: '👁️',
-      text: `${name} joined as a spectator`,
-      isSystem: true,
-    });
+  public addSpectator(id: string, socketId: string, name: string, avatar: string): void {
+    const existing = this.spectators.get(id);
+    if (!existing) {
+      this.addChatMessage({
+        senderId: 'system',
+        senderName: 'SYSTEM',
+        senderAvatar: '👁️',
+        text: `${name} joined as a spectator`,
+        isSystem: true,
+      });
+    }
+    this.spectators.set(id, { id, socketId, name, avatar });
     this.emitUpdate();
   }
 
@@ -165,6 +168,14 @@ export class GameRoom {
       this.spectators.delete(id);
       this.emitUpdate();
     }
+  }
+
+  public getPlayer(playerId: string): Player | null {
+    return this.players.find(p => p.id === playerId) || null;
+  }
+
+  public getPlayerBySocket(socketId: string): Player | null {
+    return this.players.find(p => p.socketId === socketId) || null;
   }
 
   public addChatMessage(data: Omit<ChatMessage, 'id' | 'timestamp' | 'roomId' | 'roomCode'>): ChatMessage {
@@ -198,6 +209,18 @@ export class GameRoom {
   }
 
   public addPlayer(player: Omit<Player, 'seatIndex' | 'cardCount' | 'hand' | 'isReady'>): Player | null {
+    // Check if player already exists in this room (reconnection support)
+    const existing = this.players.find(p => p.id === player.id);
+    if (existing) {
+      existing.isConnected = true;
+      if (player.socketId) existing.socketId = player.socketId;
+      if (player.name) existing.name = player.name;
+      if (player.avatar) existing.avatar = player.avatar;
+      if (player.address) existing.address = player.address;
+      this.emitUpdate();
+      return existing;
+    }
+
     if (this.players.length >= 5) return null;
     if (this.status !== 'lobby') return null;
 

@@ -12,7 +12,8 @@ export interface Card {
 }
 
 export interface Player {
-  id: string;
+  id: string; // Persistent account / player ID
+  socketId?: string; // Current active transport socket
   name: string;
   avatar: string;
   isHost: boolean;
