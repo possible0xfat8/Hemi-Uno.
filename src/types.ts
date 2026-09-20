@@ -143,3 +143,48 @@ export interface GameState {
   spectatorCount?: number;
   isSpectator?: boolean;
 }
+
+export interface UserGameStats {
+  gamesPlayed: number;
+  gamesWon: number;
+  winStreak: number;
+  bestWinStreak: number;
+  totalEarningsEth: string;
+  cardsPlayed: number;
+}
+
+export interface UserProfileRecord {
+  id: string;
+  name: string;
+  avatar: string;
+  bio?: string;
+  address?: string;
+  stats: UserGameStats;
+  presence: 'online' | 'in_game' | 'offline';
+  currentRoomCode?: string | null;
+  lastSeen: number;
+  friends: string[];
+  friendRequestsSent: string[];
+  friendRequestsReceived: string[];
+  createdAt: number;
+}
+
+export interface EnrichedFriend {
+  id: string;
+  name: string;
+  avatar: string;
+  bio?: string;
+  address?: string;
+  presence: 'online' | 'in_game' | 'offline';
+  currentRoomCode?: string | null;
+  lastSeen: number;
+  stats: UserGameStats;
+}
+
+export interface GameInviteEvent {
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  roomCode: string;
+  timestamp: number;
+}

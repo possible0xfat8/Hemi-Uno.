@@ -4,12 +4,16 @@ import { Server as SocketIOServer } from 'socket.io';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { RoomManager } from './server/roomManager.js';
+import { serverDb } from './server/database.js';
 import { CardColor } from './src/types.js';
 
 async function startServer() {
   const app = express();
   const httpServer = createServer(app);
   const PORT = 3000;
+
+  // JSON body parser for REST APIs
+  app.use(express.json());
 
   // Socket.IO server with enhanced timeout resilience and connection recovery
   const io = new SocketIOServer(httpServer, {
@@ -43,6 +47,85 @@ async function startServer() {
     });
   });
 
+  // REST: User Profile endpoints
+  app.get('/api/profile/:id', (req, res) => {
+    const user = serverDb.getUser(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    res.json(user);
+  });
+
+  app.post('/api/profile', (req, res) => {
+    const { id, name, avatar, bio, address } = req.body;
+    if (!id) {
+      return res.status(400).json({ error: 'User id is required' });
+    }
+    const updated = serverDb.updateUserProfile(id, { name, avatar, bio, address });
+    res.json(updated);
+  });
+
+  // REST: Friends endpoints
+  app.get('/api/friends/:id', (req, res) => {
+    const friends = serverDb.getEnrichedFriends(req.params.id);
+    const user = serverDb.getUser(req.params.id);
+    res.json({
+      friends,
+      requestsReceived: user ? user.friendRequestsReceived.map(id => serverDb.getUser(id)).filter(Boolean) : [],
+      requestsSent: user ? user.friendRequestsSent.map(id => serverDb.getUser(id)).filter(Boolean) : [],
+    });
+  });
+
+  app.post('/api/friends/request', (req, res) => {
+    const { userId, targetQuery } = req.body;
+    if (!userId || !targetQuery) {
+      return res.status(400).json({ error: 'userId and targetQuery required' });
+    }
+    const result = serverDb.sendFriendRequest(userId, targetQuery);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+    if (result.friend) {
+      io.to(`user:${result.friend.id}`).emit('friends:received_request', {
+        from: serverDb.getUser(userId),
+      });
+    }
+    res.json({ success: true, friend: result.friend });
+  });
+
+  app.post('/api/friends/accept', (req, res) => {
+    const { userId, requesterId } = req.body;
+    if (!userId || !requesterId) {
+      return res.status(400).json({ error: 'userId and requesterId required' });
+    }
+    const result = serverDb.acceptFriendRequest(userId, requesterId);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+    io.to(`user:${requesterId}`).emit('friends:request_accepted', {
+      by: serverDb.getUser(userId),
+    });
+    res.json({ success: true });
+  });
+
+  app.post('/api/friends/decline', (req, res) => {
+    const { userId, requesterId } = req.body;
+    const result = serverDb.declineFriendRequest(userId, requesterId);
+    res.json(result);
+  });
+
+  app.post('/api/friends/remove', (req, res) => {
+    const { userId, friendId } = req.body;
+    const result = serverDb.removeFriend(userId, friendId);
+    res.json(result);
+  });
+
+  app.get('/api/players/discover', (req, res) => {
+    const userId = (req.query.userId as string) || '';
+    const suggested = serverDb.getSuggestedPlayers(userId);
+    res.json({ players: suggested });
+  });
+
   // Socket.IO event handling
   io.on('connection', (socket) => {
     const getPlayerInCurrentRoom = () => {
@@ -58,6 +141,12 @@ async function startServer() {
         if (typeof callback === 'function') callback({ success: false });
         return;
       }
+      // Ensure user profile in database
+      if (accountId) {
+        serverDb.getOrCreateUser(accountId, { address });
+        socket.join(`user:${accountId}`);
+      }
+
       const result = roomManager.resumeSession(accountId, socket.id, roomCode, address);
       if (result.success && result.room) {
         socket.join(result.room.roomId);
@@ -81,6 +170,84 @@ async function startServer() {
           callback({ success: false, roomNotFound: true });
         }
       }
+    });
+
+    // 0b. Quick Join (1-Click Instant Match finding or auto-creating)
+    socket.on('room:quick_join', ({ accountId, playerName, avatar, address }, callback) => {
+      const validAccountId = accountId || roomManager.getAccountIdBySocket(socket.id) || `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      serverDb.getOrCreateUser(validAccountId, { name: playerName, avatar, address });
+      socket.join(`user:${validAccountId}`);
+
+      const result = roomManager.quickJoin(validAccountId, socket.id, playerName, avatar, address);
+      if (result.success && result.room) {
+        socket.join(result.room.roomId);
+        const resolvedId = result.playerId || validAccountId;
+        const sanitized = result.room.getSanitizedStateForPlayer(resolvedId);
+        socket.emit('game:state', sanitized);
+
+        if (typeof callback === 'function') {
+          callback({
+            success: true,
+            roomCode: result.room.roomCode,
+            roomId: result.room.roomId,
+            accountId: resolvedId,
+            isHost: result.isHost,
+            gameState: sanitized,
+          });
+        }
+        roomManager.broadcastRoomState(result.room);
+      } else {
+        if (typeof callback === 'function') {
+          callback({ success: false, error: 'Could not find or create a match' });
+        }
+      }
+    });
+
+    // 0c. Profile Sync (keeps client and server profiles synchronized)
+    socket.on('profile:sync', ({ accountId, name, avatar, bio, address }, callback) => {
+      if (!accountId) {
+        if (typeof callback === 'function') callback({ success: false });
+        return;
+      }
+      socket.join(`user:${accountId}`);
+      const user = serverDb.getOrCreateUser(accountId, { name, avatar, address });
+      if (name || avatar || bio !== undefined) {
+        serverDb.updateUserProfile(accountId, { name, avatar, bio, address });
+      }
+      if (typeof callback === 'function') {
+        callback({ success: true, profile: serverDb.getUser(accountId) });
+      }
+    });
+
+    // 0d. Live Friends Query & Management via Socket
+    socket.on('friends:list', ({ accountId }, callback) => {
+      if (!accountId) {
+        if (typeof callback === 'function') callback({ friends: [] });
+        return;
+      }
+      const friends = serverDb.getEnrichedFriends(accountId);
+      const user = serverDb.getUser(accountId);
+      if (typeof callback === 'function') {
+        callback({
+          friends,
+          requestsReceived: user ? user.friendRequestsReceived.map(id => serverDb.getUser(id)).filter(Boolean) : [],
+          requestsSent: user ? user.friendRequestsSent.map(id => serverDb.getUser(id)).filter(Boolean) : [],
+        });
+      }
+    });
+
+    socket.on('friends:send_invite', ({ accountId, friendId, roomCode }, callback) => {
+      const sender = serverDb.getUser(accountId);
+      if (sender && friendId && roomCode) {
+        io.to(`user:${friendId}`).emit('invite:received', {
+          senderId: sender.id,
+          senderName: sender.name,
+          senderAvatar: sender.avatar,
+          roomCode,
+          timestamp: Date.now(),
+        });
+      }
+      if (typeof callback === 'function') callback({ success: true });
     });
 
     // 1. Create room

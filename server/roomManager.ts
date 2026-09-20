@@ -1,6 +1,7 @@
 import { Server as SocketIOServer } from 'socket.io';
 import { GameRoom } from './gameEngine.js';
-import { CardColor, CardsDrawnEvent, CardPlayedEvent, ChatMessage, PublicRoomSummary } from '../src/types.js';
+import { CardColor, CardsDrawnEvent, CardPlayedEvent, ChatMessage, PublicRoomSummary, Player } from '../src/types.js';
+import { serverDb } from './database.js';
 
 export class RoomManager {
   private io: SocketIOServer;
@@ -60,7 +61,15 @@ export class RoomManager {
       (intensity: number) => this.io.to(room.roomId).emit('game:shake', { intensity }),
       (data: CardsDrawnEvent) => this.io.to(room.roomId).emit('game:cards_drawn', data),
       (data: CardPlayedEvent) => this.io.to(room.roomId).emit('game:card_played', data),
-      (msg: ChatMessage) => this.io.to(room.roomId).emit('chat:message', msg)
+      (msg: ChatMessage) => this.io.to(room.roomId).emit('chat:message', msg),
+      (winner: Player, players: Player[], pot: string, cardsPlayedMap: Record<string, number>) => {
+        serverDb.recordGameFinished(
+          winner.id,
+          players.filter(p => !p.isBot).map(p => p.id),
+          pot,
+          cardsPlayedMap
+        );
+      }
     );
 
     room.addPlayer({
@@ -78,6 +87,16 @@ export class RoomManager {
     this.socketToRoomId.set(hostSocketId, roomId);
     this.socketToAccountId.set(hostSocketId, accountId);
     this.accountToRoomId.set(accountId, roomId);
+
+    // Persist user and room state
+    serverDb.getOrCreateUser(accountId, { name: playerName, avatar, address });
+    serverDb.setUserPresence(accountId, 'in_game', roomCode);
+    serverDb.saveRecentRoom(roomCode, {
+      hostName: playerName || 'Player 1',
+      hostAvatar: avatar || '🦊',
+      buyIn: room.buyInAmount,
+      status: 'lobby',
+    });
 
     this.io.emit('rooms:public_list', this.getPublicRooms());
     return room;
@@ -200,9 +219,64 @@ export class RoomManager {
       isSystem: true,
     });
 
+    serverDb.getOrCreateUser(accountId, { name: playerName, avatar, address });
+    serverDb.setUserPresence(accountId, 'in_game', room.roomCode);
+
     this.io.emit('rooms:public_list', this.getPublicRooms());
     this.broadcastRoomState(room);
     return { success: true, room, playerId: accountId };
+  }
+
+  public quickJoin(
+    accountId: string,
+    socketId: string,
+    playerName: string,
+    avatar: string,
+    address?: string
+  ): { success: boolean; room: GameRoom; isHost: boolean; playerId: string } {
+    this.clearDisconnectTimer(accountId);
+
+    // If already in a room, resume or return it
+    const existingRoomId = this.accountToRoomId.get(accountId);
+    if (existingRoomId) {
+      const existing = this.rooms.get(existingRoomId);
+      if (existing) {
+        const resumeRes = this.resumeSession(accountId, socketId, existing.roomCode, address);
+        if (resumeRes.success && resumeRes.room) {
+          return {
+            success: true,
+            room: resumeRes.room,
+            isHost: resumeRes.room.hostId === accountId,
+            playerId: resumeRes.playerId || accountId,
+          };
+        }
+      }
+    }
+
+    // Find first open public table waiting for players in lobby
+    let openRoom: GameRoom | null = null;
+    for (const r of this.rooms.values()) {
+      if (r.status === 'lobby' && r.players.length < 4) {
+        openRoom = r;
+        break;
+      }
+    }
+
+    if (openRoom) {
+      const joinRes = this.joinRoom(openRoom.roomCode, accountId, socketId, playerName, avatar, address);
+      if (joinRes.success && joinRes.room) {
+        return {
+          success: true,
+          room: joinRes.room,
+          isHost: joinRes.room.hostId === accountId,
+          playerId: joinRes.playerId || accountId,
+        };
+      }
+    }
+
+    // Otherwise create a fresh table instantly
+    const newRoom = this.createRoom(accountId, socketId, playerName, avatar, '0.000', address);
+    return { success: true, room: newRoom, isHost: true, playerId: accountId };
   }
 
   public resumeSession(
@@ -323,6 +397,7 @@ export class RoomManager {
 
     const roomId = this.accountToRoomId.get(accountId);
     this.accountToRoomId.delete(accountId);
+    serverDb.setUserPresence(accountId, 'online', null);
 
     if (socketId) {
       this.socketToRoomId.delete(socketId);
@@ -404,6 +479,7 @@ export class RoomManager {
       const p = room.players.find(pl => pl.id === accountId);
       if (p && !p.isConnected) {
         this.accountToRoomId.delete(accountId);
+        serverDb.setUserPresence(accountId, 'offline', null);
         room.removePlayer(accountId);
 
         const humanCount = room.players.filter(pl => !pl.isBot).length;

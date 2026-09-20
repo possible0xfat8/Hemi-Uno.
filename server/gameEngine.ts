@@ -114,6 +114,7 @@ export class GameRoom {
 
   public spectators: Map<string, { id: string; socketId: string; name: string; avatar: string }> = new Map();
   public messages: ChatMessage[] = [];
+  public cardsPlayedPerPlayer: Record<string, number> = {};
 
   private turnInterval: NodeJS.Timeout | null = null;
   private onStateChangeCallback: (() => void) | null = null;
@@ -122,6 +123,7 @@ export class GameRoom {
   private onCardsDrawnCallback: ((data: CardsDrawnEvent) => void) | null = null;
   private onCardPlayedCallback: ((data: CardPlayedEvent) => void) | null = null;
   private onChatMessageCallback: ((msg: ChatMessage) => void) | null = null;
+  private onGameOverCallback: ((winner: Player, players: Player[], pot: string, cardsPlayedMap: Record<string, number>) => void) | null = null;
 
   constructor(roomId: string, roomCode: string, hostId: string) {
     this.roomId = roomId;
@@ -135,7 +137,8 @@ export class GameRoom {
     onShake: (intensity: number) => void,
     onCardsDrawn: (data: CardsDrawnEvent) => void,
     onCardPlayed: (data: CardPlayedEvent) => void,
-    onChatMessage?: (msg: ChatMessage) => void
+    onChatMessage?: (msg: ChatMessage) => void,
+    onGameOver?: (winner: Player, players: Player[], pot: string, cardsPlayedMap: Record<string, number>) => void
   ) {
     this.onStateChangeCallback = onStateChange;
     this.onSoundCallback = onSound;
@@ -144,6 +147,9 @@ export class GameRoom {
     this.onCardPlayedCallback = onCardPlayed;
     if (onChatMessage) {
       this.onChatMessageCallback = onChatMessage;
+    }
+    if (onGameOver) {
+      this.onGameOverCallback = onGameOver;
     }
   }
 
@@ -422,6 +428,7 @@ export class GameRoom {
     });
 
     this.triggerSound('play');
+    this.cardsPlayedPerPlayer[curPlayer.id] = (this.cardsPlayedPerPlayer[curPlayer.id] || 0) + 1;
 
     // Handle Wild color selection
     if (isWild && chosenColor) {
@@ -791,6 +798,10 @@ export class GameRoom {
     this.triggerShake(2.5);
 
     this.createSettlement();
+    if (this.onGameOverCallback) {
+      const potAmount = (this.players.length * parseFloat(this.buyInAmount)).toFixed(3);
+      this.onGameOverCallback(winner, this.players, potAmount, this.cardsPlayedPerPlayer);
+    }
     this.emitUpdate();
   }
 

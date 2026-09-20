@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { GameState, Card, CardColor, FloatingEmote, ChatMessage, PublicRoomSummary } from './types';
+import { GameState, Card, CardColor, FloatingEmote, ChatMessage, PublicRoomSummary, GameInviteEvent } from './types';
 import { soundEngine } from './utils/audio';
 import { CardComponent } from './components/CardComponent';
 import { OpponentSeat } from './components/OpponentSeat';
@@ -13,6 +13,9 @@ import { RulesModal } from './components/RulesModal';
 import { CardTransferAnimation } from './components/CardTransferAnimation';
 import { ChatPanel } from './components/ChatPanel';
 import { WalletConnectButton } from './components/WalletConnectButton';
+import { ProfileModal } from './components/ProfileModal';
+import { FriendsModal } from './components/FriendsModal';
+import { GameInviteToast } from './components/GameInviteToast';
 import {
   WalletState,
   getInjectedProvider,
@@ -38,6 +41,8 @@ import {
   MessageSquare,
   Users,
   RefreshCw,
+  User,
+  Zap,
 } from 'lucide-react';
 
 export default function App() {
@@ -51,6 +56,13 @@ export default function App() {
   const [isMuted, setIsMuted] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [screenShake, setScreenShake] = useState(false);
+
+  // Profile & Social State
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isFriendsOpen, setIsFriendsOpen] = useState(false);
+  const [currentInvite, setCurrentInvite] = useState<GameInviteEvent | null>(null);
+  const [friendCount, setFriendCount] = useState(0);
+  const [onlineFriendCount, setOnlineFriendCount] = useState(0);
 
   // Web3 Wallet state
   const [wallet, setWallet] = useState<WalletState>({
@@ -255,6 +267,22 @@ export default function App() {
       .catch(() => {});
   };
 
+  // Helper to fetch friends summary
+  const refreshFriendsSummary = () => {
+    fetch(`/api/friends/${account.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.friends) {
+          setFriendCount(data.friends.length);
+          const onlineCount = data.friends.filter(
+            (f: any) => f.presence === 'online' || f.presence === 'in_game'
+          ).length;
+          setOnlineFriendCount(onlineCount);
+        }
+      })
+      .catch(() => {});
+  };
+
   // Initialize Socket.IO connection with auto-reconnect and session resume
   useEffect(() => {
     const s = io(window.location.origin, {
@@ -269,6 +297,15 @@ export default function App() {
     s.on('connect', () => {
       setSocketConnected(true);
       setConnectionStatus('connected');
+
+      // Sync user profile to server database & presence table
+      s.emit('profile:sync', {
+        id: account.id,
+        name: account.name,
+        avatar: account.avatar,
+        bio: account.bio,
+        address: wallet.address || account.address,
+      });
 
       // Attempt to resume session with persistent accountId & dual-key resolution
       const urlParams = new URLSearchParams(window.location.search);
@@ -308,6 +345,18 @@ export default function App() {
       );
 
       refreshLiveRooms(s);
+      refreshFriendsSummary();
+    });
+
+    // Listen for incoming game invites from friends
+    s.on('invite:received', (invite: GameInviteEvent) => {
+      setCurrentInvite(invite);
+      soundEngine.play('card_deal');
+    });
+
+    // Refresh friends list when friend status changes or request is accepted
+    s.on('friends:status_update', () => {
+      refreshFriendsSummary();
     });
 
     s.on('disconnect', () => {
@@ -529,6 +578,62 @@ export default function App() {
         }
       }
     );
+  };
+
+  // 1-Click Quick Match - joins open waiting room or creates one automatically
+  const handleQuickJoin = () => {
+    if (!socket) return;
+    setErrorMessage(null);
+    socket.emit(
+      'room:quick_join',
+      {
+        playerName: account.name,
+        avatar: account.avatar,
+        address: wallet.address || account.address || undefined,
+        userId: account.id,
+      },
+      (res: any) => {
+        if (!res.success) {
+          setErrorMessage(res.error || 'Failed to quick-join room');
+        } else {
+          setActiveRoomCode(res.roomCode);
+          if (res.gameState) {
+            setGameState(res.gameState);
+          }
+          setChatMessages([]);
+          const currentUrl = new URL(window.location.href);
+          currentUrl.searchParams.set('room', res.roomCode);
+          currentUrl.searchParams.delete('join');
+          window.history.replaceState({}, '', currentUrl.toString());
+        }
+      }
+    );
+  };
+
+  // Invite friend to room
+  const handleInviteFriend = (friendId: string, roomCode: string) => {
+    if (!socket) return;
+    socket.emit('invite:send', {
+      friendId,
+      roomCode,
+      senderName: account.name,
+      senderAvatar: account.avatar,
+    });
+  };
+
+  // Update profile and sync to database & socket
+  const handleSaveProfile = (updates: Partial<AccountProfile>) => {
+    const updated = saveAccountProfile(updates);
+    setAccount(updated);
+    if (socket) {
+      socket.emit('profile:sync', {
+        id: updated.id,
+        name: updated.name,
+        avatar: updated.avatar,
+        bio: updated.bio,
+        address: wallet.address || updated.address,
+      });
+    }
   };
 
   const handleSpectateRoom = (roomCode: string, spectatorName: string, avatar: string) => {
@@ -761,6 +866,29 @@ export default function App() {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {/* Profile Quick Button */}
+          <button
+            onClick={() => setIsProfileOpen(true)}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer shadow-sm"
+            title="Open Profile & Career Stats"
+          >
+            <span className="text-sm">{account.avatar}</span>
+            <span className="hidden md:inline max-w-[90px] truncate">{account.name}</span>
+          </button>
+
+          {/* Friends Quick Button */}
+          <button
+            onClick={() => setIsFriendsOpen(true)}
+            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-400 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer relative shadow-sm"
+            title="Friends & Social"
+          >
+            <Users className="w-4 h-4" />
+            <span className="hidden md:inline">Friends</span>
+            {onlineFriendCount > 0 && (
+              <span className="w-2 h-2 rounded-full bg-emerald-400 absolute top-1.5 right-1.5 sm:static sm:w-2 sm:h-2" />
+            )}
+          </button>
+
           {/* Header Wallet Connect Widget */}
           <WalletConnectButton
             wallet={wallet}
@@ -784,7 +912,7 @@ export default function App() {
 
           <button
             onClick={() => setShowRules(true)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
             title="Game Rules"
           >
             <HelpCircle className="w-4 h-4" />
@@ -792,7 +920,7 @@ export default function App() {
 
           <button
             onClick={toggleMute}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
             title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
           >
             {isMuted ? (
@@ -805,7 +933,7 @@ export default function App() {
           {gameState && !isSpectator && (
             <button
               onClick={handleLeaveRoom}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 transition-colors"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer"
               title="Leave Room"
             >
               <LogOut className="w-4 h-4" />
@@ -831,13 +959,17 @@ export default function App() {
             wallet={wallet}
             account={account}
             onUpdateProfile={(name, avatar) => {
-              const updated = saveAccountProfile({ name, avatar });
-              setAccount(updated);
+              handleSaveProfile({ name, avatar });
             }}
             connectionStatus={connectionStatus}
             onConnectWallet={handleConnectWallet}
             onCreateRoom={handleCreateRoom}
             onJoinRoom={handleJoinRoom}
+            onQuickJoin={handleQuickJoin}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenFriends={() => setIsFriendsOpen(true)}
+            friendCount={friendCount}
+            onlineFriendCount={onlineFriendCount}
             onSpectateRoom={handleSpectateRoom}
             onToggleReady={handleToggleReady}
             onAddBot={handleAddBot}
@@ -1072,6 +1204,41 @@ export default function App() {
       />
 
       <RulesModal isOpen={showRules} onClose={() => setShowRules(false)} />
+
+      {/* User Profile & Database Career Stats Modal */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => {
+          setIsProfileOpen(false);
+          refreshFriendsSummary();
+        }}
+        account={account}
+        onSaveProfile={handleSaveProfile}
+        wallet={wallet}
+      />
+
+      {/* Friends & Social Modal */}
+      <FriendsModal
+        isOpen={isFriendsOpen}
+        onClose={() => {
+          setIsFriendsOpen(false);
+          refreshFriendsSummary();
+        }}
+        account={account}
+        activeRoomCode={gameState?.roomCode || null}
+        onJoinRoom={(code) => handleJoinRoom(code, account.name, account.avatar, wallet.address || undefined)}
+        onInviteFriend={handleInviteFriend}
+      />
+
+      {/* Incoming Friend Game Invite Toast */}
+      <GameInviteToast
+        invite={currentInvite}
+        onAccept={(roomCode) => {
+          setCurrentInvite(null);
+          handleJoinRoom(roomCode, account.name, account.avatar, wallet.address || undefined);
+        }}
+        onDismiss={() => setCurrentInvite(null)}
+      />
 
       {gameState && gameState.status === 'game_over' && (
         <VictoryModal

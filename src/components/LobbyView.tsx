@@ -16,18 +16,27 @@ import {
   Coins,
   Tv,
   Wallet,
+  Zap,
+  User,
+  Flame,
+  ArrowRight,
 } from 'lucide-react';
 
 interface LobbyViewProps {
   gameState: GameState | null;
   myPlayerId: string;
   wallet: WalletState;
-  account?: { id: string; name: string; avatar: string };
+  account?: { id: string; name: string; avatar: string; bio?: string };
   onUpdateProfile?: (name: string, avatar: string) => void;
   connectionStatus?: 'connected' | 'reconnecting' | 'offline';
   onConnectWallet: () => Promise<void>;
   onCreateRoom: (playerName: string, avatar: string, buyIn: string, address?: string) => void;
   onJoinRoom: (roomCode: string, playerName: string, avatar: string, address?: string) => void;
+  onQuickJoin?: () => void;
+  onOpenProfile?: () => void;
+  onOpenFriends?: () => void;
+  friendCount?: number;
+  onlineFriendCount?: number;
   onSpectateRoom: (roomCode: string, spectatorName: string, avatar: string) => void;
   onToggleReady: () => void;
   onAddBot: () => void;
@@ -54,6 +63,11 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   onConnectWallet,
   onCreateRoom,
   onJoinRoom,
+  onQuickJoin,
+  onOpenProfile,
+  onOpenFriends,
+  friendCount = 0,
+  onlineFriendCount = 0,
   onSpectateRoom,
   onToggleReady,
   onAddBot,
@@ -306,10 +320,21 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             {!isSpectator && playerCount < 5 && (
               <button
                 onClick={onAddBot}
-                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
               >
                 <Bot className="w-4 h-4 text-blue-400" />
                 <span>Add AI Bot</span>
+              </button>
+            )}
+
+            {onOpenFriends && (
+              <button
+                onClick={onOpenFriends}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                title="Invite friends to this room lobby"
+              >
+                <Users className="w-4 h-4 text-blue-400" />
+                <span>Invite Friends</span>
               </button>
             )}
 
@@ -419,6 +444,90 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               <span>Return to Game</span>
             </button>
           )}
+        </div>
+      )}
+
+      {/* Profile & Friends Quick Nav Bar */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        {/* Profile & Stats Button */}
+        <button
+          onClick={onOpenProfile}
+          className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-950 border border-slate-800 hover:border-amber-500/40 flex items-center justify-between text-left transition-all group cursor-pointer shadow-md"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              {selectedAvatar}
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-black text-white truncate group-hover:text-amber-400 transition-colors">
+                {playerName}
+              </div>
+              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                <User className="w-3 h-3 text-amber-400" />
+                <span>Profile & Stats</span>
+              </div>
+            </div>
+          </div>
+          <span className="text-slate-600 group-hover:text-amber-400 text-xs font-bold transition-colors">
+            →
+          </span>
+        </button>
+
+        {/* Friends & Social Button */}
+        <button
+          onClick={onOpenFriends}
+          className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-950 border border-slate-800 hover:border-blue-500/40 flex items-center justify-between text-left transition-all group cursor-pointer shadow-md"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Users className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-black text-white truncate group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
+                <span>Friends</span>
+                {onlineFriendCount > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                )}
+              </div>
+              <div className="text-[10px] text-slate-400 font-mono">
+                {friendCount} Added {onlineFriendCount > 0 ? `• ${onlineFriendCount} Online` : ''}
+              </div>
+            </div>
+          </div>
+          <span className="text-slate-600 group-hover:text-blue-400 text-xs font-bold transition-colors">
+            →
+          </span>
+        </button>
+      </div>
+
+      {/* ⚡ Quick Play (1-Click Instant Match) - Solves "code entering is hard" */}
+      {onQuickJoin && (
+        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-slate-950 border-2 border-amber-500/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3 text-left w-full sm:w-auto">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-amber-500/30 shrink-0">
+              <Zap className="w-6 h-6 fill-current" />
+            </div>
+            <div>
+              <div className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <span>1-Click Matchmaking</span>
+                <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-[10px] font-bold">Fastest</span>
+              </div>
+              <h3 className="text-sm font-black text-white">
+                Quick Play (No Code Required)
+              </h3>
+              <p className="text-[11px] text-slate-300">
+                Instantly joins an open public lobby or starts a match for you.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={onQuickJoin}
+            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
+          >
+            <Play className="w-4 h-4 fill-current" />
+            <span>Quick Play</span>
+          </button>
         </div>
       )}
 
@@ -624,6 +733,76 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             >
               Join Room
             </button>
+          </div>
+
+          {/* Open Public Tables - 1-Click Join (Solves code entering is hard) */}
+          <div className="sm:col-span-2 p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                  Open Waiting Tables (1-Click Join)
+                </h4>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono">
+                No code typing required
+              </span>
+            </div>
+
+            {(() => {
+              const openLobbies = liveRooms.filter((r) => r.status === 'lobby' && r.playerCount < 4);
+              if (openLobbies.length === 0) {
+                return (
+                  <div className="py-4 text-center text-xs text-slate-500 italic bg-slate-900/40 rounded-xl border border-slate-800/50">
+                    No waiting tables right now. Click "Quick Play" above or "Create New Room" to start one!
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-2">
+                  {openLobbies.map((r) => {
+                    const host = r.players && r.players.length > 0 ? r.players[0] : null;
+                    const hostAvatar = host?.avatar || '🎮';
+                    const hostName = host?.name || 'Host';
+                    const buyInVal = r.escrowPot?.buyInAmount || '0.005';
+
+                    return (
+                      <div
+                        key={r.roomCode}
+                        className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3 hover:border-slate-700 transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-sm shrink-0">
+                            {hostAvatar}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                              <span className="truncate">{hostName}'s Table</span>
+                              <span className="font-mono text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded">
+                                {r.roomCode}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                              <span>{r.playerCount}/4 Players</span>
+                              <span>•</span>
+                              <span className="text-amber-400 font-mono">{buyInVal} ETH</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => onJoinRoom(r.roomCode, playerName, selectedAvatar, wallet.address || undefined)}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0 cursor-pointer"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>1-Click Join</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

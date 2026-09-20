@@ -10,20 +10,23 @@ export interface AccountProfile {
   id: string;
   name: string;
   avatar: string;
+  bio?: string;
   address?: string;
 }
 
 const STORAGE_KEY_PROFILE = 'uno_arcade_profile_v2';
 const STORAGE_KEY_ROOM = 'uno_arcade_active_room_v2';
 
-const DEFAULT_AVATARS = ['🦊', '🦁', '🐸', '🤖', '⚡', '💎', '🐉', '🐱'];
-const DEFAULT_NAMES = [
+export const DEFAULT_AVATARS = ['🦊', '🦁', '🐸', '🤖', '⚡', '💎', '🐉', '🐱', '🐼', '🦄', '🐯', '🦅'];
+export const DEFAULT_NAMES = [
   'ChadCard',
   'HemiHustler',
   'BlockBuster',
   'SepoliaShark',
   'TurboPlayer',
   'NeonKnight',
+  'CosmicDraw',
+  'WildJoker',
 ];
 
 function generateAccountId(): string {
@@ -38,6 +41,7 @@ export function getOrCreateAccountProfile(): AccountProfile {
       id: 'acc_server_placeholder',
       name: 'Player',
       avatar: '🦊',
+      bio: 'Ready to play UNO!',
     };
   }
 
@@ -50,6 +54,7 @@ export function getOrCreateAccountProfile(): AccountProfile {
           id: parsed.id,
           name: parsed.name || 'ChadCard',
           avatar: parsed.avatar || '🦊',
+          bio: parsed.bio || 'UNO enthusiast & strategist',
           address: parsed.address,
         };
       }
@@ -63,6 +68,7 @@ export function getOrCreateAccountProfile(): AccountProfile {
     id: generateAccountId(),
     name: DEFAULT_NAMES[Math.floor(Math.random() * DEFAULT_NAMES.length)],
     avatar: DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)],
+    bio: 'UNO enthusiast & strategist',
   };
 
   try {
