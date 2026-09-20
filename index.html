@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        // Guard against wallet extension collisions (e.g., Zerion, MetaMask, Rabby redefining properties on window.ethereum)
+        var originalDefineProperty = Object.defineProperty;
+        try {
+          Object.defineProperty = function(obj, prop, descriptor) {
+            try {
+              if (descriptor && typeof descriptor === 'object') {
+                return originalDefineProperty.call(Object, obj, prop, Object.assign({}, descriptor, { configurable: true }));
+              }
+              return originalDefineProperty.call(Object, obj, prop, descriptor);
+            } catch (err) {
+              if (
+                err instanceof TypeError &&
+                (String(err && err.message).includes('Cannot redefine property') ||
+                 String(prop).includes('isZerion') ||
+                 String(prop).includes('ethereum'))
+              ) {
+                try {
+                  if (descriptor && 'value' in descriptor) {
+                    obj[prop] = descriptor.value;
+                  }
+                } catch (_) {}
+                return obj;
+              }
+              throw err;
+            }
+          };
+        } catch (_) {}
+
+        // Global unhandled error suppression for extension injection collisions
+        window.addEventListener('error', function(event) {
+          var msg = (event && (event.message || (event.error && event.error.message))) || '';
+          if (
+            msg.includes('isZerion') ||
+            msg.includes('Cannot redefine property')
+          ) {
+            if (event.preventDefault) event.preventDefault();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          var msg = (event && event.reason && (event.reason.message || String(event.reason))) || '';
+          if (
+            msg.includes('isZerion') ||
+            msg.includes('Cannot redefine property')
+          ) {
+            if (event.preventDefault) event.preventDefault();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
+    <title>Hemi UNO Arcade - Multiplayer Card Game</title>
+    <meta name="description" content="Fast-paced real-time multiplayer Crazy Eights and UNO card game on authoritative WebSocket backend for Hemi Testnet." />
+    <meta property="og:title" content="Hemi UNO Arcade - Multiplayer Card Game" />
+    <meta property="og:description" content="Fast-paced real-time multiplayer Crazy Eights and UNO card game on authoritative WebSocket backend for Hemi Testnet." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-slate-950 text-slate-100 antialiased selection:bg-amber-500 selection:text-slate-950 overflow-x-hidden">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

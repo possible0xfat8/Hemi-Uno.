@@ -1,0 +1,144 @@
+export type CardColor = 'red' | 'blue' | 'green' | 'yellow' | 'wild';
+
+export type CardValue =
+  | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+  | 'draw2' | 'skip' | 'reverse' | 'wild' | 'wild_draw4';
+
+export interface Card {
+  id: string;
+  color: CardColor;
+  value: CardValue;
+  label: string;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  avatar: string;
+  isHost: boolean;
+  isReady: boolean;
+  isBot?: boolean;
+  isConnected: boolean;
+  cardCount: number;
+  hand?: Card[]; // Only provided to current recipient player
+  seatIndex: number;
+  hasCalledLastCard?: boolean;
+  address?: string;
+}
+
+export type BannerType = 'REVERSE' | 'SKIP' | 'LAST_CARD' | 'DRAW2' | 'DRAW4' | 'WILD' | 'TURN_TIMEOUT';
+
+export interface BannerAlert {
+  id: string;
+  type: BannerType;
+  text: string;
+  playerId?: string;
+  playerName?: string;
+}
+
+export interface FloatingEmote {
+  id: string;
+  playerId: string;
+  emoji: string;
+  text?: string;
+  timestamp: number;
+}
+
+export interface EscrowPotInfo {
+  amount: string;
+  currency: string;
+  buyInAmount: string;
+}
+
+export interface SettlementSignature {
+  roomId: string;
+  winnerAddress: string;
+  potAmount: string;
+  nonce: number;
+  timestamp: number;
+  signature: string;
+  contractAddress: string;
+  network: string;
+}
+
+export interface CardsDrawnEvent {
+  id: string;
+  playerId: string;
+  playerName: string;
+  playerAvatar: string;
+  count: number;
+  isPenalty: boolean;
+  timestamp: number;
+}
+
+export interface CardPlayedEvent {
+  id: string;
+  playerId: string;
+  playerName: string;
+  playerAvatar: string;
+  card: Card;
+  chosenColor?: CardColor;
+  timestamp: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  roomId: string;
+  roomCode: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  text: string;
+  timestamp: number;
+  isSpectator?: boolean;
+  isSystem?: boolean;
+}
+
+export interface PublicRoomSummary {
+  roomId: string;
+  roomCode: string;
+  status: 'lobby' | 'playing' | 'game_over';
+  playerCount: number;
+  maxPlayers: number;
+  spectatorCount: number;
+  players: {
+    id: string;
+    name: string;
+    avatar: string;
+    isBot?: boolean;
+  }[];
+  activeColor: CardColor | null;
+  topDiscardCard?: Card | null;
+  escrowPot: EscrowPotInfo;
+}
+
+export interface GameState {
+  roomId: string;
+  roomCode: string;
+  hostId: string;
+  status: 'lobby' | 'playing' | 'game_over';
+  players: Player[];
+  currentTurnPlayerId: string | null;
+  currentTurnIndex: number;
+  turnDirection: 1 | -1; // 1 = clockwise, -1 = counter-clockwise
+  turnTimeRemaining: number;
+  turnTimeTotal: number;
+  topDiscardCard: Card | null;
+  activeColor: CardColor | null;
+  drawPileCount: number;
+  drawPendingForPlayer: boolean;
+  drawnCard: Card | null;
+  pendingDrawCount: number; // Defended / stacked draw cards pending (+2, +4)
+  lastActionMessage: string | null;
+  bannerAlert: BannerAlert | null;
+  winner: {
+    id: string;
+    name: string;
+    avatar: string;
+    address?: string;
+  } | null;
+  escrowPot: EscrowPotInfo;
+  settlementSignature?: SettlementSignature | null;
+  spectatorCount?: number;
+  isSpectator?: boolean;
+}

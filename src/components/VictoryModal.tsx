@@ -1,0 +1,146 @@
+import React, { useEffect, useState } from 'react';
+import confetti from 'canvas-confetti';
+import { GameState } from '../types';
+import { Trophy, CheckCircle2, Copy, ArrowRight, ShieldCheck } from 'lucide-react';
+
+interface VictoryModalProps {
+  gameState: GameState;
+  myPlayerId: string;
+  isHost: boolean;
+  onRematch: () => void;
+}
+
+export const VictoryModal: React.FC<VictoryModalProps> = ({
+  gameState,
+  myPlayerId,
+  isHost,
+  onRematch,
+}) => {
+  const [copied, setCopied] = useState(false);
+  const [claimed, setClaimed] = useState(false);
+  const winner = gameState.winner;
+  const isMe = winner?.id === myPlayerId;
+  const signature = gameState.settlementSignature;
+
+  useEffect(() => {
+    // Launch celebratory confetti
+    confetti({
+      particleCount: 120,
+      spread: 80,
+      origin: { y: 0.6 },
+    });
+  }, []);
+
+  const handleCopySignature = () => {
+    if (signature) {
+      navigator.clipboard.writeText(JSON.stringify(signature, null, 2));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleClaim = () => {
+    setClaimed(true);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-slate-900 border-2 border-amber-500/60 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl shadow-amber-500/20 text-center relative overflow-hidden">
+        {/* Glow backdrop */}
+        <div className="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-amber-500/40 mb-3 animate-bounce">
+            🏆
+          </div>
+
+          <div className="inline-block px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs font-bold mb-2">
+            GAME OVER • VICTORY!
+          </div>
+
+          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            {isMe ? 'YOU WON THE MATCH!' : `${winner?.name || 'Player'} Won!`}
+          </h2>
+
+          <p className="text-xs sm:text-sm text-slate-400 mt-1 mb-4">
+            {isMe
+              ? 'Congratulations! You shed all your cards first.'
+              : `${winner?.name} has emptied their hand first.`}
+          </p>
+
+          {/* Pot settlement badge */}
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 mb-5">
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+              Escrow Pot Award
+            </div>
+            <div className="text-2xl sm:text-3xl font-black text-amber-400 font-mono flex items-center justify-center gap-2">
+              <span>{gameState.escrowPot.amount}</span>
+              <span className="text-base text-amber-300 font-bold">{gameState.escrowPot.currency}</span>
+            </div>
+            <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-center gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>95% Winner Payout ({(parseFloat(gameState.escrowPot.amount) * 0.95).toFixed(3)} {gameState.escrowPot.currency}) • 5% Protocol Fee</span>
+            </div>
+          </div>
+
+          {/* Hemi Testnet EIP-712 Signature Box */}
+          {signature && (
+            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-amber-500/30 text-left text-xs mb-5 font-mono">
+              <div className="flex items-center justify-between text-slate-400 mb-2">
+                <span className="font-bold text-amber-400 flex items-center gap-1">
+                  <span>⚡</span> EIP-712 Settlement Proof
+                </span>
+                <button
+                  onClick={handleCopySignature}
+                  className="flex items-center gap-1 text-[11px] text-slate-300 hover:text-white bg-slate-800 px-2 py-0.5 rounded transition-colors"
+                >
+                  {copied ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copied ? 'Copied!' : 'Copy JSON'}</span>
+                </button>
+              </div>
+
+              <div className="space-y-1 text-[11px] text-slate-300">
+                <div className="truncate"><span className="text-slate-500">Contract:</span> {signature.contractAddress}</div>
+                <div className="truncate"><span className="text-slate-500">Winner:</span> {signature.winnerAddress}</div>
+                <div className="truncate"><span className="text-slate-500">Signature:</span> {signature.signature.substring(0, 24)}...</div>
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {isMe && (
+              <button
+                onClick={handleClaim}
+                disabled={claimed}
+                className={`
+                  px-6 py-3 rounded-xl font-black text-sm tracking-wide transition-all shadow-lg
+                  ${claimed
+                    ? 'bg-emerald-600/30 border border-emerald-500 text-emerald-300 cursor-default'
+                    : 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:brightness-110 active:scale-95 shadow-amber-500/30'}
+                `}
+              >
+                {claimed ? '✓ Pot Claim Verified (Hemi Testnet)' : '⚡ Claim Pot on Hemi Testnet'}
+              </button>
+            )}
+
+            {isHost ? (
+              <button
+                onClick={onRematch}
+                className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <span>Rematch / New Game</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <div className="text-xs text-slate-400 self-center py-2">
+                Waiting for host to start a rematch...
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

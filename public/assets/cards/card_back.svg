@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 360" width="240" height="360">
+  <defs>
+    <radialGradient id="ovalGlow" cx="50%" cy="50%" r="50%" fx="40%" fy="40%">
+      <stop offset="0%" stop-color="#ff2222" />
+      <stop offset="100%" stop-color="#b70000" />
+    </radialGradient>
+    <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Outer Card White Border -->
+  <rect x="4" y="4" width="232" height="352" rx="24" ry="24" fill="#ffffff" stroke="#111111" stroke-width="1.5" />
+
+  <!-- Inner Black Body -->
+  <rect x="12" y="12" width="216" height="336" rx="18" ry="18" fill="#111111" />
+
+  <!-- Background subtle pattern -->
+  <rect x="16" y="16" width="208" height="328" rx="16" ry="16" fill="none" stroke="#222222" stroke-width="2" stroke-dasharray="6,6" opacity="0.4" />
+
+  <!-- Center Tilted Red Oval (the signature Uno motif) -->
+  <ellipse cx="120" cy="180" rx="102" ry="68" transform="rotate(-32 120 180)" fill="url(#ovalGlow)" stroke="#ffffff" stroke-width="4" />
+
+  <!-- UNO Big Bold Shadow text -->
+  <text x="123" y="197" text-anchor="middle" dominant-baseline="middle" transform="rotate(-32 120 180)"
+        font-family="system-ui, -apple-system, sans-serif, Impact" font-weight="900" font-style="italic" font-size="74"
+        fill="#000000" letter-spacing="-2px">
+    UNO
+  </text>
+
+  <!-- UNO Big Bold Yellow/Amber Text -->
+  <text x="119" y="193" text-anchor="middle" dominant-baseline="middle" transform="rotate(-32 120 180)"
+        font-family="system-ui, -apple-system, sans-serif, Impact" font-weight="900" font-style="italic" font-size="74"
+        fill="#ffdd00" stroke="#ffffff" stroke-width="2.5" paint-order="stroke fill" letter-spacing="-2px">
+    UNO
+  </text>
+
+  <!-- Small corner logos / labels -->
+  <g transform="translate(24, 30)">
+    <ellipse cx="0" cy="0" rx="14" ry="9" transform="rotate(-30)" fill="#b70000" stroke="#fff" stroke-width="1" />
+    <text x="0" y="2" text-anchor="middle" dominant-baseline="middle" transform="rotate(-30)" font-family="Impact, sans-serif" font-size="10" font-weight="900" fill="#ffdd00">UNO</text>
+  </g>
+
+  <g transform="translate(216, 330) rotate(180)">
+    <ellipse cx="0" cy="0" rx="14" ry="9" transform="rotate(-30)" fill="#b70000" stroke="#fff" stroke-width="1" />
+    <text x="0" y="2" text-anchor="middle" dominant-baseline="middle" transform="rotate(-30)" font-family="Impact, sans-serif" font-size="10" font-weight="900" fill="#ffdd00">UNO</text>
+  </g>
+</svg>
