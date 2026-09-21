@@ -49,10 +49,20 @@ export class RoomManager {
       this.handleLeaveRoom(accountId, hostSocketId);
     }
 
+    const cleanAddr = address && address.startsWith('0x') ? address.trim().toLowerCase() : undefined;
+    if (!cleanAddr) {
+      throw new Error('Wallet connection required to create a game room');
+    }
+
+    const dbUser = serverDb.getUserByAddress(cleanAddr) || serverDb.linkOrGetUserByAddress(cleanAddr, accountId, { name: playerName, avatar });
+    const resolvedName = dbUser.name || playerName || 'Player 1';
+    const resolvedAvatar = dbUser.avatar || avatar || '🦊';
+    const canonicalAccountId = dbUser.id;
+
     const roomId = `room_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const roomCode = this.generateRoomCode();
 
-    const room = new GameRoom(roomId, roomCode, accountId);
+    const room = new GameRoom(roomId, roomCode, canonicalAccountId);
     room.buyInAmount = buyIn || '0.005';
 
     room.setCallbacks(
@@ -73,27 +83,26 @@ export class RoomManager {
     );
 
     room.addPlayer({
-      id: accountId,
+      id: canonicalAccountId,
       socketId: hostSocketId,
-      name: playerName || 'Player 1',
-      avatar: avatar || '🦊',
+      name: resolvedName,
+      avatar: resolvedAvatar,
       isHost: true,
       isConnected: true,
-      address: address || '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+      address: cleanAddr,
     });
 
     this.rooms.set(roomId, room);
     this.codeToRoomId.set(roomCode, roomId);
     this.socketToRoomId.set(hostSocketId, roomId);
-    this.socketToAccountId.set(hostSocketId, accountId);
-    this.accountToRoomId.set(accountId, roomId);
+    this.socketToAccountId.set(hostSocketId, canonicalAccountId);
+    this.accountToRoomId.set(canonicalAccountId, roomId);
 
     // Persist user and room state
-    serverDb.getOrCreateUser(accountId, { name: playerName, avatar, address });
-    serverDb.setUserPresence(accountId, 'in_game', roomCode);
+    serverDb.setUserPresence(canonicalAccountId, 'in_game', roomCode);
     serverDb.saveRecentRoom(roomCode, {
-      hostName: playerName || 'Player 1',
-      hostAvatar: avatar || '🦊',
+      hostName: resolvedName,
+      hostAvatar: resolvedAvatar,
       buyIn: room.buyInAmount,
       status: 'lobby',
     });
@@ -184,6 +193,16 @@ export class RoomManager {
       return { success: true, room, reconnected: true, playerId: accountId };
     }
 
+    const cleanAddr = address && address.startsWith('0x') ? address.trim().toLowerCase() : undefined;
+    if (!cleanAddr) {
+      return { success: false, error: 'Wallet connection required to join a game room' };
+    }
+
+    const dbUser = serverDb.getUserByAddress(cleanAddr) || serverDb.linkOrGetUserByAddress(cleanAddr, accountId, { name: playerName, avatar });
+    const resolvedName = dbUser.name || playerName || `Player ${room.players.length + 1}`;
+    const resolvedAvatar = dbUser.avatar || avatar || '🦁';
+    const canonicalId = dbUser.id;
+
     // New player joining
     if (room.status !== 'lobby') {
       return { success: false, error: 'Game is already in progress in this room' };
@@ -194,13 +213,13 @@ export class RoomManager {
     }
 
     const added = room.addPlayer({
-      id: accountId,
+      id: canonicalId,
       socketId,
-      name: playerName || `Player ${room.players.length + 1}`,
-      avatar: avatar || '🦁',
+      name: resolvedName,
+      avatar: resolvedAvatar,
       isHost: false,
       isConnected: true,
-      address: address || '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+      address: cleanAddr,
     });
 
     if (!added) {
@@ -208,8 +227,11 @@ export class RoomManager {
     }
 
     this.socketToRoomId.set(socketId, room.roomId);
-    this.socketToAccountId.set(socketId, accountId);
-    this.accountToRoomId.set(accountId, room.roomId);
+    this.socketToAccountId.set(socketId, canonicalId);
+    this.accountToRoomId.set(canonicalId, room.roomId);
+    if (accountId !== canonicalId) {
+      this.accountToRoomId.set(accountId, room.roomId);
+    }
 
     room.addChatMessage({
       senderId: 'system',
@@ -219,12 +241,11 @@ export class RoomManager {
       isSystem: true,
     });
 
-    serverDb.getOrCreateUser(accountId, { name: playerName, avatar, address });
-    serverDb.setUserPresence(accountId, 'in_game', room.roomCode);
+    serverDb.setUserPresence(canonicalId, 'in_game', room.roomCode);
 
     this.io.emit('rooms:public_list', this.getPublicRooms());
     this.broadcastRoomState(room);
-    return { success: true, room, playerId: accountId };
+    return { success: true, room, playerId: canonicalId };
   }
 
   public quickJoin(
@@ -233,21 +254,32 @@ export class RoomManager {
     playerName: string,
     avatar: string,
     address?: string
-  ): { success: boolean; room: GameRoom; isHost: boolean; playerId: string } {
+  ): { success: boolean; room?: GameRoom; isHost?: boolean; playerId?: string; error?: string } {
+    const cleanAddr = address && address.startsWith('0x') ? address.trim().toLowerCase() : undefined;
+    if (!cleanAddr) {
+      return { success: false, error: 'Wallet connection required for Quick Play' };
+    }
+
+    const dbUser = serverDb.getUserByAddress(cleanAddr) || serverDb.linkOrGetUserByAddress(cleanAddr, accountId, { name: playerName, avatar });
+    const resolvedName = dbUser.name || playerName || 'Player';
+    const resolvedAvatar = dbUser.avatar || avatar || '🦊';
+    const canonicalId = dbUser.id;
+
+    this.clearDisconnectTimer(canonicalId);
     this.clearDisconnectTimer(accountId);
 
     // If already in a room, resume or return it
-    const existingRoomId = this.accountToRoomId.get(accountId);
+    const existingRoomId = this.accountToRoomId.get(canonicalId) || this.accountToRoomId.get(accountId);
     if (existingRoomId) {
       const existing = this.rooms.get(existingRoomId);
       if (existing) {
-        const resumeRes = this.resumeSession(accountId, socketId, existing.roomCode, address);
+        const resumeRes = this.resumeSession(canonicalId, socketId, existing.roomCode, cleanAddr);
         if (resumeRes.success && resumeRes.room) {
           return {
             success: true,
             room: resumeRes.room,
-            isHost: resumeRes.room.hostId === accountId,
-            playerId: resumeRes.playerId || accountId,
+            isHost: resumeRes.room.hostId === canonicalId,
+            playerId: resumeRes.playerId || canonicalId,
           };
         }
       }
@@ -263,20 +295,24 @@ export class RoomManager {
     }
 
     if (openRoom) {
-      const joinRes = this.joinRoom(openRoom.roomCode, accountId, socketId, playerName, avatar, address);
+      const joinRes = this.joinRoom(openRoom.roomCode, canonicalId, socketId, resolvedName, resolvedAvatar, cleanAddr);
       if (joinRes.success && joinRes.room) {
         return {
           success: true,
           room: joinRes.room,
-          isHost: joinRes.room.hostId === accountId,
-          playerId: joinRes.playerId || accountId,
+          isHost: joinRes.room.hostId === canonicalId,
+          playerId: joinRes.playerId || canonicalId,
         };
       }
     }
 
     // Otherwise create a fresh table instantly
-    const newRoom = this.createRoom(accountId, socketId, playerName, avatar, '0.000', address);
-    return { success: true, room: newRoom, isHost: true, playerId: accountId };
+    try {
+      const newRoom = this.createRoom(canonicalId, socketId, resolvedName, resolvedAvatar, '0.000', cleanAddr);
+      return { success: true, room: newRoom, isHost: true, playerId: canonicalId };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   }
 
   public resumeSession(

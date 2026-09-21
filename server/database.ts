@@ -76,11 +76,47 @@ export class ServerDatabase {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         if (raw.trim()) {
           const parsed = JSON.parse(raw);
+          const rawUsers: Record<string, UserProfileRecord> = parsed.users || {};
+          const canonicalUsers: Record<string, UserProfileRecord> = {};
+
+          // Deduplicate and canonicalize all users keyed by wallet address
+          for (const [id, user] of Object.entries(rawUsers)) {
+            if (user.address && user.address.trim()) {
+              const cleanAddr = user.address.trim().toLowerCase();
+              const canonicalId = `wallet_${cleanAddr}`;
+              if (!canonicalUsers[canonicalId]) {
+                canonicalUsers[canonicalId] = {
+                  ...user,
+                  id: canonicalId,
+                  address: cleanAddr,
+                };
+              } else {
+                // Merge duplicate records for the same wallet address
+                const existing = canonicalUsers[canonicalId];
+                // Keep the latest customized name
+                if (user.updatedAt > existing.updatedAt || (!existing.name.startsWith('HemiPlayer_') && user.name)) {
+                  existing.name = user.name || existing.name;
+                  existing.avatar = user.avatar || existing.avatar;
+                  existing.bio = user.bio || existing.bio;
+                  existing.tag = user.tag || existing.tag;
+                }
+                existing.stats.matchesPlayed = Math.max(existing.stats.matchesPlayed || 0, user.stats?.matchesPlayed || 0);
+                existing.stats.wins = Math.max(existing.stats.wins || 0, user.stats?.wins || 0);
+                existing.stats.cardsPlayed = Math.max(existing.stats.cardsPlayed || 0, user.stats?.cardsPlayed || 0);
+                existing.lastSeen = Math.max(existing.lastSeen || 0, user.lastSeen || 0);
+                existing.updatedAt = Math.max(existing.updatedAt || 0, user.updatedAt || 0);
+              }
+            } else {
+              canonicalUsers[id] = user;
+            }
+          }
+
           this.data = {
-            users: parsed.users || {},
+            users: canonicalUsers,
             recentRooms: parsed.recentRooms || {},
           };
-          console.log(`[Database] Loaded ${Object.keys(this.data.users).length} user profiles from persistent storage.`);
+          this.saveSync();
+          console.log(`[Database] Loaded & canonicalized ${Object.keys(this.data.users).length} user profiles from persistent storage.`);
         }
       } else {
         this.saveSync();
@@ -116,15 +152,101 @@ export class ServerDatabase {
     return `${cleanName}#${num}`;
   }
 
+  public getUserByAddress(address: string): UserProfileRecord | null {
+    if (!address) return null;
+    const target = address.trim().toLowerCase();
+    const canonicalId = `wallet_${target}`;
+    if (this.data.users[canonicalId]) {
+      return this.data.users[canonicalId];
+    }
+    for (const user of Object.values(this.data.users)) {
+      if (user.address && user.address.trim().toLowerCase() === target) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  public linkOrGetUserByAddress(
+    address: string,
+    fallbackId?: string,
+    fallbackData?: { name?: string; avatar?: string; bio?: string }
+  ): UserProfileRecord {
+    if (!address) {
+      const id = fallbackId || `acc_${Date.now()}`;
+      return this.getOrCreateUser(id, fallbackData || {});
+    }
+
+    const cleanAddress = address.trim().toLowerCase();
+    const canonicalId = `wallet_${cleanAddress}`;
+
+    // Look up existing authoritative profile by address
+    const existing = this.getUserByAddress(cleanAddress);
+    if (existing) {
+      existing.lastSeen = Date.now();
+      // Ensure user is keyed canonically
+      if (existing.id !== canonicalId) {
+        delete this.data.users[existing.id];
+        existing.id = canonicalId;
+        existing.address = cleanAddress;
+        this.data.users[canonicalId] = existing;
+        this.save();
+      }
+      return existing;
+    }
+
+    // No profile exists yet for this wallet address - create canonical profile
+    const fallbackUser = fallbackId ? this.data.users[fallbackId] : null;
+    const defaultName = fallbackUser?.name || fallbackData?.name || `Player_${cleanAddress.slice(2, 6)}`;
+    const tag = fallbackUser?.tag || this.generateFriendTag(defaultName);
+
+    const newUser: UserProfileRecord = {
+      id: canonicalId,
+      tag,
+      name: defaultName,
+      avatar: fallbackUser?.avatar || fallbackData?.avatar || '🦊',
+      bio: fallbackUser?.bio || fallbackData?.bio || 'Hemi Testnet Card Champion',
+      address: cleanAddress,
+      status: 'online',
+      currentRoomCode: null,
+      lastSeen: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      stats: fallbackUser?.stats || {
+        matchesPlayed: 0,
+        wins: 0,
+        cardsPlayed: 0,
+        totalWinnings: '0.000',
+      },
+      friends: fallbackUser?.friends || [],
+      friendRequestsSent: fallbackUser?.friendRequestsSent || [],
+      friendRequestsReceived: fallbackUser?.friendRequestsReceived || [],
+      recentOpponents: fallbackUser?.recentOpponents || [],
+    };
+
+    if (fallbackId && fallbackId !== canonicalId && this.data.users[fallbackId]) {
+      delete this.data.users[fallbackId];
+    }
+
+    this.data.users[canonicalId] = newUser;
+    this.save();
+    return newUser;
+  }
+
   public getOrCreateUser(
     id: string,
-    initial: { name?: string; avatar?: string; address?: string }
+    initial: { name?: string; avatar?: string; address?: string; bio?: string }
   ): UserProfileRecord {
+    // If address is provided, always prioritize canonical wallet lookup
+    if (initial.address) {
+      return this.linkOrGetUserByAddress(initial.address, id, initial);
+    }
+
     if (this.data.users[id]) {
       const user = this.data.users[id];
       if (initial.name && !user.name) user.name = initial.name;
       if (initial.avatar && !user.avatar) user.avatar = initial.avatar;
-      if (initial.address) user.address = initial.address;
+      if (initial.bio && !user.bio) user.bio = initial.bio;
       user.lastSeen = Date.now();
       return user;
     }
@@ -137,8 +259,8 @@ export class ServerDatabase {
       tag,
       name,
       avatar: initial.avatar || '🦊',
-      bio: 'Ready to play Crazy Eights on Hemi!',
-      address: initial.address,
+      bio: initial.bio || 'Ready to play Crazy Eights on Hemi!',
+      address: undefined,
       status: 'online',
       currentRoomCode: null,
       lastSeen: Date.now(),
@@ -162,7 +284,14 @@ export class ServerDatabase {
   }
 
   public getUser(id: string): UserProfileRecord | null {
-    return this.data.users[id] || null;
+    if (!id) return null;
+    if (this.data.users[id]) return this.data.users[id];
+    if (id.startsWith('0x')) {
+      return this.getUserByAddress(id);
+    }
+    const walletKey = `wallet_${id.toLowerCase()}`;
+    if (this.data.users[walletKey]) return this.data.users[walletKey];
+    return null;
   }
 
   public getUserByTagOrName(query: string): UserProfileRecord | null {
@@ -202,14 +331,19 @@ export class ServerDatabase {
     id: string,
     updates: { name?: string; avatar?: string; bio?: string; address?: string }
   ): UserProfileRecord {
-    let user = this.data.users[id];
-    if (!user) {
-      user = this.getOrCreateUser(id, updates);
+    let user: UserProfileRecord | null = null;
+    if (updates.address) {
+      user = this.linkOrGetUserByAddress(updates.address, id, updates);
+    } else if (id) {
+      user = this.getUser(id);
     }
 
-    if (updates.name && updates.name.trim() !== user.name) {
+    if (!user) {
+      user = this.getOrCreateUser(id || `acc_${Date.now()}`, updates);
+    }
+
+    if (updates.name && updates.name.trim() && updates.name.trim() !== user.name) {
       user.name = updates.name.trim();
-      // Keep discriminator if possible, just update prefix
       const parts = user.tag.split('#');
       const disc = parts[1] || Math.floor(1000 + Math.random() * 9000).toString();
       const cleanName = user.name.replace(/[^a-zA-Z0-9]/g, '').trim() || 'Player';
@@ -218,7 +352,17 @@ export class ServerDatabase {
 
     if (updates.avatar) user.avatar = updates.avatar;
     if (updates.bio !== undefined) user.bio = updates.bio.trim().substring(0, 120);
-    if (updates.address) user.address = updates.address;
+
+    if (updates.address) {
+      const cleanAddr = updates.address.trim().toLowerCase();
+      user.address = cleanAddr;
+      const canonicalId = `wallet_${cleanAddr}`;
+      if (user.id !== canonicalId) {
+        delete this.data.users[user.id];
+        user.id = canonicalId;
+        this.data.users[canonicalId] = user;
+      }
+    }
 
     user.updatedAt = Date.now();
     user.lastSeen = Date.now();

@@ -48,11 +48,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
       setBio(account.bio || 'UNO enthusiast & strategist');
       setSavedSuccess(false);
 
-      // Fetch user profile from database
+      // Fetch user profile from database by connected wallet address or account id
       setLoadingStats(true);
-      fetch(`/api/profile/${account.id}`)
+      const targetUrl = wallet.address
+        ? `/api/profile/by-address/${encodeURIComponent(wallet.address)}`
+        : `/api/profile/${account.id}`;
+
+      fetch(targetUrl)
         .then((res) => {
           if (res.ok) return res.json();
+          if (wallet.address) {
+            return fetch(`/api/profile/${account.id}`).then((r) => (r.ok ? r.json() : null));
+          }
           return null;
         })
         .then((data) => {
@@ -66,7 +73,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         .catch((err) => console.warn('Could not fetch server profile:', err))
         .finally(() => setLoadingStats(false));
     }
-  }, [isOpen, account.id, account.name, account.avatar, account.bio]);
+  }, [isOpen, account.id, account.name, account.avatar, account.bio, wallet.address]);
 
   if (!isOpen) return null;
 
@@ -112,13 +119,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     }, 800);
   };
 
-  const stats = profileData?.stats || {
-    gamesPlayed: 0,
-    gamesWon: 0,
-    winStreak: 0,
-    bestWinStreak: 0,
-    totalEarningsEth: '0.000',
-    cardsPlayed: 0,
+  const rawStats = (profileData?.stats as any) || {};
+  const stats = {
+    gamesPlayed: rawStats.matchesPlayed ?? rawStats.gamesPlayed ?? 0,
+    gamesWon: rawStats.wins ?? rawStats.gamesWon ?? 0,
+    cardsPlayed: rawStats.cardsPlayed ?? 0,
+    winStreak: rawStats.winStreak ?? 0,
+    bestWinStreak: rawStats.bestWinStreak ?? 0,
+    totalEarningsEth: rawStats.totalWinnings ?? rawStats.totalEarningsEth ?? '0.000',
   };
 
   const winRate =

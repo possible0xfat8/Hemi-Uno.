@@ -502,31 +502,74 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
       {/* ⚡ Quick Play (1-Click Instant Match) - Solves "code entering is hard" */}
       {onQuickJoin && (
-        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-slate-950 border-2 border-amber-500/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div
+          className={`mb-6 p-4 rounded-2xl border-2 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 ${
+            wallet.address
+              ? 'bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-slate-950 border-amber-500/40'
+              : 'bg-slate-950/80 border-slate-800'
+          }`}
+        >
           <div className="flex items-center gap-3 text-left w-full sm:w-auto">
-            <div className="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black text-xl shadow-lg shadow-amber-500/30 shrink-0">
+            <div
+              className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shrink-0 ${
+                wallet.address
+                  ? 'bg-amber-500 text-slate-950 shadow-amber-500/30'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
               <Zap className="w-6 h-6 fill-current" />
             </div>
             <div>
-              <div className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <span>1-Click Matchmaking</span>
-                <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-[10px] font-bold">Fastest</span>
+              <div className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                <span className={wallet.address ? 'text-amber-400' : 'text-slate-400'}>
+                  1-Click Matchmaking
+                </span>
+                {wallet.address ? (
+                  <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold">
+                    Fastest
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/30">
+                    Wallet Required
+                  </span>
+                )}
               </div>
               <h3 className="text-sm font-black text-white">
                 Quick Play (No Code Required)
               </h3>
               <p className="text-[11px] text-slate-300">
-                Instantly joins an open public lobby or starts a match for you.
+                {wallet.address
+                  ? 'Instantly joins an open public lobby or starts a match for you.'
+                  : 'Connect your Web3 wallet to access Quick Play and real-time multiplayer matches.'}
               </p>
             </div>
           </div>
 
           <button
-            onClick={onQuickJoin}
-            className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer"
+            onClick={() => {
+              if (!wallet.address) {
+                onConnectWallet();
+              } else {
+                onQuickJoin();
+              }
+            }}
+            className={`w-full sm:w-auto px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer ${
+              wallet.address
+                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/30'
+                : 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 text-amber-300 border border-amber-500/40'
+            }`}
           >
-            <Play className="w-4 h-4 fill-current" />
-            <span>Quick Play</span>
+            {wallet.address ? (
+              <>
+                <Play className="w-4 h-4 fill-current" />
+                <span>Quick Play</span>
+              </>
+            ) : (
+              <>
+                <Wallet className="w-4 h-4" />
+                <span>Connect Wallet to Play</span>
+              </>
+            )}
           </button>
         </div>
       )}
@@ -552,7 +595,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 {wallet.address ? (
                   <span>{formatAddress(wallet.address)} • {wallet.balance ? `${wallet.balance} ETH` : 'Hemi Sepolia'}</span>
                 ) : (
-                  <span>Connect wallet to tie your address to your lobby pot settlement</span>
+                  <span>Connect wallet to tie your username, stats & pot settlement to your address</span>
                 )}
               </div>
             </div>
@@ -562,14 +605,14 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             <button
               onClick={() => onConnectWallet()}
               disabled={wallet.isConnecting}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
             >
               {wallet.isConnecting ? 'Linking...' : 'Connect'}
             </button>
           ) : (
             <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono font-bold flex items-center gap-1 shrink-0">
               <Check className="w-3 h-3" />
-              <span>Tied to Lobby</span>
+              <span>Identity Linked</span>
             </div>
           )}
         </div>
@@ -582,6 +625,20 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             type="text"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
+            onBlur={(e) => {
+              const val = e.target.value.trim();
+              if (val) {
+                handleNameChange(val);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const val = (e.target as HTMLInputElement).value.trim();
+                if (val) {
+                  handleNameChange(val);
+                }
+              }
+            }}
             maxLength={16}
             placeholder="Enter your handle"
             className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder:text-slate-600 focus:outline-hidden focus:border-amber-400 text-sm font-bold transition-colors"
@@ -596,9 +653,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             {AVATARS.map((av) => (
               <button
                 key={av}
-                onClick={() => setSelectedAvatar(av)}
+                onClick={() => handleAvatarSelect(av)}
                 className={`
-                  h-12 rounded-xl flex items-center justify-center text-2xl transition-all
+                  h-12 rounded-xl flex items-center justify-center text-2xl transition-all cursor-pointer
                   ${selectedAvatar === av
                     ? 'bg-amber-500/20 border-2 border-amber-400 scale-110 shadow-lg shadow-amber-500/20'
                     : 'bg-slate-950 border border-slate-800 hover:border-slate-700'}
@@ -686,10 +743,26 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             </div>
 
             <button
-              onClick={() => onCreateRoom(playerName, selectedAvatar, buyIn, wallet.address || undefined)}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs tracking-wider uppercase hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-amber-500/20 cursor-pointer"
+              onClick={() => {
+                if (!wallet.address) {
+                  onConnectWallet();
+                } else {
+                  onCreateRoom(playerName, selectedAvatar, buyIn, wallet.address);
+                }
+              }}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs tracking-wider uppercase hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-amber-500/20 cursor-pointer flex items-center justify-center gap-2"
             >
-              Create New Room
+              {wallet.address ? (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>Create New Room</span>
+                </>
+              ) : (
+                <>
+                  <Wallet className="w-4 h-4" />
+                  <span>Connect Wallet to Create Table</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -722,16 +795,31 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             </div>
 
             <button
-              onClick={() => onJoinRoom(joinCode, playerName, selectedAvatar, wallet.address || undefined)}
-              disabled={joinCode.trim().length < 4}
+              onClick={() => {
+                if (!wallet.address) {
+                  onConnectWallet();
+                } else {
+                  onJoinRoom(joinCode, playerName, selectedAvatar, wallet.address);
+                }
+              }}
+              disabled={wallet.address ? joinCode.trim().length < 4 : false}
               className={`
-                w-full py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all shadow-lg
-                ${joinCode.trim().length >= 4
+                w-full py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all shadow-lg flex items-center justify-center gap-2
+                ${!wallet.address
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white cursor-pointer shadow-blue-500/20'
+                  : joinCode.trim().length >= 4
                   ? 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95 shadow-blue-500/20 cursor-pointer'
                   : 'bg-slate-800 text-slate-600 cursor-not-allowed'}
               `}
             >
-              Join Room
+              {wallet.address ? (
+                <span>Join Room</span>
+              ) : (
+                <>
+                  <Wallet className="w-4 h-4" />
+                  <span>Connect Wallet to Join</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -791,11 +879,26 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                         </div>
 
                         <button
-                          onClick={() => onJoinRoom(r.roomCode, playerName, selectedAvatar, wallet.address || undefined)}
+                          onClick={() => {
+                            if (!wallet.address) {
+                              onConnectWallet();
+                            } else {
+                              onJoinRoom(r.roomCode, playerName, selectedAvatar, wallet.address);
+                            }
+                          }}
                           className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0 cursor-pointer"
                         >
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>1-Click Join</span>
+                          {wallet.address ? (
+                            <>
+                              <Play className="w-3.5 h-3.5 fill-current" />
+                              <span>1-Click Join</span>
+                            </>
+                          ) : (
+                            <>
+                              <Wallet className="w-3.5 h-3.5" />
+                              <span>Connect to Join</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     );

@@ -48,6 +48,15 @@ async function startServer() {
   });
 
   // REST: User Profile endpoints
+  app.get('/api/profile/by-address/:address', (req, res) => {
+    const address = req.params.address;
+    if (!address || !address.startsWith('0x')) {
+      return res.status(400).json({ error: 'Valid wallet address required' });
+    }
+    const user = serverDb.getUserByAddress(address) || serverDb.linkOrGetUserByAddress(address);
+    res.json(user);
+  });
+
   app.get('/api/profile/:id', (req, res) => {
     const user = serverDb.getUser(req.params.id);
     if (!user) {
@@ -57,11 +66,17 @@ async function startServer() {
   });
 
   app.post('/api/profile', (req, res) => {
-    const { id, name, avatar, bio, address } = req.body;
-    if (!id) {
-      return res.status(400).json({ error: 'User id is required' });
+    const { id, accountId, name, avatar, bio, address } = req.body;
+    const targetId = id || accountId;
+    if (!targetId && !address) {
+      return res.status(400).json({ error: 'User id or wallet address is required' });
     }
-    const updated = serverDb.updateUserProfile(id, { name, avatar, bio, address });
+    const updated = serverDb.updateUserProfile(targetId || '', { name, avatar, bio, address });
+    // Broadcast real-time update to all tabs/sockets associated with this user ID and wallet
+    io.to(`user:${updated.id}`).emit('profile:updated', updated);
+    if (updated.address) {
+      io.to(`wallet:${updated.address.toLowerCase()}`).emit('profile:updated', updated);
+    }
     res.json(updated);
   });
 
@@ -174,11 +189,23 @@ async function startServer() {
 
     // 0b. Quick Join (1-Click Instant Match finding or auto-creating)
     socket.on('room:quick_join', ({ accountId, playerName, avatar, address }, callback) => {
-      const validAccountId = accountId || roomManager.getAccountIdBySocket(socket.id) || `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-      serverDb.getOrCreateUser(validAccountId, { name: playerName, avatar, address });
-      socket.join(`user:${validAccountId}`);
+      const cleanAddress = address && typeof address === 'string' && address.trim().startsWith('0x') ? address.trim().toLowerCase() : undefined;
+      if (!cleanAddress) {
+        if (typeof callback === 'function') {
+          callback({ success: false, error: 'Please connect your Web3 wallet to play Quick Match' });
+        }
+        return;
+      }
 
-      const result = roomManager.quickJoin(validAccountId, socket.id, playerName, avatar, address);
+      const dbUser = serverDb.getUserByAddress(cleanAddress) || serverDb.linkOrGetUserByAddress(cleanAddress, accountId, { name: playerName, avatar });
+      const validAccountId = dbUser.id;
+      const resolvedName = dbUser.name || playerName || 'Player';
+      const resolvedAvatar = dbUser.avatar || avatar || '🦊';
+
+      socket.join(`user:${validAccountId}`);
+      socket.join(`wallet:${cleanAddress}`);
+
+      const result = roomManager.quickJoin(validAccountId, socket.id, resolvedName, resolvedAvatar, cleanAddress);
       if (result.success && result.room) {
         socket.join(result.room.roomId);
         const resolvedId = result.playerId || validAccountId;
@@ -198,24 +225,74 @@ async function startServer() {
         roomManager.broadcastRoomState(result.room);
       } else {
         if (typeof callback === 'function') {
-          callback({ success: false, error: 'Could not find or create a match' });
+          callback({ success: false, error: result.error || 'Could not find or create a match' });
         }
       }
     });
 
-    // 0c. Profile Sync (keeps client and server profiles synchronized)
-    socket.on('profile:sync', ({ accountId, name, avatar, bio, address }, callback) => {
-      if (!accountId) {
-        if (typeof callback === 'function') callback({ success: false });
+    // 0c. Profile Sync (keeps client and server profiles synchronized across tabs and wallet addresses)
+    socket.on('profile:sync', (data: any, callback?: any) => {
+      const targetId = data?.accountId || data?.id;
+      const rawAddress = data?.address && typeof data.address === 'string' && data.address.trim().startsWith('0x')
+        ? data.address.trim().toLowerCase()
+        : undefined;
+
+      let user: any = null;
+      if (rawAddress) {
+        socket.join(`wallet:${rawAddress}`);
+        // If it's just a sync on startup/tab switch, get the authoritative record without overwriting name!
+        if (data?.isExplicitUpdate && (data?.name || data?.avatar || data?.bio !== undefined)) {
+          user = serverDb.updateUserProfile(targetId || `wallet_${rawAddress}`, {
+            name: data?.name,
+            avatar: data?.avatar,
+            bio: data?.bio,
+            address: rawAddress,
+          });
+        } else {
+          user = serverDb.getUserByAddress(rawAddress) || serverDb.linkOrGetUserByAddress(rawAddress, targetId, {
+            name: data?.name,
+            avatar: data?.avatar,
+            bio: data?.bio,
+          });
+        }
+      } else if (targetId) {
+        if (data?.isExplicitUpdate && (data?.name || data?.avatar || data?.bio !== undefined)) {
+          user = serverDb.updateUserProfile(targetId, {
+            name: data?.name,
+            avatar: data?.avatar,
+            bio: data?.bio,
+          });
+        } else {
+          user = serverDb.getOrCreateUser(targetId, {
+            name: data?.name,
+            avatar: data?.avatar,
+            bio: data?.bio,
+          });
+        }
+      } else {
+        if (typeof callback === 'function') callback({ success: false, error: 'No identifier provided' });
         return;
       }
-      socket.join(`user:${accountId}`);
-      const user = serverDb.getOrCreateUser(accountId, { name, avatar, address });
-      if (name || avatar || bio !== undefined) {
-        serverDb.updateUserProfile(accountId, { name, avatar, bio, address });
-      }
-      if (typeof callback === 'function') {
-        callback({ success: true, profile: serverDb.getUser(accountId) });
+
+      if (user) {
+        socket.join(`user:${user.id}`);
+        if (user.address) {
+          socket.join(`wallet:${user.address.toLowerCase()}`);
+        }
+
+        if (data?.isExplicitUpdate) {
+          // Broadcast to other tabs/sockets connected to this user/wallet
+          socket.to(`user:${user.id}`).emit('profile:updated', user);
+          if (user.address) {
+            socket.to(`wallet:${user.address.toLowerCase()}`).emit('profile:updated', user);
+          }
+        }
+
+        // Send authoritative profile back to the requesting socket
+        socket.emit('profile:synced', user);
+        if (typeof callback === 'function') {
+          callback({ success: true, profile: user });
+        }
       }
     });
 
@@ -253,9 +330,24 @@ async function startServer() {
     // 1. Create room
     socket.on('room:create', ({ accountId, playerName, avatar, buyIn, address }, callback) => {
       try {
-        const validAccountId = accountId || roomManager.getAccountIdBySocket(socket.id) || `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-        const room = roomManager.createRoom(validAccountId, socket.id, playerName, avatar, buyIn, address);
+        const cleanAddress = address && typeof address === 'string' && address.trim().startsWith('0x') ? address.trim().toLowerCase() : undefined;
+        if (!cleanAddress) {
+          if (typeof callback === 'function') {
+            callback({ success: false, error: 'Please connect your Web3 wallet to create a table' });
+          }
+          return;
+        }
+
+        const dbUser = serverDb.getUserByAddress(cleanAddress) || serverDb.linkOrGetUserByAddress(cleanAddress, accountId, { name: playerName, avatar });
+        const validAccountId = dbUser.id;
+        const resolvedName = dbUser.name || playerName || 'Player 1';
+        const resolvedAvatar = dbUser.avatar || avatar || '🦊';
+
+        const room = roomManager.createRoom(validAccountId, socket.id, resolvedName, resolvedAvatar, buyIn, cleanAddress);
         socket.join(room.roomId);
+        socket.join(`user:${validAccountId}`);
+        socket.join(`wallet:${cleanAddress}`);
+
         const sanitized = room.getSanitizedStateForPlayer(validAccountId);
         socket.emit('game:state', sanitized);
 
@@ -279,11 +371,26 @@ async function startServer() {
     // 2. Join room
     socket.on('room:join', ({ roomCode, accountId, playerName, avatar, address }, callback) => {
       try {
-        const validAccountId = accountId || roomManager.getAccountIdBySocket(socket.id) || `acc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-        const result = roomManager.joinRoom(roomCode, validAccountId, socket.id, playerName, avatar, address);
+        const cleanAddress = address && typeof address === 'string' && address.trim().startsWith('0x') ? address.trim().toLowerCase() : undefined;
+        if (!cleanAddress) {
+          if (typeof callback === 'function') {
+            callback({ success: false, error: 'Please connect your Web3 wallet to join a table' });
+          }
+          return;
+        }
+
+        const dbUser = serverDb.getUserByAddress(cleanAddress) || serverDb.linkOrGetUserByAddress(cleanAddress, accountId, { name: playerName, avatar });
+        const validAccountId = dbUser.id;
+        const resolvedName = dbUser.name || playerName || 'Player';
+        const resolvedAvatar = dbUser.avatar || avatar || '🦁';
+
+        const result = roomManager.joinRoom(roomCode, validAccountId, socket.id, resolvedName, resolvedAvatar, cleanAddress);
         if (result.success && result.room) {
           socket.join(result.room.roomId);
           const resolvedPlayerId = result.playerId || validAccountId;
+          socket.join(`user:${resolvedPlayerId}`);
+          socket.join(`wallet:${cleanAddress}`);
+
           const sanitized = result.room.getSanitizedStateForPlayer(resolvedPlayerId);
           socket.emit('game:state', sanitized);
 

@@ -26,7 +26,9 @@ import {
 } from './utils/wallet';
 import {
   getOrCreateAccountProfile,
+  getAccountProfileForWallet,
   saveAccountProfile,
+  syncAccountWithServerProfile,
   getActiveRoomCode,
   setActiveRoomCode,
   AccountProfile,
@@ -74,13 +76,79 @@ export default function App() {
     walletName: null,
   });
 
-  // Sync wallet address with persistent account profile
+  // Load database-authoritative profile for connected wallet address
+  // Ensures username, avatar, bio, stats, and friends are linked to the wallet and consistent across tabs
   useEffect(() => {
-    if (wallet.address && wallet.address !== account.address) {
-      const updated = saveAccountProfile({ address: wallet.address });
-      setAccount(updated);
+    if (!wallet.address) return;
+
+    let isCancelled = false;
+    const cleanAddr = wallet.address.trim().toLowerCase();
+
+    // 1. Instant local wallet cache hydration to prevent default name flicker
+    const cached = getAccountProfileForWallet(cleanAddr);
+    if (cached) {
+      setAccount(cached);
     }
-  }, [wallet.address, account.address]);
+
+    // 2. Fetch authoritative database profile mapped to this wallet address
+    const syncWalletWithDatabase = async () => {
+      try {
+        const res = await fetch(`/api/profile/by-address/${encodeURIComponent(cleanAddr)}`);
+        if (res.ok) {
+          const dbUser = await res.json();
+          if (dbUser && dbUser.id && !isCancelled) {
+            console.log('[Profile] Synced authoritative database profile for wallet:', cleanAddr, dbUser.name);
+            const synced = syncAccountWithServerProfile(dbUser);
+            setAccount(synced);
+            if (socket) {
+              socket.emit('profile:sync', {
+                accountId: synced.id,
+                name: synced.name,
+                avatar: synced.avatar,
+                bio: synced.bio,
+                address: cleanAddr,
+                isExplicitUpdate: false,
+              });
+            }
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error syncing profile by wallet address:', err);
+      }
+    };
+
+    syncWalletWithDatabase();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [wallet.address, socket]);
+
+  // Synchronize profile changes across multiple open tabs in real-time
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (!e.newValue) return;
+      const cleanAddr = wallet.address?.trim().toLowerCase();
+      if (
+        e.key === 'uno_arcade_profile_v2' ||
+        (cleanAddr && e.key === `uno_arcade_wallet_profile_${cleanAddr}`)
+      ) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed && parsed.name) {
+            setAccount((prev) => ({
+              ...prev,
+              ...parsed,
+            }));
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [wallet.address]);
 
   // Check initial connected wallet and listen to account/chain events
   useEffect(() => {
@@ -91,9 +159,16 @@ export default function App() {
       try {
         const accounts: string[] = await provider.request({ method: 'eth_accounts' });
         if (accounts && accounts.length > 0) {
+          const cleanAddr = accounts[0].trim().toLowerCase();
           const chainIdHex: string = await provider.request({ method: 'eth_chainId' });
           const chainIdDec = parseInt(chainIdHex, 16);
           const balFormatted = await fetchEthBalance(provider, accounts[0]);
+
+          // Immediately hydrate cached profile for this wallet if available
+          const cached = getAccountProfileForWallet(cleanAddr);
+          if (cached) {
+            setAccount(cached);
+          }
 
           setWallet({
             address: accounts[0],
@@ -115,6 +190,11 @@ export default function App() {
       if (accounts.length === 0) {
         setWallet((prev) => ({ ...prev, address: null, balance: null }));
       } else {
+        const cleanAddr = accounts[0].trim().toLowerCase();
+        const cached = getAccountProfileForWallet(cleanAddr);
+        if (cached) {
+          setAccount(cached);
+        }
         const balFormatted = await fetchEthBalance(provider, accounts[0]);
         setWallet((prev) => ({ ...prev, address: accounts[0], balance: balFormatted }));
       }
@@ -359,6 +439,32 @@ export default function App() {
       refreshFriendsSummary();
     });
 
+    // Authoritative profile sync response from database
+    s.on('profile:synced', (serverProfile: any) => {
+      if (serverProfile && serverProfile.id) {
+        const synced = syncAccountWithServerProfile(serverProfile);
+        setAccount(synced);
+      }
+    });
+
+    // Real-time broadcast if profile (name/avatar/bio) was updated on another tab or via database
+    s.on('profile:updated', (serverProfile: any) => {
+      if (serverProfile && serverProfile.id) {
+        const myAddr = wallet.address || account.address;
+        const matchesAddress =
+          myAddr &&
+          serverProfile.address &&
+          myAddr.toLowerCase() === serverProfile.address.toLowerCase();
+
+        if (serverProfile.id === account.id || matchesAddress) {
+          console.log('[Profile] Live update received from database/tab:', serverProfile.name);
+          const synced = syncAccountWithServerProfile(serverProfile);
+          setAccount(synced);
+          refreshFriendsSummary();
+        }
+      }
+    });
+
     s.on('disconnect', () => {
       setSocketConnected(false);
       setConnectionStatus('reconnecting');
@@ -520,8 +626,13 @@ export default function App() {
   // Lobby actions
   const handleCreateRoom = (playerName: string, avatar: string, buyIn: string, address?: string) => {
     if (!socket) return;
-    setErrorMessage(null);
     const playerAddress = address || wallet.address || account.address || undefined;
+    if (!playerAddress || !playerAddress.startsWith('0x')) {
+      setErrorMessage('Please connect your Web3 wallet first to create a table.');
+      handleConnectWallet();
+      return;
+    }
+    setErrorMessage(null);
     socket.emit(
       'room:create',
       {
@@ -551,8 +662,13 @@ export default function App() {
 
   const handleJoinRoom = (roomCode: string, playerName: string, avatar: string, address?: string) => {
     if (!socket) return;
-    setErrorMessage(null);
     const playerAddress = address || wallet.address || account.address || undefined;
+    if (!playerAddress || !playerAddress.startsWith('0x')) {
+      setErrorMessage('Please connect your Web3 wallet first to join a table.');
+      handleConnectWallet();
+      return;
+    }
+    setErrorMessage(null);
     socket.emit(
       'room:join',
       {
@@ -583,13 +699,19 @@ export default function App() {
   // 1-Click Quick Match - joins open waiting room or creates one automatically
   const handleQuickJoin = () => {
     if (!socket) return;
+    const playerAddress = wallet.address || account.address || undefined;
+    if (!playerAddress || !playerAddress.startsWith('0x')) {
+      setErrorMessage('Please connect your Web3 wallet first to use Quick Play.');
+      handleConnectWallet();
+      return;
+    }
     setErrorMessage(null);
     socket.emit(
       'room:quick_join',
       {
         playerName: account.name,
         avatar: account.avatar,
-        address: wallet.address || account.address || undefined,
+        address: playerAddress,
         userId: account.id,
       },
       (res: any) => {
@@ -622,17 +744,41 @@ export default function App() {
   };
 
   // Update profile and sync to database & socket
-  const handleSaveProfile = (updates: Partial<AccountProfile>) => {
+  const handleSaveProfile = async (updates: Partial<AccountProfile>) => {
     const updated = saveAccountProfile(updates);
     setAccount(updated);
+
+    const activeAddress = wallet.address || updated.address;
+
+    // Send explicit update to server via WebSocket and REST API
     if (socket) {
       socket.emit('profile:sync', {
+        accountId: updated.id,
         id: updated.id,
         name: updated.name,
         avatar: updated.avatar,
         bio: updated.bio,
-        address: wallet.address || updated.address,
+        address: activeAddress,
+        isExplicitUpdate: true,
       });
+    }
+
+    try {
+      await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: updated.id,
+          accountId: updated.id,
+          name: updated.name,
+          avatar: updated.avatar,
+          bio: updated.bio,
+          address: activeAddress,
+        }),
+      });
+      refreshFriendsSummary();
+    } catch (err) {
+      console.warn('Failed to post profile update to database REST API:', err);
     }
   };
 
@@ -664,6 +810,11 @@ export default function App() {
 
   const handleToggleReady = () => {
     if (!socket) return;
+    if (!wallet.address) {
+      setErrorMessage('Please connect your Web3 wallet to ready up.');
+      handleConnectWallet();
+      return;
+    }
     socket.emit('room:toggle_ready');
   };
 
@@ -679,6 +830,11 @@ export default function App() {
 
   const handleStartGame = () => {
     if (!socket) return;
+    if (!wallet.address) {
+      setErrorMessage('Please connect your Web3 wallet to start the match.');
+      handleConnectWallet();
+      return;
+    }
     socket.emit('game:start', (res: any) => {
       if (!res.success) {
         setErrorMessage(res.error || 'Cannot start game');
