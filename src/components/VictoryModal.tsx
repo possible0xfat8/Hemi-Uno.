@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { GameState } from '../types';
-import { Trophy, CheckCircle2, Copy, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Trophy, CheckCircle2, Copy, ArrowRight, ShieldCheck, LogOut } from 'lucide-react';
 
 interface VictoryModalProps {
   gameState: GameState;
   myPlayerId: string;
   isHost: boolean;
   onRematch: () => void;
+  onLeaveRoom?: () => void;
 }
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({
@@ -15,6 +16,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   myPlayerId,
   isHost,
   onRematch,
+  onLeaveRoom,
 }) => {
   const [copied, setCopied] = useState(false);
   const [claimed, setClaimed] = useState(false);
@@ -128,7 +130,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             {isHost ? (
               <button
                 onClick={onRematch}
-                className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-black text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-[#FF4600]/25 cursor-pointer"
               >
                 <span>Rematch / New Game</span>
                 <ArrowRight className="w-4 h-4" />
@@ -137,6 +139,16 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
               <div className="text-xs text-slate-400 self-center py-2">
                 Waiting for host to start a rematch...
               </div>
+            )}
+
+            {onLeaveRoom && (
+              <button
+                onClick={onLeaveRoom}
+                className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white font-bold text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 text-rose-400" />
+                <span>Quit to Lobby</span>
+              </button>
             )}
           </div>
         </div>

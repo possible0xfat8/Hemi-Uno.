@@ -8,7 +8,7 @@ interface CardProps {
   isSelected?: boolean;
   onClick?: () => void;
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'adaptive';
   rotation?: number;
 }
 
@@ -52,6 +52,7 @@ export const CardComponent: React.FC<CardProps> = ({
     sm: 'w-11 h-[68px] sm:w-13 sm:h-[80px]',
     md: 'w-20 h-[120px] sm:w-24 sm:h-[144px]',
     lg: 'w-28 h-[168px] sm:w-32 sm:h-[192px]',
+    adaptive: 'w-14 h-[86px] sm:w-20 sm:h-[120px] md:w-24 md:h-[144px]',
   }[size];
 
   const imgSrc = getCardAssetSrc(card, isBack);
@@ -111,7 +112,7 @@ export const CardComponent: React.FC<CardProps> = ({
         relative rounded-xl overflow-hidden select-none shrink-0
         transition-all duration-200 cursor-pointer
         shadow-md
-        ${isPlayable ? `ring-2 ring-white/90 shadow-xl hover:-translate-y-3.5 hover:scale-105 active:scale-95 ${glowStyle}` : 'opacity-85 hover:opacity-95'}
+        ${isPlayable ? `ring-2 ring-white/90 shadow-xl -translate-y-1 sm:-translate-y-2 hover:-translate-y-3.5 hover:scale-105 active:scale-95 ${glowStyle}` : 'opacity-80 hover:opacity-90'}
         ${isSelected ? '-translate-y-4 ring-4 ring-[#FF4600] scale-105 shadow-2xl shadow-[#FF4600]/50' : ''}
         ${isDraw4 ? 'ring-1 ring-[#FF4600]/60' : ''}
         ${className}

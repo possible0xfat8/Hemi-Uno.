@@ -32,6 +32,7 @@ import {
   Music,
   Volume2,
   VolumeX,
+  LogOut,
 } from 'lucide-react';
 
 export interface LobbyViewProps {
@@ -381,6 +382,16 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 {copiedRoomCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={onLeaveRoom}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+              title="Quit Lobby"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden sm:inline">Quit Lobby</span>
+            </button>
           </div>
         </div>
 
@@ -501,9 +512,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
           <button
             onClick={onLeaveRoom}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all text-center cursor-pointer"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all text-center cursor-pointer flex items-center justify-center gap-2 active:scale-95"
           >
-            Leave Lobby
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span>Quit Lobby</span>
           </button>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">

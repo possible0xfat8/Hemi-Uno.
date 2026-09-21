@@ -604,6 +604,21 @@ async function startServer() {
     socket.on('room:leave', (callback) => {
       const accountId = roomManager.getAccountIdBySocket(socket.id);
       const room = roomManager.getRoomBySocket(socket.id);
+
+      // Disallow quitting while match is in progress
+      if (room && room.status === 'playing') {
+        const isSeated = room.players.some((p) => p.id === accountId);
+        if (isSeated) {
+          socket.emit('game:error', {
+            message: 'You cannot quit while the game is in progress. Complete the match to exit.',
+          });
+          if (typeof callback === 'function') {
+            callback({ success: false, error: 'Cannot quit while game is in progress' });
+          }
+          return;
+        }
+      }
+
       if (room) {
         socket.leave(room.roomId);
       }

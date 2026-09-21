@@ -1,16 +1,18 @@
+import crypto from 'crypto';
 import { Card, CardColor, CardValue, GameState, Player, BannerType, SettlementSignature, CardsDrawnEvent, CardPlayedEvent, ChatMessage } from '../src/types.js';
 
 const COLORS: CardColor[] = ['red', 'blue', 'green', 'yellow'];
 const NUMBERS: CardValue[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
+let globalCardIdCounter = 1;
+
 export function createDeck(): Card[] {
   const deck: Card[] = [];
-  let idCounter = 1;
 
   for (const color of COLORS) {
     // One '0' per color
     deck.push({
-      id: `c_${idCounter++}`,
+      id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       color,
       value: '0',
       label: '0',
@@ -19,13 +21,13 @@ export function createDeck(): Card[] {
     // Two '1' through '9' per color
     for (const num of NUMBERS.slice(1)) {
       deck.push({
-        id: `c_${idCounter++}`,
+        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         color,
         value: num,
         label: num,
       });
       deck.push({
-        id: `c_${idCounter++}`,
+        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         color,
         value: num,
         label: num,
@@ -35,19 +37,19 @@ export function createDeck(): Card[] {
     // Two 'skip', 'reverse', 'draw2' per color
     for (let i = 0; i < 2; i++) {
       deck.push({
-        id: `c_${idCounter++}`,
+        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         color,
         value: 'skip',
         label: '⊘ Skip',
       });
       deck.push({
-        id: `c_${idCounter++}`,
+        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         color,
         value: 'reverse',
         label: '⇄ Rev',
       });
       deck.push({
-        id: `c_${idCounter++}`,
+        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         color,
         value: 'draw2',
         label: '+2',
@@ -58,7 +60,7 @@ export function createDeck(): Card[] {
   // 4 Wild cards (Wild color pickers)
   for (let i = 0; i < 4; i++) {
     deck.push({
-      id: `c_${idCounter++}`,
+      id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       color: 'wild',
       value: 'wild',
       label: 'Wild',
@@ -68,21 +70,33 @@ export function createDeck(): Card[] {
   // 4 Wild Draw 4s
   for (let i = 0; i < 4; i++) {
     deck.push({
-      id: `c_${idCounter++}`,
+      id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       color: 'wild',
       value: 'wild_draw4',
       label: '+4 Wild',
     });
   }
 
-  return shuffle(deck);
+  // Perform 7-pass cryptographically secure shuffle
+  return shuffle(deck, 7);
 }
 
-export function shuffle<T>(array: T[]): T[] {
+export function shuffle<T>(array: T[], passes = 7): T[] {
   const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+  if (arr.length <= 1) return arr;
+
+  for (let pass = 0; pass < passes; pass++) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      // Use crypto.randomInt for true high-entropy randomness
+      const j = crypto.randomInt(0, i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    // Random cut pass to break any remaining sequential clusters
+    if (arr.length > 2) {
+      const cutPoint = crypto.randomInt(1, arr.length);
+      const cut = arr.splice(0, cutPoint);
+      arr.push(...cut);
+    }
   }
   return arr;
 }
@@ -370,11 +384,35 @@ export class GameRoom {
     this.winner = null;
     this.settlementSignature = null;
 
-    // Deal 7 cards to each player
+    // Deal 7 cards round-robin (1 card per player across 7 dealing rounds)
     for (const player of this.players) {
-      player.hand = this.drawPile.splice(0, 7);
-      player.cardCount = player.hand.length;
+      player.hand = [];
+      player.cardCount = 0;
       player.hasCalledLastCard = false;
+    }
+
+    for (let round = 0; round < 7; round++) {
+      for (const player of this.players) {
+        if (!player.hand) player.hand = [];
+        const hand = player.hand;
+        let card = this.popDrawCard();
+        if (card) {
+          // Hand Deduplication: prevent the same player from receiving duplicate identical cards in starting hand
+          const hasDuplicate = hand.some(c => c.color === card!.color && c.value === card!.value);
+          if (hasDuplicate && this.drawPile.length > 5) {
+            // Find an alternative card from drawPile that player does not already hold
+            const altIdx = this.drawPile.findIndex(c => !hand.some(h => h.color === c.color && h.value === c.value));
+            if (altIdx !== -1) {
+              const [altCard] = this.drawPile.splice(altIdx, 1);
+              // Return duplicate card deeper into draw pile
+              this.drawPile.push(card);
+              card = altCard;
+            }
+          }
+          hand.push(card);
+          player.cardCount = hand.length;
+        }
+      }
     }
 
     // Flip top card for discard pile (ensure it's not a wild card initially for clean start)
@@ -545,24 +583,24 @@ export class GameRoom {
     if (this.pendingDrawCount > 0) {
       const count = this.pendingDrawCount;
       this.pendingDrawCount = 0;
-      this.giveCardsToPlayer(curPlayer, count);
+      const cardsReceived = this.giveCardsToPlayer(curPlayer, count);
 
       this.triggerCardsDrawn({
         id: `cd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         playerId: curPlayer.id,
         playerName: curPlayer.name,
         playerAvatar: curPlayer.avatar,
-        count,
+        count: cardsReceived,
         isPenalty: true,
         timestamp: Date.now(),
       });
 
-      this.setBanner('DRAW4', `💥 ${curPlayer.name} PICKED +${count} CARDS!`, curPlayer.id, curPlayer.name);
-      this.lastActionMessage = `${curPlayer.name} picked ${count} cards from the defense stack!`;
+      this.setBanner('DRAW4', `💥 ${curPlayer.name} TOOK THE +${cardsReceived} CARDS PENALTY!`, curPlayer.id, curPlayer.name);
+      this.lastActionMessage = `${curPlayer.name} could not defend and drew all ${cardsReceived} stacked cards!`;
       this.triggerSound('draw');
-      this.triggerShake(count >= 4 ? 2.0 : 1.2);
+      this.triggerShake(cardsReceived >= 4 ? 2.0 : 1.2);
 
-      // Taking the penalty ends the player's turn
+      // Taking the penalty ends the player's turn (skipped)
       this.advanceTurn(1);
       return { success: true };
     }
@@ -636,23 +674,40 @@ export class GameRoom {
     }
   }
 
-  private giveCardsToPlayer(player: Player, count: number): void {
+  private giveCardsToPlayer(player: Player, count: number): number {
     if (!player.hand) player.hand = [];
+    let given = 0;
     for (let i = 0; i < count; i++) {
       const c = this.popDrawCard();
-      if (c) player.hand.push(c);
+      if (c) {
+        player.hand.push(c);
+        given++;
+      }
     }
     player.cardCount = player.hand.length;
+    return given;
   }
 
   private popDrawCard(): Card | null {
     if (this.drawPile.length === 0) {
       // Reshuffle discard pile into draw pile (leaving top card)
-      if (this.discardPile.length <= 1) return null;
-      const top = this.discardPile.pop()!;
-      this.drawPile = shuffle(this.discardPile);
-      this.discardPile = [top];
-      this.lastActionMessage = 'Discard pile reshuffled into draw deck!';
+      if (this.discardPile.length > 1) {
+        const top = this.discardPile.pop()!;
+        // Reset wild cards' temporary chosenColor before returning to draw pile
+        const recycled = this.discardPile.map(c => {
+          if (c.value === 'wild' || c.value === 'wild_draw4') {
+            return { ...c, color: 'wild' as CardColor };
+          }
+          return c;
+        });
+        this.drawPile = shuffle(recycled, 5);
+        this.discardPile = [top];
+        this.lastActionMessage = 'Discard pile reshuffled into draw deck!';
+      } else {
+        // Deck exhausted: replenish fresh cards so draw never fails
+        this.drawPile = createDeck();
+        this.lastActionMessage = 'Draw deck replenished with fresh cards!';
+      }
     }
     return this.drawPile.pop() || null;
   }
@@ -698,21 +753,22 @@ export class GameRoom {
     if (!curPlayer) return;
 
     this.triggerSound('timer');
-    this.setBanner('TURN_TIMEOUT', `⏰ Turn expired for ${curPlayer.name}! Auto-drew and passed.`, curPlayer.id, curPlayer.name);
 
     if (this.pendingDrawCount > 0) {
       const count = this.pendingDrawCount;
       this.pendingDrawCount = 0;
-      this.giveCardsToPlayer(curPlayer, count);
+      const cardsReceived = this.giveCardsToPlayer(curPlayer, count);
       this.triggerCardsDrawn({
         id: `cd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         playerId: curPlayer.id,
         playerName: curPlayer.name,
         playerAvatar: curPlayer.avatar,
-        count,
+        count: cardsReceived,
         isPenalty: true,
         timestamp: Date.now(),
       });
+      this.setBanner('TURN_TIMEOUT', `⏰ Turn expired! ${curPlayer.name} took +${cardsReceived} penalty cards!`, curPlayer.id, curPlayer.name);
+      this.lastActionMessage = `${curPlayer.name}'s turn expired and took +${cardsReceived} penalty cards.`;
       this.triggerSound('draw');
     } else if (!this.drawPendingForPlayer) {
       // Auto-draw 1 card
@@ -731,6 +787,7 @@ export class GameRoom {
         });
         this.triggerSound('draw');
       }
+      this.setBanner('TURN_TIMEOUT', `⏰ Turn expired for ${curPlayer.name}! Auto-drew 1 card and passed.`, curPlayer.id, curPlayer.name);
     }
 
     this.advanceTurn(1);

@@ -532,10 +532,20 @@ export class RoomManager {
     return { success: true, room };
   }
 
-  public handleLeaveRoom(accountId: string, socketId?: string): void {
-    this.clearDisconnectTimer(accountId);
-
+  public handleLeaveRoom(accountId: string, socketId?: string, force: boolean = false): boolean {
     const roomId = this.accountToRoomId.get(accountId);
+    if (!roomId) return true;
+
+    const room = this.rooms.get(roomId);
+    if (!room) return true;
+
+    // Active players cannot quit while the match is in progress
+    const player = room.players.find(p => p.id === accountId);
+    if (player && room.status === 'playing' && !force) {
+      return false;
+    }
+
+    this.clearDisconnectTimer(accountId);
     this.accountToRoomId.delete(accountId);
     serverDb.setUserPresence(accountId, 'online', null);
 
@@ -544,18 +554,12 @@ export class RoomManager {
       this.socketToAccountId.delete(socketId);
     }
 
-    if (!roomId) return;
-
-    const room = this.rooms.get(roomId);
-    if (!room) return;
-
     if (room.spectators.has(accountId)) {
       room.removeSpectator(accountId);
       this.broadcastRoomState(room);
-      return;
+      return true;
     }
 
-    const player = room.players.find(p => p.id === accountId);
     if (player) {
       room.addChatMessage({
         senderId: 'system',
@@ -577,6 +581,7 @@ export class RoomManager {
         this.broadcastRoomState(room);
       }
     }
+    return true;
   }
 
   public handleDisconnect(socketId: string): void {

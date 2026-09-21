@@ -41,6 +41,7 @@ import {
   VolumeX,
   HelpCircle,
   LogOut,
+  Lock,
   Flame,
   Eye,
   MessageSquare,
@@ -670,6 +671,25 @@ export default function App() {
     };
   }, [gameState?.status, isMusicOn, isMuted]);
 
+  // Prevent quitting during active play: warn browser if navigating away or closing window
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      const isPlayerPlaying =
+        gameState &&
+        gameState.status === 'playing' &&
+        gameState.players.some((p) => p.id === account.id);
+      if (isPlayerPlaying) {
+        e.preventDefault();
+        e.returnValue = 'Match in progress! You cannot quit until the game ends.';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [gameState?.status, gameState?.players, account.id]);
+
   // Explicit resume session action from UI
   const handleResumeSession = (roomCode?: string | null) => {
     if (!socket) return;
@@ -991,6 +1011,11 @@ export default function App() {
   };
 
   const handleLeaveRoom = () => {
+    const isPlayerPlaying = gameState && gameState.status === 'playing' && gameState.players.some((p) => p.id === account.id);
+    if (isPlayerPlaying) {
+      setErrorMessage('You cannot quit while the game is in progress! You must complete the match or wait until it ends.');
+      return;
+    }
     if (socket) {
       socket.emit('room:leave');
     }
@@ -1010,6 +1035,10 @@ export default function App() {
   const isMyTurn = gameState?.currentTurnPlayerId === myPlayerId;
   const isHost = gameState?.hostId === myPlayerId;
   const topCard = gameState?.topDiscardCard || null;
+
+  // Compute defense ability when under attack (+2, +4 stack)
+  const myDefenseCards = myPlayer?.hand?.filter((c) => c.value === 'draw2' || c.value === 'wild_draw4') || [];
+  const canDefendAttack = myDefenseCards.length > 0;
 
   // Compute opponents list
   // If spectator, everyone seated is viewed around the table
@@ -1033,34 +1062,34 @@ export default function App() {
   return (
     <div
       id="game-root"
-      className={`min-h-screen bg-[#090B0E] text-slate-100 flex flex-col justify-between overflow-x-hidden hemi-radial-bg ${screenShake ? 'shake-effect' : ''}`}
+      className={`min-h-screen ${gameState && gameState.status !== 'lobby' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : ''} bg-[#090B0E] text-slate-100 flex flex-col justify-between overflow-x-hidden hemi-radial-bg ${screenShake ? 'shake-effect' : ''}`}
     >
       {/* Top Spectator Banner if in spectator mode */}
       {isSpectator && gameState && (
-        <div className="w-full bg-gradient-to-r from-[#FF4600]/20 via-slate-900 to-[#FF4600]/20 border-b border-[#FF4600]/40 px-4 py-2 flex items-center justify-between text-xs text-orange-200 z-30 shadow-lg">
+        <div className="w-full bg-gradient-to-r from-[#FF4600]/20 via-slate-900 to-[#FF4600]/20 border-b border-[#FF4600]/40 px-3 sm:px-4 py-1.5 flex items-center justify-between text-xs text-orange-200 z-30 shadow-lg shrink-0">
           <div className="flex items-center gap-2 font-black tracking-wide">
             <Eye className="w-4 h-4 text-[#FF4600] animate-pulse" />
-            <span className="text-white">LIVE SPECTATOR MODE</span>
+            <span className="text-white text-xs sm:text-sm">LIVE SPECTATOR</span>
             <span className="hidden sm:inline-block text-orange-300/80 font-normal">
-              • Watching Room <strong className="text-[#FF4600] font-mono">{gameState.roomCode}</strong>
+              • Room <strong className="text-[#FF4600] font-mono">{gameState.roomCode}</strong>
             </span>
-            <span className="px-2 py-0.5 rounded-full bg-[#FF4600]/20 text-orange-300 font-bold border border-[#FF4600]/30 text-[10px]">
+            <span className="px-1.5 py-0.2 rounded-full bg-[#FF4600]/20 text-orange-300 font-bold border border-[#FF4600]/30 text-[10px]">
               {gameState.spectatorCount || 1} Watching
             </span>
           </div>
 
           <button
             onClick={handleLeaveRoom}
-            className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all active:scale-95"
+            className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all active:scale-95"
           >
-            Leave Spectate
+            Leave
           </button>
         </div>
       )}
 
       {/* Top Navigation Bar */}
-      <header className="h-16 px-4 sm:px-8 border-b border-slate-800/80 bg-[#0E1217]/90 backdrop-blur-md flex items-center justify-between shrink-0 z-20">
-        <div className="flex items-center gap-4">
+      <header className="h-13 sm:h-16 px-3 sm:px-8 border-b border-slate-800/80 bg-[#0E1217]/90 backdrop-blur-md flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-3 sm:gap-4">
           <HemiUnoLogo size="md" variant="clean" />
           <div className="hidden sm:flex flex-col">
             <div className="text-[11px] text-slate-400 flex items-center gap-1.5 font-mono">
@@ -1173,20 +1202,51 @@ export default function App() {
             )}
           </button>
 
-          {gameState && !isSpectator && (
+          {/* In Lobby: Player can quit the lobby */}
+          {gameState && gameState.status === 'lobby' && !isSpectator && (
             <button
               onClick={handleLeaveRoom}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-rose-900/40 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer"
-              title="Leave Room"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+              title="Quit Lobby"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden sm:inline">Quit Lobby</span>
+            </button>
+          )}
+
+          {/* While Playing: Quitting is locked until game ends */}
+          {gameState && gameState.status === 'playing' && !isSpectator && (
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-500 select-none cursor-not-allowed"
+              title="Quitting is locked while the match is in progress. Complete the game to exit."
+            >
+              <Lock className="w-3.5 h-3.5 text-amber-500/80" />
+              <span className="hidden sm:inline">Match Locked</span>
+            </div>
+          )}
+
+          {/* After Game Over: Player can leave the table and return to lobby */}
+          {gameState && gameState.status === 'game_over' && !isSpectator && (
+            <button
+              onClick={handleLeaveRoom}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all cursor-pointer active:scale-95"
+              title="Quit Table and return to Lobby"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span>Quit to Lobby</span>
             </button>
           )}
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full p-2 sm:p-4 md:p-6 relative flex flex-col items-center justify-start overflow-x-hidden">
+      <main
+        className={`flex-1 w-full relative flex flex-col items-center justify-start overflow-x-hidden ${
+          gameState && gameState.status !== 'lobby'
+            ? 'p-1 sm:p-3 overflow-hidden justify-between h-[calc(100dvh-52px)] sm:h-[calc(100dvh-64px)]'
+            : 'p-2 sm:p-4 md:p-6'
+        }`}
+      >
         {/* Error Toast notification */}
         {errorMessage && (
           <div className="fixed top-20 z-50 px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs shadow-2xl animate-in slide-in-from-top-4 duration-150">
@@ -1235,16 +1295,16 @@ export default function App() {
 
         {/* View: Active Game Table */}
         {gameState && gameState.status !== 'lobby' && (
-          <div className="w-full max-w-5xl flex-1 flex flex-col justify-between items-center py-2 sm:py-4">
+          <div className="w-full max-w-5xl flex-1 flex flex-col justify-between items-center py-1 sm:py-2 h-full overflow-hidden">
             {/* Reconnecting banner if temporarily disconnected */}
             {connectionStatus === 'reconnecting' && (
-              <div className="w-full max-w-md mx-auto mb-2 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center gap-2 shadow-lg backdrop-blur-md animate-pulse z-30">
+              <div className="w-full max-w-md mx-auto mb-1 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center justify-center gap-2 shadow-lg backdrop-blur-md animate-pulse z-30 shrink-0">
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 <span>Re-syncing match state with server...</span>
               </div>
             )}
             {/* Opponents Area around table */}
-            <div className="w-full flex items-center justify-around px-2 sm:px-6 pt-1 pb-4 flex-wrap gap-2">
+            <div className="w-full flex items-center justify-around sm:justify-center gap-1.5 sm:gap-6 px-1 sm:px-6 pt-0.5 pb-1 sm:pb-2 overflow-x-auto no-scrollbar shrink-0">
               {opponents.map((opp) => (
                 <OpponentSeat
                   key={opp.id}
@@ -1274,7 +1334,7 @@ export default function App() {
 
             {/* If Spectator: Show Spectator Arena Bottom Bar */}
             {isSpectator ? (
-              <div className="w-full max-w-2xl flex flex-col items-center gap-3 p-4 sm:p-5 rounded-3xl bg-slate-900/90 border-2 border-purple-500/30 backdrop-blur-md shadow-2xl mt-4 z-20 animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <div className="w-full max-w-2xl flex flex-col items-center gap-3 p-3 sm:p-5 rounded-3xl bg-slate-900/90 border-2 border-purple-500/30 backdrop-blur-md shadow-2xl mt-2 sm:mt-4 z-20 animate-in fade-in slide-in-from-bottom-3 duration-300 shrink-0">
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
@@ -1297,7 +1357,7 @@ export default function App() {
                     <ReactionWheel onSendEmote={handleSendEmote} />
                     <button
                       onClick={handleToggleChat}
-                      className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-600/30 transition-all"
+                      className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-600/30 transition-all"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
                       <span>Live Chat</span>
@@ -1307,23 +1367,59 @@ export default function App() {
               </div>
             ) : (
               /* Player's Turn Notification & Action Bar */
-              <div className="w-full flex flex-col items-center mt-2 sm:mt-4 z-20">
-                {/* Turn indicator ribbon */}
-                <div className="mb-2 flex items-center gap-3">
+              <div className="w-full flex flex-col items-center mt-1 sm:mt-2 z-20 shrink-0">
+                {/* Turn indicator / Defense Stack Banner */}
+                <div className="mb-1 flex items-center justify-center w-full">
                   {isMyTurn ? (
                     gameState.pendingDrawCount && gameState.pendingDrawCount > 0 ? (
-                      <div className="px-5 py-2 rounded-full bg-gradient-to-r from-rose-600 via-red-500 to-amber-500 text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-xl shadow-rose-600/50 animate-bounce flex items-center gap-2 border-2 border-white/60">
-                        <Flame
-                          className="w-4 h-4 fill-white animate-spin"
-                          style={{ animationDuration: '3s' }}
-                        />
-                        <span>
-                          UNDER ATTACK! PICK +{gameState.pendingDrawCount} OR DEFEND WITH +2/+4! (
-                          {gameState.turnTimeRemaining}s)
-                        </span>
-                      </div>
+                      canDefendAttack ? (
+                        /* Can defend with +2 or +4 */
+                        <div className="w-full max-w-md mx-auto px-3 py-1.5 rounded-2xl bg-gradient-to-r from-rose-950/90 via-red-900/90 to-amber-950/90 border-2 border-rose-500 shadow-xl flex items-center justify-between gap-2 animate-pulse">
+                          <div className="flex items-center gap-2 text-white min-w-0">
+                            <Flame
+                              className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0 animate-spin"
+                              style={{ animationDuration: '3s' }}
+                            />
+                            <div className="truncate">
+                              <div className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-rose-200">
+                                DEFEND OR STACK (+{gameState.pendingDrawCount} CARDS)
+                              </div>
+                              <div className="text-[10px] text-slate-300 truncate">
+                                Play +2 or +4 to defend, or tap to take penalty ({gameState.turnTimeRemaining}s)
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleDrawCard}
+                            className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider shadow-md active:scale-95 shrink-0 cursor-pointer"
+                          >
+                            TAKE +{gameState.pendingDrawCount}
+                          </button>
+                        </div>
+                      ) : (
+                        /* No defense in hand: must draw penalty cards */
+                        <div className="w-full max-w-md mx-auto px-3 py-1.5 rounded-2xl bg-gradient-to-r from-rose-950/90 via-red-900/90 to-slate-900/90 border-2 border-rose-500 shadow-xl flex items-center justify-between gap-2 animate-pulse">
+                          <div className="flex items-center gap-2 text-white min-w-0">
+                            <Flame className="w-4 h-4 text-rose-400 fill-rose-400 shrink-0 animate-bounce" />
+                            <div className="truncate">
+                              <div className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-rose-200">
+                                NO DEFENSE IN HAND — TAKE PENALTY!
+                              </div>
+                              <div className="text-[10px] text-slate-300 truncate">
+                                Pick up all +{gameState.pendingDrawCount} cards ({gameState.turnTimeRemaining}s)
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={handleDrawCard}
+                            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-500 hover:from-rose-500 hover:to-red-400 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider shadow-lg shadow-rose-600/50 active:scale-95 shrink-0 animate-bounce cursor-pointer"
+                          >
+                            PICK +{gameState.pendingDrawCount} CARDS
+                          </button>
+                        </div>
+                      )
                     ) : (
-                      <div className="px-4 py-1.5 rounded-full bg-[#FF4600] text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-lg shadow-[#FF4600]/40 animate-pulse flex items-center gap-2">
+                      <div className="px-3.5 py-1 rounded-full bg-[#FF4600] text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-lg shadow-[#FF4600]/40 animate-pulse flex items-center gap-2">
                         <Flame className="w-4 h-4 fill-current" />
                         <span>YOUR TURN! ({gameState.turnTimeRemaining}s)</span>
                       </div>
@@ -1341,75 +1437,87 @@ export default function App() {
                 {/* Player's Hand of Cards */}
                 <div
                   id="player-hand-container"
-                  className="relative w-full max-w-3xl flex flex-col items-center justify-end min-h-[150px] sm:min-h-[170px] px-4 pb-2"
+                  className="relative w-full max-w-3xl flex flex-col items-center justify-end px-1 sm:px-4 pb-1 shrink-0"
                 >
                   {/* Hovered Card Inspection Helper Tooltip */}
-                  <div className="h-7 mb-1 flex items-center justify-center">
+                  <div className="h-6 sm:h-7 mb-1 flex items-center justify-center">
                     {hoveredCard ? (
-                      <div className="px-3 py-0.5 rounded-full bg-[#0E1217]/95 border border-[#FF4600]/60 text-xs text-white shadow-xl shadow-black/80 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
+                      <div className="px-2.5 py-0.5 rounded-full bg-[#0E1217]/95 border border-[#FF4600]/60 text-[11px] sm:text-xs text-white shadow-xl shadow-black/80 flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md max-w-[92vw] truncate">
                         {hoveredCard.value === 'wild_draw4' ? (
                           <>
-                            <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-red-600 via-[#FF4600] to-amber-500 text-white font-black text-[10px] shadow-sm">
+                            <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-red-600 via-[#FF4600] to-amber-500 text-white font-black text-[9px] sm:text-[10px] shadow-sm">
                               +4 WILD
                             </span>
-                            <span className="font-bold text-slate-100">
+                            <span className="font-bold text-slate-100 truncate">
                               Wild Draw Four — Forces next player to draw 4 cards!
                             </span>
                           </>
                         ) : hoveredCard.value === 'draw2' ? (
                           <>
-                            <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] shadow-sm">
+                            <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] sm:text-[10px] shadow-sm">
                               +2 DRAW
                             </span>
-                            <span className="font-bold text-slate-100">
+                            <span className="font-bold text-slate-100 truncate">
                               {hoveredCard.color.toUpperCase()} Draw Two — Forces next player to draw 2 cards!
                             </span>
                           </>
                         ) : hoveredCard.value === 'wild' ? (
                           <>
-                            <span className="px-1.5 py-0.5 rounded-full bg-purple-600 text-white font-black text-[10px] shadow-sm">
+                            <span className="px-1.5 py-0.2 rounded-full bg-purple-600 text-white font-black text-[9px] sm:text-[10px] shadow-sm">
                               ★ WILD
                             </span>
-                            <span className="font-bold text-slate-100">
+                            <span className="font-bold text-slate-100 truncate">
                               Wild Card — Choose any color (Red, Blue, Green, Yellow)
                             </span>
                           </>
                         ) : hoveredCard.value === 'skip' ? (
                           <>
-                            <span className="px-1.5 py-0.5 rounded-full bg-blue-600 text-white font-black text-[10px] shadow-sm">
+                            <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white font-black text-[9px] sm:text-[10px] shadow-sm">
                               ⊘ SKIP
                             </span>
-                            <span className="font-bold text-slate-100">
+                            <span className="font-bold text-slate-100 truncate">
                               {hoveredCard.color.toUpperCase()} Skip — Skips next player's turn
                             </span>
                           </>
                         ) : hoveredCard.value === 'reverse' ? (
                           <>
-                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white font-black text-[10px] shadow-sm">
+                            <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-black text-[9px] sm:text-[10px] shadow-sm">
                               ⇄ REV
                             </span>
-                            <span className="font-bold text-slate-100">
+                            <span className="font-bold text-slate-100 truncate">
                               {hoveredCard.color.toUpperCase()} Reverse — Changes turn rotation
                             </span>
                           </>
                         ) : (
-                          <span className="font-semibold text-slate-300">
+                          <span className="font-semibold text-slate-300 truncate">
                             {hoveredCard.color.toUpperCase()} {hoveredCard.value} Card
                           </span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-[10px] font-mono text-slate-500 tracking-wider uppercase">
+                      <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 tracking-wider uppercase">
                         YOUR CARDS ({myPlayer?.hand?.length || 0})
                       </span>
                     )}
                   </div>
 
-                  <div className="flex justify-center -space-x-8 sm:-space-x-10 hover:-space-x-4 transition-all duration-300">
+                  <div
+                    className={`w-full flex justify-center items-end overflow-x-auto no-scrollbar py-1 px-2 ${
+                      (myPlayer?.hand?.length || 0) > 8
+                        ? '-space-x-8 sm:-space-x-12'
+                        : (myPlayer?.hand?.length || 0) > 5
+                        ? '-space-x-6 sm:-space-x-10'
+                        : '-space-x-4 sm:-space-x-7'
+                    }`}
+                  >
                     {myPlayer?.hand?.map((card, idx) => {
                       const playable = isCardPlayable(card);
+                      const isDefendingCard =
+                        isMyTurn &&
+                        (gameState.pendingDrawCount || 0) > 0 &&
+                        (card.value === 'draw2' || card.value === 'wild_draw4');
                       const total = myPlayer.hand?.length || 1;
-                      const rot = (idx - (total - 1) / 2) * 3;
+                      const rot = (idx - (total - 1) / 2) * 2;
 
                       return (
                         <div
@@ -1424,9 +1532,14 @@ export default function App() {
                           <CardComponent
                             card={card}
                             isPlayable={playable}
-                            size="md"
+                            size="adaptive"
                             rotation={rot}
                             onClick={() => handlePlayCard(card)}
+                            className={
+                              isDefendingCard
+                                ? 'ring-3 sm:ring-4 ring-rose-500 shadow-2xl shadow-rose-500/80 -translate-y-3 sm:-translate-y-4 animate-pulse'
+                                : ''
+                            }
                           />
                         </div>
                       );
@@ -1435,8 +1548,8 @@ export default function App() {
                 </div>
 
                 {/* Bottom Quick Controls Bar */}
-                <div className="w-full max-w-xl flex items-center justify-between gap-2 px-4 py-2 rounded-2xl bg-[#0E1217]/90 border border-slate-800 backdrop-blur-md mt-2 shadow-xl shadow-black/60">
-                  <div className="flex items-center gap-2">
+                <div className="w-full max-w-xl flex items-center justify-between gap-2 px-3 py-1.5 sm:py-2 rounded-2xl bg-[#0E1217]/95 border border-slate-800 backdrop-blur-md mt-1 sm:mt-2 shadow-xl shadow-black/60 shrink-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     {/* Reaction Emote Wheel */}
                     <ReactionWheel onSendEmote={handleSendEmote} />
 
@@ -1444,7 +1557,7 @@ export default function App() {
                     <button
                       onClick={handleCallLastCard}
                       className={`
-                        px-3.5 py-1.5 rounded-xl font-black text-xs tracking-wider uppercase transition-all flex items-center gap-1.5 shadow-md cursor-pointer
+                        px-2.5 sm:px-3.5 py-1.5 rounded-xl font-black text-[11px] sm:text-xs tracking-wider uppercase transition-all flex items-center gap-1 sm:gap-1.5 shadow-md cursor-pointer
                         ${myPlayer && myPlayer.cardCount <= 2
                           ? 'bg-[#FF4600] hover:bg-[#ff5a1a] text-white animate-bounce shadow-[#FF4600]/40 ring-2 ring-white/50'
                           : 'bg-slate-800 hover:bg-slate-700 text-slate-400'}
@@ -1457,11 +1570,11 @@ export default function App() {
                   </div>
 
                   {/* Hand Action Buttons */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     {isMyTurn && gameState.drawPendingForPlayer && (
                       <button
                         onClick={handlePassTurn}
-                        className="px-4 py-1.5 rounded-xl bg-[#0E1217] hover:bg-slate-800 border border-[#FF4600]/60 text-[#FF4600] font-black text-xs uppercase tracking-wider transition-colors animate-pulse cursor-pointer"
+                        className="px-3 sm:px-4 py-1.5 rounded-xl bg-[#0E1217] hover:bg-slate-800 border border-[#FF4600]/60 text-[#FF4600] font-black text-[11px] sm:text-xs uppercase tracking-wider transition-colors animate-pulse cursor-pointer"
                       >
                         Pass Turn
                       </button>
@@ -1471,7 +1584,7 @@ export default function App() {
                       <button
                         onClick={handleDrawCard}
                         className={`
-                          px-4.5 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer
+                          px-3.5 sm:px-4.5 py-1.5 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer
                           ${gameState.pendingDrawCount && gameState.pendingDrawCount > 0
                             ? 'bg-gradient-to-r from-red-600 via-[#FF4600] to-orange-400 text-white shadow-[#FF4600]/40 ring-2 ring-white animate-pulse'
                             : 'bg-gradient-to-r from-[#FF4600] to-[#FF6200] hover:from-[#ff5500] hover:to-[#ff731a] text-white shadow-lg shadow-[#FF4600]/30 active:scale-95'}
@@ -1576,6 +1689,7 @@ export default function App() {
           myPlayerId={myPlayerId}
           isHost={isHost}
           onRematch={handleRematch}
+          onLeaveRoom={handleLeaveRoom}
         />
       )}
     </div>
