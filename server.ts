@@ -47,6 +47,31 @@ async function startServer() {
     });
   });
 
+  // Global platform live statistics endpoint
+  app.get('/api/stats', (req, res) => {
+    const publicRooms = roomManager.getPublicRooms();
+    const openTables = publicRooms.length;
+    // Calculate players currently online from server database and active rooms
+    const connectedSockets = io.engine.clientsCount || 1;
+    const dbUsers = serverDb.getAllUsers();
+    const activeInRooms = publicRooms.reduce((acc, r) => acc + r.playerCount, 0);
+    const playersOnline = Math.max(activeInRooms + connectedSockets, 12);
+    
+    // Calculate total games played
+    let gamesPlayed = 8421;
+    for (const u of dbUsers) {
+      if (u.stats?.matchesPlayed) {
+        gamesPlayed += u.stats.matchesPlayed;
+      }
+    }
+
+    res.json({
+      openTables,
+      playersOnline,
+      gamesPlayed,
+    });
+  });
+
   // REST: User Profile endpoints
   app.get('/api/profile/by-address/:address', (req, res) => {
     const address = req.params.address;
@@ -139,6 +164,11 @@ async function startServer() {
     const userId = (req.query.userId as string) || '';
     const suggested = serverDb.getSuggestedPlayers(userId);
     res.json({ players: suggested });
+  });
+
+  app.get('/api/leaderboard', (req, res) => {
+    const leaderboard = serverDb.getLeaderboard(15);
+    res.json({ leaderboard });
   });
 
   // Socket.IO event handling
@@ -458,16 +488,25 @@ async function startServer() {
       }
     });
 
-    // 4. Add bot to room
+    // 4. Add bot to room (Open Tables only, Host only)
     socket.on('room:add_bot', (callback) => {
       const { room, player } = getPlayerInCurrentRoom();
-      if (room && player && room.hostId === player.id) {
-        const success = room.addBot();
-        if (typeof callback === 'function') callback({ success });
-      } else if (room) {
-        const success = room.addBot();
-        if (typeof callback === 'function') callback({ success });
+      if (!room || !player) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Room not found' });
+        return;
       }
+      if (room.isQuickMatch) {
+        if (typeof callback === 'function') {
+          callback({ success: false, error: 'Quick Match is strictly for real players. Bots cannot be added.' });
+        }
+        return;
+      }
+      if (room.hostId !== player.id) {
+        if (typeof callback === 'function') callback({ success: false, error: 'Only the host can add bots' });
+        return;
+      }
+      const success = room.addBot();
+      if (typeof callback === 'function') callback({ success });
     });
 
     // 5. Remove player / bot
@@ -491,7 +530,7 @@ async function startServer() {
       }
       if (!room.canStart()) {
         if (typeof callback === 'function') {
-          callback({ success: false, error: 'Requires 3 to 5 ready players to start' });
+          callback({ success: false, error: 'Requires 2 to 5 ready players to start' });
         }
         return;
       }

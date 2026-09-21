@@ -27,14 +27,22 @@ export const WildColorModal: React.FC<WildColorModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-slate-900 border-2 border-amber-500/40 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl shadow-amber-500/20 text-center">
-        <div className="inline-block px-3 py-1 rounded-full bg-amber-500/20 text-amber-400 font-mono text-xs font-bold mb-2">
-          {cardLabel.toUpperCase()}
+        <div
+          className={`inline-block px-3 py-1 rounded-full font-mono text-xs font-black mb-2 border ${
+            cardLabel.includes('+4')
+              ? 'bg-gradient-to-r from-red-600 via-[#FF4600] to-amber-500 text-white border-white/60 shadow-lg shadow-[#FF4600]/30'
+              : 'bg-[#FF4600]/20 text-[#FF4600] border-[#FF4600]/40'
+          }`}
+        >
+          {cardLabel.includes('+4') ? '⚡ SPECIAL +4 WILD' : '★ WILD COLOR'}
         </div>
         <h3 className="text-xl sm:text-2xl font-black text-white mb-2">
-          Choose Next Color
+          {cardLabel.includes('+4') ? 'Play +4 & Choose Color' : 'Choose Next Color'}
         </h3>
         <p className="text-xs sm:text-sm text-slate-400 mb-6">
-          All subsequent cards must match the chosen color until changed!
+          {cardLabel.includes('+4')
+            ? 'Next opponent will be forced to draw +4 cards unless they defend with another +4! Choose the active color:'
+            : 'All subsequent cards must match the chosen color until changed!'}
         </p>
 
         <div className="grid grid-cols-2 gap-4 mb-6">

@@ -25,11 +25,12 @@ export function getCardAssetSrc(card?: CardType, isBack?: boolean): string {
   if (isBack || !card) {
     return '/assets/cards/card_back.svg';
   }
-  if (card.color === 'wild' || card.value === 'wild') {
-    return '/assets/cards/wild.svg';
-  }
+  // MUST evaluate wild_draw4 BEFORE general wild color!
   if (card.value === 'wild_draw4') {
     return '/assets/cards/wild_draw4.svg';
+  }
+  if (card.color === 'wild' || card.value === 'wild') {
+    return '/assets/cards/wild.svg';
   }
   return `/assets/cards/${card.color}_${card.value}.svg`;
 }
@@ -82,6 +83,22 @@ export const CardComponent: React.FC<CardProps> = ({
     );
   }
 
+  // Determine special card badges and identifiers
+  const isDraw4 = card.value === 'wild_draw4';
+  const isDraw2 = card.value === 'draw2';
+  const isWildRegular = card.value === 'wild';
+  const isSkip = card.value === 'skip';
+  const isReverse = card.value === 'reverse';
+
+  // Badge styles based on card type
+  const draw2Bg = {
+    red: 'bg-red-600 border-red-400/80 text-white shadow-red-500/60',
+    blue: 'bg-blue-600 border-blue-400/80 text-white shadow-blue-500/60',
+    green: 'bg-emerald-600 border-emerald-400/80 text-white shadow-emerald-500/60',
+    yellow: 'bg-amber-400 border-amber-300 text-slate-950 shadow-amber-500/60 font-black',
+    wild: 'bg-purple-600 border-purple-400 text-white shadow-purple-500/60',
+  }[card.color] || 'bg-slate-800 text-white border-white/50';
+
   return (
     <div
       id={`card-${card.id}`}
@@ -95,7 +112,8 @@ export const CardComponent: React.FC<CardProps> = ({
         transition-all duration-200 cursor-pointer
         shadow-md
         ${isPlayable ? `ring-2 ring-white/90 shadow-xl hover:-translate-y-3.5 hover:scale-105 active:scale-95 ${glowStyle}` : 'opacity-85 hover:opacity-95'}
-        ${isSelected ? '-translate-y-4 ring-4 ring-amber-300 scale-105 shadow-2xl' : ''}
+        ${isSelected ? '-translate-y-4 ring-4 ring-[#FF4600] scale-105 shadow-2xl shadow-[#FF4600]/50' : ''}
+        ${isDraw4 ? 'ring-1 ring-[#FF4600]/60' : ''}
         ${className}
       `}
     >
@@ -114,6 +132,145 @@ export const CardComponent: React.FC<CardProps> = ({
           <span className="text-xs">{card.label}</span>
           <span className="text-xl font-mono">{card.value}</span>
           <span className="text-xs rotate-180">{card.label}</span>
+        </div>
+      )}
+
+      {/* SPECIAL CARD: Prominent Corner & Center Badges */}
+      {/* 1. WILD DRAW 4 SPECIAL CARD */}
+      {isDraw4 && (
+        <>
+          {/* Top-Left Corner Badge */}
+          <div className="absolute top-1 left-1 z-20 pointer-events-none">
+            <span
+              className={`
+                inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
+                bg-gradient-to-br from-black via-[#090B0E] to-[#FF4600] text-white border-[#FF4600]
+                ${size === 'sm' ? 'text-[9px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
+              `}
+            >
+              +4
+            </span>
+          </div>
+
+          {/* Bottom-Right Corner Badge (Inverted) */}
+          <div className="absolute bottom-1 right-1 z-20 pointer-events-none rotate-180">
+            <span
+              className={`
+                inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
+                bg-gradient-to-br from-black via-[#090B0E] to-[#FF4600] text-white border-[#FF4600]
+                ${size === 'sm' ? 'text-[9px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
+              `}
+            >
+              +4
+            </span>
+          </div>
+
+          {/* Center Explicit Pill Identifier */}
+          <div className="absolute inset-x-1 bottom-3 sm:bottom-4 z-20 flex justify-center pointer-events-none">
+            <div className="px-1.5 py-0.5 rounded-full bg-black/90 border border-[#FF4600] text-[#FF4600] font-black tracking-wider text-[9px] sm:text-[10px] shadow-lg shadow-black/80 flex items-center gap-0.5 backdrop-blur-sm">
+              <span className="bg-[#FF4600] text-white px-1 py-0.2 rounded-full font-mono text-[8px] sm:text-[9px]">
+                +4
+              </span>
+              <span>WILD</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 2. DRAW 2 SPECIAL CARD (+2) */}
+      {isDraw2 && (
+        <>
+          {/* Top-Left Corner Badge */}
+          <div className="absolute top-1 left-1 z-20 pointer-events-none">
+            <span
+              className={`
+                inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
+                ${draw2Bg}
+                ${size === 'sm' ? 'text-[9px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
+              `}
+            >
+              +2
+            </span>
+          </div>
+
+          {/* Bottom-Right Corner Badge (Inverted) */}
+          <div className="absolute bottom-1 right-1 z-20 pointer-events-none rotate-180">
+            <span
+              className={`
+                inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
+                ${draw2Bg}
+                ${size === 'sm' ? 'text-[9px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
+              `}
+            >
+              +2
+            </span>
+          </div>
+
+          {/* Center Explicit Pill Identifier */}
+          <div className="absolute inset-x-1 bottom-3 sm:bottom-4 z-20 flex justify-center pointer-events-none">
+            <div className="px-1.5 py-0.5 rounded-full bg-black/90 border border-white/40 text-white font-black tracking-wider text-[9px] sm:text-[10px] shadow-lg shadow-black/80 flex items-center gap-0.5 backdrop-blur-sm">
+              <span className={`px-1 py-0.2 rounded-full font-mono text-[8px] sm:text-[9px] ${draw2Bg}`}>
+                +2
+              </span>
+              <span>DRAW</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 3. REGULAR WILD COLOR PICKER CARD */}
+      {isWildRegular && (
+        <>
+          {/* Top-Left Corner Badge */}
+          <div className="absolute top-1 left-1 z-20 pointer-events-none">
+            <span
+              className={`
+                inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
+                bg-gradient-to-br from-purple-700 via-pink-600 to-amber-500 text-white border-white/60
+                ${size === 'sm' ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}
+              `}
+            >
+              W
+            </span>
+          </div>
+
+          {/* Center Explicit Pill Identifier */}
+          <div className="absolute inset-x-1 bottom-3 sm:bottom-4 z-20 flex justify-center pointer-events-none">
+            <div className="px-2 py-0.5 rounded-full bg-black/90 border border-purple-400 text-purple-200 font-black tracking-wider text-[9px] sm:text-[10px] shadow-lg shadow-black/80 flex items-center gap-1 backdrop-blur-sm">
+              <span className="w-2 h-2 rounded-full bg-gradient-to-r from-red-500 via-yellow-400 to-blue-500" />
+              <span>WILD</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 4. SKIP CARD */}
+      {isSkip && (
+        <div className="absolute top-1 left-1 z-20 pointer-events-none">
+          <span
+            className={`
+              inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
+              bg-black/80 text-white border-white/40
+              ${size === 'sm' ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}
+            `}
+          >
+            ⊘
+          </span>
+        </div>
+      )}
+
+      {/* 5. REVERSE CARD */}
+      {isReverse && (
+        <div className="absolute top-1 left-1 z-20 pointer-events-none">
+          <span
+            className={`
+              inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
+              bg-black/80 text-white border-white/40
+              ${size === 'sm' ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}
+            `}
+          >
+            ⇄
+          </span>
         </div>
       )}
 

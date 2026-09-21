@@ -555,6 +555,16 @@ export class ServerDatabase {
       .slice(0, 6);
   }
 
+  public getAllUsers(): UserProfileRecord[] {
+    return Object.values(this.data.users);
+  }
+
+  public getLeaderboard(limit = 10): UserProfileRecord[] {
+    return Object.values(this.data.users)
+      .sort((a, b) => (b.stats?.wins || 0) - (a.stats?.wins || 0) || (b.stats?.matchesPlayed || 0) - (a.stats?.matchesPlayed || 0))
+      .slice(0, limit);
+  }
+
   public saveRecentRoom(roomCode: string, info: { hostName: string; hostAvatar: string; buyIn: string; status: 'lobby' | 'playing' | 'game_over' }): void {
     this.data.recentRooms[roomCode] = {
       roomCode,

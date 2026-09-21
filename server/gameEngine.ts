@@ -111,6 +111,10 @@ export class GameRoom {
 
   public buyInAmount: string = '0.005';
   public currency: string = 'ETH';
+  public customMode?: string;
+  public description?: string;
+  public isQuickMatch: boolean = false;
+  public isSeededPublic: boolean = false;
 
   public spectators: Map<string, { id: string; socketId: string; name: string; avatar: string }> = new Map();
   public messages: ChatMessage[] = [];
@@ -223,6 +227,17 @@ export class GameRoom {
       if (player.name) existing.name = player.name;
       if (player.avatar) existing.avatar = player.avatar;
       if (player.address) existing.address = player.address;
+
+      // Check if current host is a bot or room has no human host; if so, this returning human becomes host!
+      const currentHost = this.players.find(p => p.id === this.hostId);
+      if (!existing.isBot && (!currentHost || currentHost.isBot)) {
+        this.players.forEach(p => {
+          if (p.isBot) p.isHost = false;
+        });
+        existing.isHost = true;
+        this.hostId = existing.id;
+      }
+
       this.emitUpdate();
       return existing;
     }
@@ -230,13 +245,28 @@ export class GameRoom {
     if (this.players.length >= 5) return null;
     if (this.status !== 'lobby') return null;
 
+    // RULE: The first real human user who joins takes the host seat!
+    // If the room currently has a bot host or no human host, promote this real user to host.
+    const currentHost = this.players.find(p => p.id === this.hostId);
+    const hostIsBot = !currentHost || currentHost.isBot;
+    const shouldBecomeHost = !player.isBot && (hostIsBot || !this.players.some(p => !p.isBot && p.isHost));
+
     const newPlayer: Player = {
       ...player,
       seatIndex: this.players.length,
       cardCount: 0,
       hand: [],
-      isReady: player.isHost || !!player.isBot,
+      isHost: shouldBecomeHost ? true : player.isHost,
+      isReady: shouldBecomeHost ? true : (player.isHost || !!player.isBot),
     };
+
+    if (shouldBecomeHost) {
+      // Demote any bot that was previously host
+      this.players.forEach(p => {
+        if (p.isBot) p.isHost = false;
+      });
+      this.hostId = newPlayer.id;
+    }
 
     this.players.push(newPlayer);
     this.emitUpdate();
@@ -255,10 +285,12 @@ export class GameRoom {
       p.seatIndex = idx;
     });
 
-    // If host left, reassign host
+    // If host left, reassign host to the first real human player, otherwise first bot
     if (removed.isHost && this.players.length > 0) {
-      this.players[0].isHost = true;
-      this.hostId = this.players[0].id;
+      const nextHuman = this.players.find(p => !p.isBot);
+      const newHost = nextHuman || this.players[0];
+      newHost.isHost = true;
+      this.hostId = newHost.id;
     }
 
     if (this.status === 'playing') {
@@ -296,6 +328,8 @@ export class GameRoom {
   }
 
   public addBot(): boolean {
+    // In Quick Match, bots are STRICTLY FORBIDDEN (real players only)
+    if (this.isQuickMatch) return false;
     if (this.players.length >= 5 || this.status !== 'lobby') return false;
     const botNames = ['HemiBot ⚡', 'CyberPepe 🐸', 'SoliditySam ⛓️', 'ChadCard 💎', 'QuantumByte 🤖'];
     const botAvatars = ['🤖', '🐸', '⚡', '🦁', '🦊'];
@@ -316,9 +350,9 @@ export class GameRoom {
   }
 
   public canStart(): boolean {
-    // 3 to 5 players required by the spec
-    if (this.players.length < 3 || this.players.length > 5) return false;
-    // Non-host players must be ready
+    // 2 to 5 players required (supporting 1v1 up to 5 players)
+    if (this.players.length < 2 || this.players.length > 5) return false;
+    // Non-host players must be ready (bots are automatically ready)
     return this.players.every(p => p.isHost || p.isReady || p.isBot);
   }
 
@@ -881,6 +915,8 @@ export class GameRoom {
       roomCode: this.roomCode,
       hostId: this.hostId,
       status: this.status,
+      isQuickMatch: this.isQuickMatch,
+      customMode: this.customMode,
       players: this.players.map(p => ({
         id: p.id,
         name: p.name,

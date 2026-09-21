@@ -415,6 +415,30 @@ export const CardTransferAnimation: React.FC<CardTransferAnimationProps> = ({ so
                     className="w-full h-full object-cover select-none pointer-events-none"
                     referrerPolicy="no-referrer"
                   />
+                  {play.card.value === 'wild_draw4' && (
+                    <>
+                      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-gradient-to-r from-red-600 via-[#FF4600] to-amber-500 text-white font-black text-[11px] border border-white/80 shadow-md">
+                        +4
+                      </div>
+                      <div className="absolute bottom-2 inset-x-1 flex justify-center">
+                        <span className="px-2 py-0.5 rounded-full bg-black/90 border border-[#FF4600] text-[#FF4600] font-black text-[10px]">
+                          +4 WILD
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {play.card.value === 'draw2' && (
+                    <>
+                      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[11px] border border-white/80 shadow-md">
+                        +2
+                      </div>
+                      <div className="absolute bottom-2 inset-x-1 flex justify-center">
+                        <span className="px-2 py-0.5 rounded-full bg-black/90 border border-white/60 text-white font-black text-[10px]">
+                          +2 DRAW
+                        </span>
+                      </div>
+                    </>
+                  )}
                   {play.isWild && (
                     <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-purple-500/20 via-transparent to-amber-400/20 animate-pulse" />
                   )}

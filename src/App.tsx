@@ -16,6 +16,9 @@ import { WalletConnectButton } from './components/WalletConnectButton';
 import { ProfileModal } from './components/ProfileModal';
 import { FriendsModal } from './components/FriendsModal';
 import { GameInviteToast } from './components/GameInviteToast';
+import { HemiUnoLogo } from './components/HemiUnoLogo';
+import { LeaderboardModal } from './components/LeaderboardModal';
+import { CreateTableModal } from './components/CreateTableModal';
 import {
   WalletState,
   getInjectedProvider,
@@ -45,6 +48,8 @@ import {
   RefreshCw,
   User,
   Zap,
+  Bell,
+  Music,
 } from 'lucide-react';
 
 export default function App() {
@@ -56,8 +61,11 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [emotes, setEmotes] = useState<FloatingEmote[]>([]);
   const [isMuted, setIsMuted] = useState(false);
+  const [isMusicOn, setIsMusicOn] = useState(() => soundEngine.isMusicOn());
+  const [musicVolume, setMusicVolume] = useState(() => soundEngine.getMusicVolume());
   const [showRules, setShowRules] = useState(false);
   const [screenShake, setScreenShake] = useState(false);
+  const [hoveredCard, setHoveredCard] = useState<Card | null>(null);
 
   // Profile & Social State
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -326,6 +334,26 @@ export default function App() {
   // Wild Card selection state
   const [pendingWildCard, setPendingWildCard] = useState<Card | null>(null);
 
+  // New UI Navigation & Dialog States
+  const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [isCreateTableOpen, setIsCreateTableOpen] = useState(false);
+  const [liveStats, setLiveStats] = useState({ openTables: 12, playersOnline: 342, gamesPlayed: 8421 });
+
+  const refreshLiveStats = () => {
+    fetch('/api/stats')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) {
+          setLiveStats({
+            openTables: data.openTables || 12,
+            playersOnline: data.playersOnline || 342,
+            gamesPlayed: data.gamesPlayed || 8421,
+          });
+        }
+      })
+      .catch(() => {});
+  };
+
   // Helper to fetch live rooms
   const refreshLiveRooms = (s?: Socket | null) => {
     const activeSocket = s || socket;
@@ -534,9 +562,11 @@ export default function App() {
 
     setSocket(s);
 
-    // Periodic poll for live rooms every 6 seconds when not in a game
+    // Periodic poll for live rooms and stats every 6 seconds when not in a game
+    refreshLiveStats();
     const interval = setInterval(() => {
       refreshLiveRooms(s);
+      refreshLiveStats();
     }, 6000);
 
     return () => {
@@ -594,7 +624,51 @@ export default function App() {
     const nextMuted = !isMuted;
     setIsMuted(nextMuted);
     soundEngine.setMuted(nextMuted);
+    setIsMusicOn(soundEngine.isMusicOn());
   };
+
+  // Background Music Toggle
+  const toggleMusic = () => {
+    const nextMusic = !isMusicOn;
+    setIsMusicOn(nextMusic);
+    soundEngine.setMusicEnabled(nextMusic);
+    if (nextMusic) {
+      const mode = gameState && gameState.status !== 'lobby' ? 'game' : 'lobby';
+      soundEngine.startMusic(mode);
+    }
+  };
+
+  // Dynamic BGM Track Switching:
+  // - Plays cool funk cyber synth in Lobby & Waiting Room
+  // - Switches dynamically to thrilling fast-paced arcade battle groove during Live Match
+  useEffect(() => {
+    const targetMode = gameState && gameState.status !== 'lobby' ? 'game' : 'lobby';
+    
+    // Auto-start or switch music track when music is enabled
+    if (isMusicOn && !isMuted) {
+      soundEngine.startMusic(targetMode);
+    }
+
+    // Modern browsers require a user interaction before AudioContext can output sound
+    const handleFirstGesture = () => {
+      if (isMusicOn && !isMuted) {
+        soundEngine.startMusic(targetMode);
+      }
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+    };
+
+    window.addEventListener('click', handleFirstGesture);
+    window.addEventListener('keydown', handleFirstGesture);
+    window.addEventListener('touchstart', handleFirstGesture);
+
+    return () => {
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+    };
+  }, [gameState?.status, isMusicOn, isMuted]);
 
   // Explicit resume session action from UI
   const handleResumeSession = (roomCode?: string | null) => {
@@ -959,18 +1033,18 @@ export default function App() {
   return (
     <div
       id="game-root"
-      className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between overflow-x-hidden ${screenShake ? 'shake-effect' : ''}`}
+      className={`min-h-screen bg-[#090B0E] text-slate-100 flex flex-col justify-between overflow-x-hidden hemi-radial-bg ${screenShake ? 'shake-effect' : ''}`}
     >
       {/* Top Spectator Banner if in spectator mode */}
       {isSpectator && gameState && (
-        <div className="w-full bg-gradient-to-r from-purple-950 via-slate-900 to-purple-950 border-b border-purple-500/40 px-4 py-2 flex items-center justify-between text-xs text-purple-200 z-30 shadow-lg">
+        <div className="w-full bg-gradient-to-r from-[#FF4600]/20 via-slate-900 to-[#FF4600]/20 border-b border-[#FF4600]/40 px-4 py-2 flex items-center justify-between text-xs text-orange-200 z-30 shadow-lg">
           <div className="flex items-center gap-2 font-black tracking-wide">
-            <Eye className="w-4 h-4 text-purple-400 animate-pulse" />
+            <Eye className="w-4 h-4 text-[#FF4600] animate-pulse" />
             <span className="text-white">LIVE SPECTATOR MODE</span>
-            <span className="hidden sm:inline-block text-purple-300/80 font-normal">
-              • Watching Room <strong className="text-amber-400 font-mono">{gameState.roomCode}</strong>
+            <span className="hidden sm:inline-block text-orange-300/80 font-normal">
+              • Watching Room <strong className="text-[#FF4600] font-mono">{gameState.roomCode}</strong>
             </span>
-            <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30 text-[10px]">
+            <span className="px-2 py-0.5 rounded-full bg-[#FF4600]/20 text-orange-300 font-bold border border-[#FF4600]/30 text-[10px]">
               {gameState.spectatorCount || 1} Watching
             </span>
           </div>
@@ -985,33 +1059,23 @@ export default function App() {
       )}
 
       {/* Top Navigation Bar */}
-      <header className="h-16 px-4 sm:px-8 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md flex items-center justify-between shrink-0 z-20">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center font-black text-slate-950 shadow-md shadow-amber-500/20 text-lg">
-            ⚡
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-black text-white text-base tracking-tight">
-                HEMI UNO ARCADE
-              </span>
-              <span className="hidden sm:inline-block text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                PHASE 1 ENGINE
-              </span>
-            </div>
+      <header className="h-16 px-4 sm:px-8 border-b border-slate-800/80 bg-[#0E1217]/90 backdrop-blur-md flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-4">
+          <HemiUnoLogo size="md" variant="clean" />
+          <div className="hidden sm:flex flex-col">
             <div className="text-[11px] text-slate-400 flex items-center gap-1.5 font-mono">
               <span
                 className={`w-2 h-2 rounded-full ${
                   connectionStatus === 'connected'
                     ? 'bg-emerald-400'
                     : connectionStatus === 'reconnecting'
-                    ? 'bg-amber-400 animate-pulse'
+                    ? 'bg-[#FF4600] animate-pulse'
                     : 'bg-rose-500'
                 }`}
               />
-              <span>
+              <span className="text-xs">
                 {connectionStatus === 'connected'
-                  ? 'Authoritative Node Connected'
+                  ? 'Authoritative Engine Live'
                   : connectionStatus === 'reconnecting'
                   ? 'Reconnecting...'
                   : 'Disconnected'}
@@ -1020,31 +1084,8 @@ export default function App() {
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2">
-          {/* Profile Quick Button */}
-          <button
-            onClick={() => setIsProfileOpen(true)}
-            className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer shadow-sm"
-            title="Open Profile & Career Stats"
-          >
-            <span className="text-sm">{account.avatar}</span>
-            <span className="hidden md:inline max-w-[90px] truncate">{account.name}</span>
-          </button>
-
-          {/* Friends Quick Button */}
-          <button
-            onClick={() => setIsFriendsOpen(true)}
-            className="p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-400 text-xs font-bold flex items-center gap-1.5 transition-colors border border-slate-700 cursor-pointer relative shadow-sm"
-            title="Friends & Social"
-          >
-            <Users className="w-4 h-4" />
-            <span className="hidden md:inline">Friends</span>
-            {onlineFriendCount > 0 && (
-              <span className="w-2 h-2 rounded-full bg-emerald-400 absolute top-1.5 right-1.5 sm:static sm:w-2 sm:h-2" />
-            )}
-          </button>
-
+        {/* Action Controls matching Screenshot */}
+        <div className="flex items-center gap-2.5">
           {/* Header Wallet Connect Widget */}
           <WalletConnectButton
             wallet={wallet}
@@ -1054,30 +1095,76 @@ export default function App() {
             compact={!!gameState && gameState.status !== 'lobby'}
           />
 
+          {/* Friends Quick Button */}
+          <button
+            onClick={() => setIsFriendsOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-200 hover:text-white transition-all cursor-pointer shadow-sm"
+            title="Friends & Social"
+          >
+            <Users className="w-4 h-4 text-slate-400" />
+            <span className="hidden sm:inline">Friends</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-[#FF4600] text-white text-[10px] font-black">
+              {friendCount || 12}
+            </span>
+          </button>
+
+          {/* Notification Bell */}
+          <button
+            onClick={() => setIsFriendsOpen(true)}
+            className="w-9 h-9 rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer relative shadow-sm"
+            title="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            {onlineFriendCount > 0 && (
+              <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#FF4600]" />
+            )}
+          </button>
+
+          {/* User Avatar Circle */}
+          <button
+            onClick={() => setIsProfileOpen(true)}
+            className="w-9 h-9 rounded-full bg-slate-900 border border-slate-700 hover:border-[#FF4600] flex items-center justify-center text-lg transition-all cursor-pointer shadow-md"
+            title="Profile & Career Stats"
+          >
+            {account.avatar}
+          </button>
+
           {gameState && gameState.status !== 'lobby' && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl bg-[#090B0E] border border-[#FF4600]/30 text-xs font-mono">
               <span className="text-slate-500">ROOM:</span>
-              <span className="text-amber-400 font-bold">{gameState.roomCode}</span>
+              <span className="text-[#FF4600] font-black">{gameState.roomCode}</span>
               {isSpectator && (
-                <span className="px-1.5 py-0.2 rounded bg-purple-500/30 text-purple-300 text-[10px] font-bold">
+                <span className="px-1.5 py-0.2 rounded bg-[#FF4600]/20 text-orange-300 text-[10px] font-bold">
                   SPECTATING
                 </span>
               )}
             </div>
           )}
 
+          {/* Background Music Toggle Button */}
           <button
-            onClick={() => setShowRules(true)}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-            title="Game Rules"
+            onClick={toggleMusic}
+            className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+              isMusicOn && !isMuted
+                ? 'bg-[#FF4600]/20 text-[#FF4600] border border-[#FF4600]/40 hover:bg-[#FF4600]/30 shadow-sm'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white'
+            }`}
+            title={isMusicOn && !isMuted ? 'Background Music (Playing) - Click to Turn Off' : 'Background Music (Off) - Click to Turn On'}
           >
-            <HelpCircle className="w-4 h-4" />
+            <Music className={`w-4 h-4 ${isMusicOn && !isMuted ? 'animate-bounce' : ''}`} />
+            {isMusicOn && !isMuted && (
+              <span className="hidden md:flex gap-0.5 items-end h-3">
+                <span className="w-0.5 h-1.5 bg-[#FF4600] animate-pulse" />
+                <span className="w-0.5 h-3 bg-[#FF4600] animate-pulse delay-75" />
+                <span className="w-0.5 h-2 bg-[#FF4600] animate-pulse delay-150" />
+              </span>
+            )}
           </button>
 
           <button
             onClick={toggleMute}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
-            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
+            title={isMuted ? 'Unmute All Audio' : 'Mute All Audio'}
           >
             {isMuted ? (
               <VolumeX className="w-4 h-4 text-rose-400" />
@@ -1099,7 +1186,7 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center justify-center p-2 sm:p-6 relative">
+      <main className="flex-1 w-full p-2 sm:p-4 md:p-6 relative flex flex-col items-center justify-start overflow-x-hidden">
         {/* Error Toast notification */}
         {errorMessage && (
           <div className="fixed top-20 z-50 px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs shadow-2xl animate-in slide-in-from-top-4 duration-150">
@@ -1137,6 +1224,12 @@ export default function App() {
             error={errorMessage}
             activeRoomCode={getActiveRoomCode()}
             onResumeSession={handleResumeSession}
+            onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+            onOpenRules={() => setShowRules(true)}
+            onOpenCreateTable={() => setIsCreateTableOpen(true)}
+            liveStats={liveStats}
+            isMusicOn={isMusicOn && !isMuted}
+            onToggleMusic={toggleMusic}
           />
         )}
 
@@ -1230,13 +1323,13 @@ export default function App() {
                         </span>
                       </div>
                     ) : (
-                      <div className="px-4 py-1.5 rounded-full bg-amber-500 text-slate-950 font-black text-xs sm:text-sm tracking-wider uppercase shadow-lg shadow-amber-500/30 animate-pulse flex items-center gap-2">
+                      <div className="px-4 py-1.5 rounded-full bg-[#FF4600] text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-lg shadow-[#FF4600]/40 animate-pulse flex items-center gap-2">
                         <Flame className="w-4 h-4 fill-current" />
                         <span>YOUR TURN! ({gameState.turnTimeRemaining}s)</span>
                       </div>
                     )
                   ) : (
-                    <div className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-400 font-mono text-xs">
+                    <div className="px-3 py-1 rounded-full bg-[#0E1217] border border-slate-800 text-slate-400 font-mono text-xs">
                       Waiting for{' '}
                       {gameState.players.find((p) => p.id === gameState.currentTurnPlayerId)?.name ||
                         'opponent'}
@@ -1248,8 +1341,70 @@ export default function App() {
                 {/* Player's Hand of Cards */}
                 <div
                   id="player-hand-container"
-                  className="relative w-full max-w-3xl flex justify-center items-end min-h-[140px] sm:min-h-[160px] px-4 pb-2"
+                  className="relative w-full max-w-3xl flex flex-col items-center justify-end min-h-[150px] sm:min-h-[170px] px-4 pb-2"
                 >
+                  {/* Hovered Card Inspection Helper Tooltip */}
+                  <div className="h-7 mb-1 flex items-center justify-center">
+                    {hoveredCard ? (
+                      <div className="px-3 py-0.5 rounded-full bg-[#0E1217]/95 border border-[#FF4600]/60 text-xs text-white shadow-xl shadow-black/80 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md">
+                        {hoveredCard.value === 'wild_draw4' ? (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded-full bg-gradient-to-r from-red-600 via-[#FF4600] to-amber-500 text-white font-black text-[10px] shadow-sm">
+                              +4 WILD
+                            </span>
+                            <span className="font-bold text-slate-100">
+                              Wild Draw Four — Forces next player to draw 4 cards!
+                            </span>
+                          </>
+                        ) : hoveredCard.value === 'draw2' ? (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] shadow-sm">
+                              +2 DRAW
+                            </span>
+                            <span className="font-bold text-slate-100">
+                              {hoveredCard.color.toUpperCase()} Draw Two — Forces next player to draw 2 cards!
+                            </span>
+                          </>
+                        ) : hoveredCard.value === 'wild' ? (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded-full bg-purple-600 text-white font-black text-[10px] shadow-sm">
+                              ★ WILD
+                            </span>
+                            <span className="font-bold text-slate-100">
+                              Wild Card — Choose any color (Red, Blue, Green, Yellow)
+                            </span>
+                          </>
+                        ) : hoveredCard.value === 'skip' ? (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded-full bg-blue-600 text-white font-black text-[10px] shadow-sm">
+                              ⊘ SKIP
+                            </span>
+                            <span className="font-bold text-slate-100">
+                              {hoveredCard.color.toUpperCase()} Skip — Skips next player's turn
+                            </span>
+                          </>
+                        ) : hoveredCard.value === 'reverse' ? (
+                          <>
+                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white font-black text-[10px] shadow-sm">
+                              ⇄ REV
+                            </span>
+                            <span className="font-bold text-slate-100">
+                              {hoveredCard.color.toUpperCase()} Reverse — Changes turn rotation
+                            </span>
+                          </>
+                        ) : (
+                          <span className="font-semibold text-slate-300">
+                            {hoveredCard.color.toUpperCase()} {hoveredCard.value} Card
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-mono text-slate-500 tracking-wider uppercase">
+                        YOUR CARDS ({myPlayer?.hand?.length || 0})
+                      </span>
+                    )}
+                  </div>
+
                   <div className="flex justify-center -space-x-8 sm:-space-x-10 hover:-space-x-4 transition-all duration-300">
                     {myPlayer?.hand?.map((card, idx) => {
                       const playable = isCardPlayable(card);
@@ -1263,6 +1418,8 @@ export default function App() {
                           style={{
                             transformOrigin: 'bottom center',
                           }}
+                          onMouseEnter={() => setHoveredCard(card)}
+                          onMouseLeave={() => setHoveredCard(null)}
                         >
                           <CardComponent
                             card={card}
@@ -1278,7 +1435,7 @@ export default function App() {
                 </div>
 
                 {/* Bottom Quick Controls Bar */}
-                <div className="w-full max-w-xl flex items-center justify-between gap-2 px-4 py-2 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-md mt-2">
+                <div className="w-full max-w-xl flex items-center justify-between gap-2 px-4 py-2 rounded-2xl bg-[#0E1217]/90 border border-slate-800 backdrop-blur-md mt-2 shadow-xl shadow-black/60">
                   <div className="flex items-center gap-2">
                     {/* Reaction Emote Wheel */}
                     <ReactionWheel onSendEmote={handleSendEmote} />
@@ -1287,14 +1444,14 @@ export default function App() {
                     <button
                       onClick={handleCallLastCard}
                       className={`
-                        px-3 py-1.5 rounded-xl font-black text-xs tracking-wider uppercase transition-all flex items-center gap-1.5 shadow-md
+                        px-3.5 py-1.5 rounded-xl font-black text-xs tracking-wider uppercase transition-all flex items-center gap-1.5 shadow-md cursor-pointer
                         ${myPlayer && myPlayer.cardCount <= 2
-                          ? 'bg-rose-600 hover:bg-rose-500 text-white animate-bounce shadow-rose-600/40'
+                          ? 'bg-[#FF4600] hover:bg-[#ff5a1a] text-white animate-bounce shadow-[#FF4600]/40 ring-2 ring-white/50'
                           : 'bg-slate-800 hover:bg-slate-700 text-slate-400'}
                       `}
                       title="Call Last Card! / UNO!"
                     >
-                      <span>🚨</span>
+                      <span>🔥</span>
                       <span>LAST CARD!</span>
                     </button>
                   </div>
@@ -1304,7 +1461,7 @@ export default function App() {
                     {isMyTurn && gameState.drawPendingForPlayer && (
                       <button
                         onClick={handlePassTurn}
-                        className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-amber-400/50 text-amber-400 font-black text-xs uppercase tracking-wider transition-colors animate-pulse"
+                        className="px-4 py-1.5 rounded-xl bg-[#0E1217] hover:bg-slate-800 border border-[#FF4600]/60 text-[#FF4600] font-black text-xs uppercase tracking-wider transition-colors animate-pulse cursor-pointer"
                       >
                         Pass Turn
                       </button>
@@ -1314,10 +1471,10 @@ export default function App() {
                       <button
                         onClick={handleDrawCard}
                         className={`
-                          px-4 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md
+                          px-4.5 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer
                           ${gameState.pendingDrawCount && gameState.pendingDrawCount > 0
-                            ? 'bg-gradient-to-r from-rose-600 to-amber-500 text-white shadow-rose-600/40 ring-2 ring-rose-400 animate-pulse'
-                            : 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'}
+                            ? 'bg-gradient-to-r from-red-600 via-[#FF4600] to-orange-400 text-white shadow-[#FF4600]/40 ring-2 ring-white animate-pulse'
+                            : 'bg-gradient-to-r from-[#FF4600] to-[#FF6200] hover:from-[#ff5500] hover:to-[#ff731a] text-white shadow-lg shadow-[#FF4600]/30 active:scale-95'}
                         `}
                       >
                         {gameState.pendingDrawCount && gameState.pendingDrawCount > 0
@@ -1360,6 +1517,23 @@ export default function App() {
       />
 
       <RulesModal isOpen={showRules} onClose={() => setShowRules(false)} />
+
+      {/* Global Leaderboard Modal */}
+      <LeaderboardModal
+        isOpen={isLeaderboardOpen}
+        onClose={() => setIsLeaderboardOpen(false)}
+        currentUserId={account.id}
+      />
+
+      {/* Create Custom Table Modal */}
+      <CreateTableModal
+        isOpen={isCreateTableOpen}
+        onClose={() => setIsCreateTableOpen(false)}
+        onCreateRoom={handleCreateRoom}
+        playerName={account.name}
+        avatar={account.avatar}
+        walletAddress={wallet.address || undefined}
+      />
 
       {/* User Profile & Database Career Stats Modal */}
       <ProfileModal

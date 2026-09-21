@@ -35,14 +35,14 @@ export const OpponentSeat: React.FC<OpponentSeatProps> = ({
       {/* Turn Countdown Ring / Glow */}
       <div className="relative">
         {isCurrentTurn && (
-          <div className="absolute -inset-2 rounded-full border-2 border-amber-400 animate-ping opacity-35" />
+          <div className="absolute -inset-2 rounded-full border-2 border-[#FF4600] animate-ping opacity-35" />
         )}
 
         <div
           className={`
             relative w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-2xl sm:text-3xl
-            bg-slate-900 border-2 transition-all duration-300 shadow-xl
-            ${isCurrentTurn ? 'border-amber-400 ring-4 ring-amber-400/30 scale-105 shadow-amber-500/30' : 'border-slate-700'}
+            bg-[#090B0E] border-2 transition-all duration-300 shadow-xl
+            ${isCurrentTurn ? 'border-[#FF4600] ring-4 ring-[#FF4600]/30 scale-105 shadow-[#FF4600]/40' : 'border-slate-800'}
             ${!player.isConnected ? 'opacity-50 grayscale' : ''}
           `}
         >
@@ -50,7 +50,7 @@ export const OpponentSeat: React.FC<OpponentSeatProps> = ({
 
           {/* Turn timer badge when it is their turn */}
           {isCurrentTurn && (
-            <div className="absolute -bottom-2 -right-1 bg-amber-500 text-slate-950 font-black text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full shadow-md font-mono">
+            <div className="absolute -bottom-2 -right-1 bg-[#FF4600] text-white font-black text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full shadow-md font-mono">
               {turnTimeRemaining}s
             </div>
           )}
@@ -62,7 +62,7 @@ export const OpponentSeat: React.FC<OpponentSeatProps> = ({
             </div>
           )}
           {player.isHost && !player.isBot && (
-            <div className="absolute -top-1 -left-1 bg-amber-600 text-white text-[9px] font-extrabold px-1 rounded-sm uppercase tracking-wider">
+            <div className="absolute -top-1 -left-1 bg-[#FF4600] text-white text-[9px] font-extrabold px-1 rounded-sm uppercase tracking-wider">
               HOST
             </div>
           )}
@@ -71,14 +71,14 @@ export const OpponentSeat: React.FC<OpponentSeatProps> = ({
 
       {/* Player Name and Card Count Tag */}
       <div className="mt-1.5 flex flex-col items-center">
-        <div className="px-2.5 py-0.5 rounded-full bg-slate-900/90 border border-slate-700/80 backdrop-blur-md flex items-center gap-1.5 shadow-sm">
+        <div className="px-2.5 py-0.5 rounded-full bg-[#0E1217]/95 border border-slate-700/80 backdrop-blur-md flex items-center gap-1.5 shadow-sm">
           <span className="text-xs font-bold text-slate-200 max-w-[90px] truncate">
             {player.name}
           </span>
           <span
             className={`
               text-[11px] font-black px-1.5 py-0.2 rounded-full font-mono
-              ${player.cardCount <= 2 ? 'bg-rose-600 text-white animate-pulse' : 'bg-slate-800 text-amber-400'}
+              ${player.cardCount <= 2 ? 'bg-rose-600 text-white animate-pulse' : 'bg-[#090B0E] text-[#FF4600] border border-[#FF4600]/30'}
             `}
           >
             {player.cardCount}

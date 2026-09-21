@@ -54,28 +54,37 @@ export const CenterTable: React.FC<CenterTableProps> = ({
       )}
 
       {/* Table Felt Surface */}
-      <div className="relative w-full aspect-[16/10] sm:aspect-[2/1] rounded-[48px] bg-gradient-to-b from-slate-900/90 via-emerald-950/20 to-slate-900/95 border-4 border-slate-800 shadow-2xl shadow-black/80 flex items-center justify-around px-4 sm:px-8 overflow-hidden">
+      <div className="relative w-full aspect-[16/10] sm:aspect-[2/1] rounded-[48px] bg-gradient-to-b from-[#0E1217] via-[#090B0E] to-[#0E1217] border-2 border-[#FF4600]/40 shadow-2xl shadow-black/80 flex items-center justify-around px-4 sm:px-8 overflow-hidden table-felt-hemi">
         {/* Subtle Felt Pattern */}
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none" />
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#FF4600_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
+
+        {/* Center Hemi Uno Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <img
+            src="/hemi-uno-emblem.svg"
+            alt="Hemi Emblem"
+            className="w-36 h-36 sm:w-44 sm:h-44 opacity-[0.14] pointer-events-none select-none"
+          />
+        </div>
 
         {/* Turn Direction Ambient Ring */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-          <div className={`w-56 h-56 rounded-full border border-dashed border-amber-400 animate-spin ${turnDirection === 1 ? 'duration-[25000ms]' : 'duration-[25000ms] -scale-x-100'}`} />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-25">
+          <div className={`w-56 h-56 rounded-full border border-dashed border-[#FF4600] animate-spin ${turnDirection === 1 ? 'duration-[25000ms]' : 'duration-[25000ms] -scale-x-100'}`} />
         </div>
 
         {/* Left: Draw Pile */}
         <div id="draw-deck-pile" className="relative flex flex-col items-center z-10">
           <div className="relative cursor-pointer group" onClick={canDraw ? onDrawCard : undefined}>
             {/* Visual stacked card shadows */}
-            <div className="absolute -top-1.5 -left-1.5 w-20 h-30 sm:w-24 sm:h-36 bg-slate-800 rounded-xl border border-slate-700 pointer-events-none" />
-            <div className="absolute -top-0.5 -left-0.5 w-20 h-30 sm:w-24 sm:h-36 bg-slate-850 rounded-xl border border-slate-700 pointer-events-none" />
+            <div className="absolute -top-1.5 -left-1.5 w-20 h-30 sm:w-24 sm:h-36 bg-[#090B0E] rounded-xl border border-slate-700 pointer-events-none" />
+            <div className="absolute -top-0.5 -left-0.5 w-20 h-30 sm:w-24 sm:h-36 bg-[#0E1217] rounded-xl border border-slate-700 pointer-events-none" />
 
             <CardComponent
               isBack
               size="md"
               className={`
                 transition-all duration-200
-                ${canDraw && isMyTurn ? (pendingDrawCount > 0 ? 'ring-4 ring-rose-500 shadow-2xl shadow-rose-500/60 -translate-y-2' : 'ring-4 ring-amber-400 -translate-y-2 shadow-xl shadow-amber-500/40 group-hover:-translate-y-3') : 'opacity-90'}
+                ${canDraw && isMyTurn ? (pendingDrawCount > 0 ? 'ring-4 ring-rose-500 shadow-2xl shadow-rose-500/60 -translate-y-2' : 'ring-4 ring-[#FF4600] -translate-y-2 shadow-xl shadow-[#FF4600]/40 group-hover:-translate-y-3') : 'opacity-90'}
               `}
             />
 
@@ -83,7 +92,7 @@ export const CenterTable: React.FC<CenterTableProps> = ({
               <div
                 className={`
                   absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-0.5 text-[10px] font-black rounded-full shadow-md animate-bounce
-                  ${pendingDrawCount > 0 ? 'bg-gradient-to-r from-rose-600 to-amber-500 text-white border border-rose-300' : 'bg-amber-400 text-slate-950'}
+                  ${pendingDrawCount > 0 ? 'bg-gradient-to-r from-rose-600 to-[#FF4600] text-white border border-rose-300' : 'bg-[#FF4600] text-white shadow-lg shadow-[#FF4600]/50'}
                 `}
               >
                 {pendingDrawCount > 0 ? `PICK +${pendingDrawCount} CARDS` : 'TAP TO DRAW'}
@@ -93,7 +102,7 @@ export const CenterTable: React.FC<CenterTableProps> = ({
 
           <div className="mt-2 text-[11px] font-bold text-slate-400 font-mono flex items-center gap-1">
             <span>DECK:</span>
-            <span className="text-amber-400 font-black">{drawPileCount}</span>
+            <span className="text-[#FF4600] font-black">{drawPileCount}</span>
           </div>
         </div>
 
@@ -120,10 +129,10 @@ export const CenterTable: React.FC<CenterTableProps> = ({
           </div>
 
           {/* Turn Direction Badge */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/80 border border-slate-800 text-[10px] sm:text-xs text-slate-300 font-mono">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#090B0E]/90 border border-slate-800 text-[10px] sm:text-xs text-slate-300 font-mono">
             {turnDirection === 1 ? (
               <>
-                <RotateCw className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '4s' }} />
+                <RotateCw className="w-3.5 h-3.5 text-[#FF4600] animate-spin" style={{ animationDuration: '4s' }} />
                 <span>CLOCKWISE</span>
               </>
             ) : (
@@ -136,7 +145,7 @@ export const CenterTable: React.FC<CenterTableProps> = ({
 
           {/* Escrow Pot Info */}
           {escrowPot && (
-            <div className="px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-400 font-mono">
+            <div className="px-2.5 py-0.5 rounded-lg bg-[#FF4600]/15 border border-[#FF4600]/40 text-[10px] font-bold text-[#FF4600] font-mono">
               POT: {escrowPot.amount} {escrowPot.currency}
             </div>
           )}
@@ -159,8 +168,21 @@ export const CenterTable: React.FC<CenterTableProps> = ({
             </div>
           )}
 
-          <div className="mt-2 text-[11px] font-bold text-slate-400 font-mono">
-            DISCARD PILE
+          <div className="mt-2 text-[11px] font-bold text-slate-400 font-mono flex flex-col items-center">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">DISCARD PILE</span>
+            {topDiscardCard && (
+              <span className={`text-xs font-black tracking-wide ${
+                topDiscardCard.value === 'wild_draw4' ? 'text-[#FF4600]' :
+                topDiscardCard.value === 'draw2' ? 'text-amber-400' : 'text-slate-200'
+              }`}>
+                {topDiscardCard.value === 'wild_draw4' ? '⚡ WILD DRAW +4' :
+                 topDiscardCard.value === 'draw2' ? `⚡ ${topDiscardCard.color.toUpperCase()} +2` :
+                 topDiscardCard.value === 'skip' ? `⊘ ${topDiscardCard.color.toUpperCase()} SKIP` :
+                 topDiscardCard.value === 'reverse' ? `⇄ ${topDiscardCard.color.toUpperCase()} REV` :
+                 topDiscardCard.value === 'wild' ? '★ WILD COLOR' :
+                 `${topDiscardCard.color.toUpperCase()} ${topDiscardCard.value}`}
+              </span>
+            )}
           </div>
         </div>
       </div>

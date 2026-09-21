@@ -45,18 +45,18 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200">
-      <div className="bg-slate-900 border-2 border-amber-500/60 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl shadow-amber-500/20 text-center relative overflow-hidden">
+      <div className="bg-[#0E1217] border-2 border-[#FF4600]/60 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl shadow-[#FF4600]/20 text-center relative overflow-hidden">
         {/* Glow backdrop */}
-        <div className="absolute -top-24 -left-24 w-48 h-48 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#FF4600]/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-orange-600/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-amber-500/40 mb-3 animate-bounce">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full bg-gradient-to-tr from-[#FF4600] to-orange-400 flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-[#FF4600]/40 mb-3 animate-bounce">
             🏆
           </div>
 
-          <div className="inline-block px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 font-mono text-xs font-bold mb-2">
-            GAME OVER • VICTORY!
+          <div className="inline-block px-3 py-1 rounded-full bg-[#FF4600]/20 border border-[#FF4600]/40 text-[#FF4600] font-mono text-xs font-bold mb-2">
+            HEMI UNO • VICTORY!
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
@@ -70,13 +70,13 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           </p>
 
           {/* Pot settlement badge */}
-          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 mb-5">
+          <div className="p-4 rounded-2xl bg-[#090B0E] border border-slate-800 mb-5">
             <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
               Escrow Pot Award
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-amber-400 font-mono flex items-center justify-center gap-2">
+            <div className="text-2xl sm:text-3xl font-black text-[#FF4600] font-mono flex items-center justify-center gap-2">
               <span>{gameState.escrowPot.amount}</span>
-              <span className="text-base text-amber-300 font-bold">{gameState.escrowPot.currency}</span>
+              <span className="text-base text-orange-300 font-bold">{gameState.escrowPot.currency}</span>
             </div>
             <div className="text-[11px] text-slate-400 mt-1 flex items-center justify-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
@@ -84,16 +84,16 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             </div>
           </div>
 
-          {/* Hemi Testnet EIP-712 Signature Box */}
+          {/* Hemi Sepolia EIP-712 Signature Box */}
           {signature && (
-            <div className="p-3.5 rounded-xl bg-slate-950/80 border border-amber-500/30 text-left text-xs mb-5 font-mono">
+            <div className="p-3.5 rounded-xl bg-[#090B0E]/90 border border-[#FF4600]/30 text-left text-xs mb-5 font-mono">
               <div className="flex items-center justify-between text-slate-400 mb-2">
-                <span className="font-bold text-amber-400 flex items-center gap-1">
-                  <span>⚡</span> EIP-712 Settlement Proof
+                <span className="font-bold text-[#FF4600] flex items-center gap-1">
+                  <span>⚡</span> Hemi EIP-712 Settlement Proof
                 </span>
                 <button
                   onClick={handleCopySignature}
-                  className="flex items-center gap-1 text-[11px] text-slate-300 hover:text-white bg-slate-800 px-2 py-0.5 rounded transition-colors"
+                  className="flex items-center gap-1 text-[11px] text-slate-300 hover:text-white bg-slate-800 px-2 py-0.5 rounded transition-colors cursor-pointer"
                 >
                   {copied ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                   <span>{copied ? 'Copied!' : 'Copy JSON'}</span>
@@ -115,20 +115,20 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                 onClick={handleClaim}
                 disabled={claimed}
                 className={`
-                  px-6 py-3 rounded-xl font-black text-sm tracking-wide transition-all shadow-lg
+                  px-6 py-3 rounded-xl font-black text-sm tracking-wide transition-all shadow-lg cursor-pointer
                   ${claimed
                     ? 'bg-emerald-600/30 border border-emerald-500 text-emerald-300 cursor-default'
-                    : 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:brightness-110 active:scale-95 shadow-amber-500/30'}
+                    : 'bg-gradient-to-r from-[#FF4600] to-[#FF6200] hover:from-[#ff5500] hover:to-[#ff731a] text-white hover:brightness-110 active:scale-95 shadow-[#FF4600]/30'}
                 `}
               >
-                {claimed ? '✓ Pot Claim Verified (Hemi Testnet)' : '⚡ Claim Pot on Hemi Testnet'}
+                {claimed ? '✓ Pot Claim Verified (Hemi Sepolia)' : '⚡ Claim Pot on Hemi Sepolia'}
               </button>
             )}
 
             {isHost ? (
               <button
                 onClick={onRematch}
-                className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-2"
+                className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <span>Rematch / New Game</span>
                 <ArrowRight className="w-4 h-4" />

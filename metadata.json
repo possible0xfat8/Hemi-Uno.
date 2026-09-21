@@ -1,6 +1,6 @@
 {
-  "name": "Hemi UNO Arcade - Multiplayer Card Game",
-  "description": "Fast-paced real-time multiplayer Crazy Eights and UNO card game on authoritative WebSocket backend for Hemi Testnet.",
+  "name": "Hemi Uno - Multiplayer Card Game",
+  "description": "Fast-paced real-time multiplayer Hemi Uno card game with authoritative WebSocket backend and Web3 settlement on Hemi.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

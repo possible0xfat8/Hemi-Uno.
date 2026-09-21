@@ -69,27 +69,26 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
     <div className="relative">
       <button
         onClick={() => setDropdownOpen(!dropdownOpen)}
-        className={`
-          px-3 py-1.5 rounded-xl border transition-all duration-200 flex items-center gap-2 text-xs font-mono select-none
-          ${!isHemi
-            ? 'bg-amber-950/40 border-amber-500/60 text-amber-300'
-            : 'bg-slate-900/90 border-slate-700/80 hover:border-amber-400 text-slate-200 shadow-md'}
-        `}
+        className="px-3 py-1.5 rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 transition-all flex items-center gap-2 text-xs select-none shadow-sm cursor-pointer"
       >
-        {/* Network indicator dot */}
-        <span
-          className={`w-2 h-2 rounded-full ${isHemi ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-ping'}`}
-        />
+        {/* Orange Wallet Icon */}
+        <div className="w-6 h-6 rounded-lg bg-[#FF4600]/15 border border-[#FF4600]/30 flex items-center justify-center text-[#FF4600] shrink-0">
+          <Wallet className="w-3.5 h-3.5" />
+        </div>
 
-        {/* Short address */}
-        <span className="font-bold">{formatAddress(wallet.address)}</span>
-
-        {/* Balance if available */}
-        {wallet.balance && !compact && (
-          <span className="hidden sm:inline-block px-1.5 py-0.5 rounded-md bg-slate-800 text-amber-400 font-bold text-[10px]">
-            {wallet.balance} ETH
+        {/* Text Details */}
+        <div className="flex flex-col text-left leading-tight hidden sm:flex">
+          <span className="font-black text-white text-[11px]">Hemi Wallet</span>
+          <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Connected
           </span>
-        )}
+        </div>
+
+        {/* Truncated Address */}
+        <span className="font-mono text-xs font-bold text-slate-300 ml-1">
+          {formatAddress(wallet.address)}
+        </span>
 
         <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
       </button>

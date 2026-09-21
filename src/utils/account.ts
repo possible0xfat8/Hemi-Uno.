@@ -12,6 +12,14 @@ export interface AccountProfile {
   avatar: string;
   bio?: string;
   address?: string;
+  stats?: {
+    matchesPlayed: number;
+    wins: number;
+    cardsPlayed: number;
+    hemiWon?: string;
+    rankTitle?: string;
+    winStreak?: number;
+  };
 }
 
 const STORAGE_KEY_PROFILE = 'uno_arcade_profile_v2';

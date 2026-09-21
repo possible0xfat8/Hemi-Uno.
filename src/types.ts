@@ -102,6 +102,10 @@ export interface PublicRoomSummary {
   playerCount: number;
   maxPlayers: number;
   spectatorCount: number;
+  mode?: string;
+  description?: string;
+  hostName?: string;
+  hostAvatar?: string;
   players: {
     id: string;
     name: string;
@@ -111,6 +115,7 @@ export interface PublicRoomSummary {
   activeColor: CardColor | null;
   topDiscardCard?: Card | null;
   escrowPot: EscrowPotInfo;
+  isQuickMatch?: boolean;
 }
 
 export interface GameState {
@@ -119,6 +124,8 @@ export interface GameState {
   hostId: string;
   status: 'lobby' | 'playing' | 'game_over';
   players: Player[];
+  isQuickMatch?: boolean;
+  customMode?: string;
   currentTurnPlayerId: string | null;
   currentTurnIndex: number;
   turnDirection: 1 | -1; // 1 = clockwise, -1 = counter-clockwise

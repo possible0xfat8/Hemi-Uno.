@@ -1,40 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, Player, PublicRoomSummary } from '../types';
+import { GameState, PublicRoomSummary } from '../types';
 import { WalletState, formatAddress } from '../utils/wallet';
+import { AccountProfile } from '../utils/account';
+import { HemiUnoLogo } from './HemiUnoLogo';
+import { HemiHeroCards } from './HemiHeroCards';
 import {
+  Users,
+  Eye,
+  Trophy,
+  BookOpen,
+  Home,
+  Gamepad2,
+  ChevronRight,
   Copy,
   Check,
-  Play,
-  Bot,
-  Users,
-  ShieldAlert,
-  Sparkles,
-  ExternalLink,
-  Eye,
+  Lightbulb,
+  Code2,
+  Plus,
   Radio,
   RefreshCw,
-  Coins,
-  Tv,
-  Wallet,
-  Zap,
-  User,
-  Flame,
+  Crown,
+  Sparkles,
   ArrowRight,
+  Shield,
+  Zap,
+  Play,
+  Share2,
+  UserPlus,
+  UserX,
+  RotateCcw,
+  Music,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 
-interface LobbyViewProps {
+export interface LobbyViewProps {
   gameState: GameState | null;
   myPlayerId: string;
   wallet: WalletState;
-  account?: { id: string; name: string; avatar: string; bio?: string };
+  account: AccountProfile;
   onUpdateProfile?: (name: string, avatar: string) => void;
-  connectionStatus?: 'connected' | 'reconnecting' | 'offline';
+  connectionStatus?: 'connected' | 'disconnected' | 'reconnecting' | 'offline';
   onConnectWallet: () => Promise<void>;
   onCreateRoom: (playerName: string, avatar: string, buyIn: string, address?: string) => void;
   onJoinRoom: (roomCode: string, playerName: string, avatar: string, address?: string) => void;
   onQuickJoin?: () => void;
-  onOpenProfile?: () => void;
-  onOpenFriends?: () => void;
+  onOpenProfile: () => void;
+  onOpenFriends: () => void;
   friendCount?: number;
   onlineFriendCount?: number;
   onSpectateRoom: (roomCode: string, spectatorName: string, avatar: string) => void;
@@ -42,16 +54,21 @@ interface LobbyViewProps {
   onAddBot: () => void;
   onRemovePlayer: (playerId: string) => void;
   onStartGame: () => void;
-  onLeaveRoom?: () => void;
+  onLeaveRoom: () => void;
   liveRooms?: PublicRoomSummary[];
   onRefreshLiveRooms?: () => void;
   error?: string | null;
   activeRoomCode?: string | null;
   onResumeSession?: (code: string) => void;
+  onOpenLeaderboard?: () => void;
+  onOpenRules?: () => void;
+  onOpenCreateTable?: () => void;
+  liveStats?: { openTables: number; playersOnline: number; gamesPlayed: number };
+  isMusicOn?: boolean;
+  onToggleMusic?: () => void;
 }
 
-const AVATARS = ['🦊', '🦁', '🐸', '🤖', '⚡', '💎', '🐉', '🐱'];
-const BUY_IN_OPTIONS = ['0.001', '0.005', '0.01', '0.05'];
+const AVATARS = ['🦊', '🦁', '🐸', '🤖', '🐻', '💎', '🐉', '🐱'];
 
 export const LobbyView: React.FC<LobbyViewProps> = ({
   gameState,
@@ -79,26 +96,24 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   error,
   activeRoomCode,
   onResumeSession,
+  onOpenLeaderboard,
+  onOpenRules,
+  onOpenCreateTable,
+  liveStats = { openTables: 12, playersOnline: 342, gamesPlayed: 8421 },
+  isMusicOn = true,
+  onToggleMusic,
 }) => {
-  const [playerName, setPlayerName] = useState(account?.name || 'ChadCard');
+  const [playerName, setPlayerName] = useState(account?.name || '0xFat8');
   const [selectedAvatar, setSelectedAvatar] = useState(account?.avatar || '🦊');
-  const [buyIn, setBuyIn] = useState('0.005');
-  const [joinCode, setJoinCode] = useState('');
-  const [spectateCode, setSpectateCode] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<'play' | 'spectate'>('play');
+  const [joinCodeInput, setJoinCodeInput] = useState('');
+  const [copiedAddress, setCopiedAddress] = useState(false);
+  const [copiedRoomCode, setCopiedRoomCode] = useState(false);
+  const [sortOption, setSortOption] = useState<'popular' | 'players' | 'fastest'>('popular');
 
   useEffect(() => {
     if (account?.name) setPlayerName(account.name);
     if (account?.avatar) setSelectedAvatar(account.avatar);
   }, [account?.name, account?.avatar]);
-
-  const handleNameChange = (newName: string) => {
-    setPlayerName(newName);
-    if (onUpdateProfile) {
-      onUpdateProfile(newName, selectedAvatar);
-    }
-  };
 
   const handleAvatarSelect = (newAvatar: string) => {
     setSelectedAvatar(newAvatar);
@@ -107,55 +122,197 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     }
   };
 
-  // If in room lobby
+  const handleCopyWalletAddress = () => {
+    if (wallet.address) {
+      navigator.clipboard.writeText(wallet.address);
+      setCopiedAddress(true);
+      setTimeout(() => setCopiedAddress(false), 2000);
+    }
+  };
+
+  const handleJoinByCodeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = joinCodeInput.trim().toUpperCase();
+    if (cleanCode.length >= 4) {
+      onJoinRoom(cleanCode, playerName, selectedAvatar, wallet.address || undefined);
+    }
+  };
+
+  // Compute player level & XP from career stats
+  const matchesCount = account?.stats?.matchesPlayed || 0;
+  const winsCount = account?.stats?.wins || 0;
+  const playerLevel = Math.floor(matchesCount / 3) + 1;
+  const playerXP = winsCount * 10 + matchesCount * 2;
+
+  // Real or default online friends display
+  const defaultOnlineFriends = [
+    { name: 'Press.g', avatar: '🦁' },
+    { name: 'Matt.g', avatar: '🤖' },
+    { name: 'Axuer', avatar: '🐻' },
+    { name: 'Zyro', avatar: '🐱' },
+    { name: 'Tobz', avatar: '🦊' },
+  ];
+
+  // Default tables if live rooms are empty
+  const defaultTables = [
+    {
+      code: 'CLSC',
+      mode: 'Classic',
+      desc: 'The original. 2-4 players.',
+      players: '3/4',
+      buyIn: 'Free',
+      hostName: 'LumiBear',
+      hostAvatar: '🐻',
+    },
+    {
+      code: 'STCK',
+      mode: 'Stacked Draw',
+      desc: 'Stack it. Survive it.',
+      players: '2/4',
+      buyIn: 'Free',
+      hostName: 'NeoDash',
+      hostAvatar: '🤖',
+    },
+    {
+      code: 'TEAM',
+      mode: '2v2 Team',
+      desc: 'Team up. Take over.',
+      players: '3/4',
+      buyIn: 'Free',
+      hostName: 'Zyro',
+      hostAvatar: '🦊',
+    },
+    {
+      code: 'FAST',
+      mode: 'Speed Uno',
+      desc: 'Fast rounds, less waiting.',
+      players: '2/4',
+      buyIn: 'Free',
+      hostName: 'Tobz',
+      hostAvatar: '🐱',
+    },
+  ];
+
+  const displayTables = liveRooms.length > 0
+    ? liveRooms.map(r => ({
+        code: r.roomCode,
+        mode: r.mode || 'Classic',
+        desc: r.description || 'The original. 2-4 players.',
+        players: `${r.playerCount}/${r.maxPlayers || 4}`,
+        buyIn: r.escrowPot?.buyInAmount && parseFloat(r.escrowPot.buyInAmount) > 0 ? `${r.escrowPot.buyInAmount} ETH` : 'Free',
+        hostName: r.hostName || r.players[0]?.name || 'Host',
+        hostAvatar: r.hostAvatar || r.players[0]?.avatar || '🦊',
+      }))
+    : defaultTables;
+
+  // ==========================================
+  // VIEW: WAITING ROOM LOBBY (when in a game)
+  // ==========================================
   if (gameState && gameState.status === 'lobby') {
     const isHost = gameState.hostId === myPlayerId;
-    const isSpectator = !!gameState.isSpectator;
+    const isSpectator = !gameState.players.some((p) => p.id === myPlayerId);
     const myPlayer = gameState.players.find((p) => p.id === myPlayerId);
     const playerCount = gameState.players.length;
+    const isQuickMatch = !!gameState.isQuickMatch;
     const canStart =
-      playerCount >= 3 &&
+      playerCount >= 2 &&
       playerCount <= 5 &&
       gameState.players.every((p) => p.isHost || p.isReady || p.isBot);
 
     const handleCopyCode = () => {
       navigator.clipboard.writeText(gameState.roomCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    };
-
-    const handleOpenSecondWindow = () => {
-      const url = `${window.location.origin}?join=${gameState.roomCode}`;
-      window.open(url, '_blank');
+      setCopiedRoomCode(true);
+      setTimeout(() => setCopiedRoomCode(false), 2000);
     };
 
     return (
-      <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 bg-slate-900/90 border-2 border-slate-800 rounded-3xl shadow-2xl backdrop-blur-md">
-        {/* Spectator Notice Banner if spectating lobby */}
+      <div className="w-full max-w-2xl mx-auto p-6 bg-[#0E1217]/95 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
+        {/* Spectator Notice */}
         {isSpectator && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-purple-950/60 border border-purple-500/40 flex items-center justify-between gap-3">
+          <div className="mb-5 p-3.5 rounded-2xl bg-[#FF4600]/10 border border-[#FF4600]/40 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-[#FF4600]/20 flex items-center justify-center text-[#FF4600] shrink-0">
                 <Eye className="w-4 h-4" />
               </div>
               <div>
                 <div className="text-xs font-black text-white flex items-center gap-1.5">
-                  <span>Spectating Lobby</span>
-                  <span className="px-1.5 py-0.2 rounded bg-purple-500/30 text-purple-300 text-[10px] font-bold">
+                  <span>Spectating Room</span>
+                  <span className="px-1.5 py-0.2 rounded bg-[#FF4600]/30 text-orange-200 text-[10px] font-bold">
                     Watcher
                   </span>
                 </div>
-                <div className="text-[11px] text-purple-300/80">
-                  You will watch the live match with real-time card plays and chat as soon as the host starts!
+                <div className="text-[11px] text-orange-200/80">
+                  You are watching this lobby in real time. The match will start once the host initiates it.
                 </div>
               </div>
             </div>
-            {onLeaveRoom && (
+            <button
+              onClick={onLeaveRoom}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold shrink-0 transition-colors cursor-pointer"
+            >
+              Exit
+            </button>
+          </div>
+        )}
+
+        {/* Quick Match Real Players Notice */}
+        {isQuickMatch && (
+          <div className="mb-5 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3 text-emerald-200">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold shrink-0">
+                <Users className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="font-black text-white text-xs sm:text-sm flex items-center gap-2">
+                  <span>Quick Match — Real Players Only</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px] font-bold">
+                    No Bots
+                  </span>
+                </div>
+                <div className="text-emerald-200/80 text-[11px]">
+                  {playerCount < 2
+                    ? 'Waiting for other players to join Quick Match or share your code!'
+                    : `${playerCount} real players ready. Host can launch match at any time!`}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={handleCopyCode}
+              className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+              title="Share Room Code"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Invite</span>
+            </button>
+          </div>
+        )}
+
+        {/* Open Tables Host Banner */}
+        {!isQuickMatch && isHost && (
+          <div className="mb-5 p-3.5 rounded-2xl bg-[#FF4600]/10 border border-[#FF4600]/30 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3 text-orange-200">
+              <div className="w-8 h-8 rounded-xl bg-[#FF4600]/20 flex items-center justify-center text-lg shrink-0">
+                👑
+              </div>
+              <div>
+                <div className="font-black text-white text-xs sm:text-sm flex items-center gap-2">
+                  <span>You are Table Host!</span>
+                  <span className="px-2 py-0.5 rounded-full bg-[#FF4600]/20 text-orange-300 font-mono text-[10px] font-bold">
+                    Open Table
+                  </span>
+                </div>
+                <div className="text-orange-200/80 text-[11px]">
+                  You have full table control. Add bots or wait for real players to join, then click Start Game.
+                </div>
+              </div>
+            </div>
+            {playerCount < 5 && (
               <button
-                onClick={onLeaveRoom}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold shrink-0 transition-colors"
+                onClick={onAddBot}
+                className="px-3 py-1.5 rounded-xl bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-xs transition-all flex items-center gap-1.5 shrink-0 shadow-md shadow-[#FF4600]/20 cursor-pointer"
               >
-                Exit
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Bot</span>
               </button>
             )}
           </div>
@@ -163,915 +320,778 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
         {/* Lobby Header */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">🃏</span>
-              <h2 className="text-xl sm:text-2xl font-black text-white">Room Lobby</h2>
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-mono text-xs font-bold border border-amber-500/30">
-                {playerCount}/5 Players
-              </span>
-              {gameState.spectatorCount ? (
-                <span className="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-mono text-xs font-bold border border-purple-500/30 flex items-center gap-1">
-                  <Eye className="w-3 h-3" />
-                  <span>{gameState.spectatorCount}</span>
+          <div className="flex items-center gap-3">
+            <HemiUnoLogo size="sm" variant="clean" />
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-black text-white">
+                  {isQuickMatch ? 'Quick Match Lobby' : `${gameState.customMode || 'Open'} Table`}
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-[#FF4600]/20 text-[#FF4600] font-mono text-xs font-bold border border-[#FF4600]/30">
+                  {playerCount}/5 Players
                 </span>
-              ) : null}
+              </div>
+              <p className="text-xs text-slate-400">
+                {isHost
+                  ? isQuickMatch
+                    ? 'Match begins once 2 or more real players are seated.'
+                    : 'Invite players or add bots, then click Start Game.'
+                  : 'Waiting for host to begin match...'}
+              </p>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Crazy 8s / UNO arcade shedding engine. 3 to 5 players required.
-            </p>
           </div>
 
-          {/* Room Code Pill */}
-          <div className="flex items-center gap-2 bg-slate-950 px-4 py-2 rounded-2xl border border-slate-800">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-slate-500 tracking-wider">ROOM CODE</span>
-              <span className="text-xl font-black text-amber-400 tracking-widest font-mono">
+          {/* Room Code & Audio Mood Control */}
+          <div className="flex items-center gap-2">
+            {onToggleMusic && (
+              <button
+                type="button"
+                onClick={onToggleMusic}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl border text-xs font-mono font-bold transition-all cursor-pointer ${
+                  isMusicOn
+                    ? 'bg-[#FF4600]/15 border-[#FF4600]/40 text-orange-300 hover:bg-[#FF4600]/25 shadow-sm'
+                    : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+                }`}
+                title={isMusicOn ? 'Mute Background Groove' : 'Play Cool Cyber Uno Song'}
+              >
+                <Music className={`w-3.5 h-3.5 ${isMusicOn ? 'text-[#FF4600] animate-bounce' : 'text-slate-500'}`} />
+                <span className="hidden sm:inline text-[11px]">
+                  {isMusicOn ? 'Groove ON' : 'Groove OFF'}
+                </span>
+                {isMusicOn && (
+                  <span className="flex gap-0.5 items-end h-3 ml-0.5">
+                    <span className="w-0.5 h-1.5 bg-[#FF4600] animate-pulse" />
+                    <span className="w-0.5 h-3 bg-[#FF4600] animate-pulse delay-75" />
+                    <span className="w-0.5 h-2 bg-[#FF4600] animate-pulse delay-150" />
+                  </span>
+                )}
+              </button>
+            )}
+
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-2xl px-3 py-1.5">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">CODE:</span>
+              <span className="font-mono text-lg font-black text-[#FF4600] tracking-wider">
                 {gameState.roomCode}
               </span>
+              <button
+                onClick={handleCopyCode}
+                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                title="Copy Room Code"
+              >
+                {copiedRoomCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+              </button>
             </div>
-            <button
-              onClick={handleCopyCode}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-              title="Copy Room Code"
-            >
-              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-            </button>
           </div>
         </div>
 
         {/* Players List */}
-        <div className="py-6">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-amber-400" />
-              <span>Seated Players ({playerCount}/5)</span>
-            </h3>
-            {playerCount < 3 && (
-              <span className="text-xs text-amber-400/90 font-medium">
-                Need {3 - playerCount} more player{3 - playerCount > 1 ? 's' : ''} to start
-              </span>
-            )}
+        <div className="py-6 space-y-3">
+          <div className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
+            <span>Seat Roster ({playerCount}/5)</span>
+            <span className="text-emerald-400 lowercase font-mono font-normal">
+              {gameState.players.filter(p => p.isReady || p.isHost || p.isBot).length} ready
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {gameState.players.map((p, idx) => (
-              <div
-                key={p.id}
-                className={`
-                  p-3.5 rounded-2xl border flex items-center justify-between transition-all
-                  ${p.id === myPlayerId ? 'bg-slate-800/80 border-amber-500/50 shadow-md shadow-amber-500/10' : 'bg-slate-950/60 border-slate-800'}
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl shadow-inner">
-                    {p.avatar}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold text-white max-w-[120px] truncate">
-                        {p.name}
-                      </span>
-                      {p.isHost && (
-                        <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                          HOST
-                        </span>
-                      )}
-                      {p.isBot && (
-                        <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                          BOT
-                        </span>
-                      )}
-                      {p.id === myPlayerId && (
-                        <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                          YOU
-                        </span>
-                      )}
+          <div className="grid grid-cols-1 gap-2.5">
+            {gameState.players.map((p) => {
+              const isMe = p.id === myPlayerId;
+              return (
+                <div
+                  key={p.id}
+                  className={`p-3.5 rounded-2xl border flex items-center justify-between transition-all ${
+                    isMe
+                      ? 'bg-[#FF4600]/10 border-[#FF4600]/40 shadow-sm'
+                      : 'bg-slate-900/60 border-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-xl shrink-0">
+                      {p.avatar}
                     </div>
-                    <div className="text-[10px] text-slate-500 font-mono">
-                      Seat #{idx + 1} • {p.isHost ? 'Host' : p.isReady ? 'Ready' : 'Not Ready'}
-                    </div>
-                    {p.address && (
-                      <div className="text-[10px] text-amber-400/90 font-mono truncate max-w-[130px]" title={p.address}>
-                        {formatAddress(p.address)}
+                    <div>
+                      <div className="text-sm font-black text-white flex items-center gap-2">
+                        <span>{p.name}</span>
+                        {p.isHost && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">
+                            HOST
+                          </span>
+                        )}
+                        {p.isBot && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
+                            BOT
+                          </span>
+                        )}
+                        {isMe && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#FF4600] text-white font-bold">
+                            YOU
+                          </span>
+                        )}
                       </div>
+                      <div className="text-[11px] text-slate-400 font-mono">
+                        {p.isBot ? 'Automated Player' : p.isHost ? 'Room Organizer' : 'Challenger'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {p.isHost ? (
+                      <span className="text-xs font-mono text-amber-400 font-bold px-2 py-1 bg-amber-500/10 rounded-lg">
+                        Host
+                      </span>
+                    ) : p.isReady || p.isBot ? (
+                      <span className="text-xs font-mono text-emerald-400 font-bold px-2 py-1 bg-emerald-500/10 rounded-lg flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" />
+                        Ready
+                      </span>
+                    ) : (
+                      <span className="text-xs font-mono text-slate-500 px-2 py-1 bg-slate-800 rounded-lg">
+                        Waiting
+                      </span>
+                    )}
+
+                    {isHost && !p.isHost && (
+                      <button
+                        onClick={() => onRemovePlayer(p.id)}
+                        className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer"
+                        title={p.isBot ? "Remove bot" : "Kick player"}
+                      >
+                        <UserX className="w-3.5 h-3.5" />
+                      </button>
                     )}
                   </div>
                 </div>
+              );
+            })}
 
-                <div className="flex items-center gap-2">
-                  {!p.isConnected && (
-                    <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold animate-pulse flex items-center gap-1">
-                      <RefreshCw className="w-2.5 h-2.5 animate-spin" />
-                      <span>Reconnecting...</span>
-                    </span>
-                  )}
-
-                  {p.isReady || p.isHost ? (
-                    <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Ready</span>
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-1 rounded-xl bg-slate-800 text-slate-500 text-xs font-medium">
-                      Waiting...
-                    </span>
-                  )}
-
-                  {isHost && p.id !== myPlayerId && (
-                    <button
-                      onClick={() => onRemovePlayer(p.id)}
-                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors text-xs"
-                      title="Kick Player / Bot"
-                    >
-                      ✕
-                    </button>
-                  )}
+            {/* Empty Seat placeholders */}
+            {Array.from({ length: Math.max(0, 5 - playerCount) }).map((_, idx) => (
+              <div
+                key={`empty-${idx}`}
+                className="p-3.5 rounded-2xl border border-dashed border-slate-800/80 bg-slate-950/20 flex items-center justify-between text-slate-600 text-xs font-mono"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl border border-dashed border-slate-800 flex items-center justify-center text-slate-700">
+                    +
+                  </div>
+                  <span>Open Seat {playerCount + idx + 1}</span>
                 </div>
+                {isQuickMatch ? (
+                  <div className="flex items-center gap-2 text-slate-500 text-xs font-mono">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Searching for player...</span>
+                  </div>
+                ) : isHost ? (
+                  <button
+                    onClick={onAddBot}
+                    className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add Bot</span>
+                  </button>
+                ) : (
+                  <span className="text-slate-600 text-xs">Waiting for player</span>
+                )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Pot & Buy-in Information */}
-        <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black text-lg">
-              💰
-            </div>
-            <div>
-              <div className="text-xs font-bold text-white">Escrow Smart Pot</div>
-              <div className="text-[11px] text-slate-400">
-                Buy-in: {gameState.escrowPot.buyInAmount} {gameState.escrowPot.currency} / player
-              </div>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-slate-400 font-medium">Estimated Pot</div>
-            <div className="text-lg font-black text-amber-400 font-mono">
-              {gameState.escrowPot.amount} {gameState.escrowPot.currency}
-            </div>
-          </div>
-        </div>
+        {/* Host and Player Controls */}
+        <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <button
+            onClick={onLeaveRoom}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-all text-center cursor-pointer"
+          >
+            Leave Lobby
+          </button>
 
-        {/* Action Controls */}
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between pt-4 border-t border-slate-800">
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            {!isSpectator && playerCount < 5 && (
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            {isHost && !isQuickMatch && playerCount < 5 && (
               <button
                 onClick={onAddBot}
-                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                className="px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                <Bot className="w-4 h-4 text-blue-400" />
-                <span>Add AI Bot</span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Bot</span>
               </button>
             )}
 
-            {onOpenFriends && (
-              <button
-                onClick={onOpenFriends}
-                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
-                title="Invite friends to this room lobby"
-              >
-                <Users className="w-4 h-4 text-blue-400" />
-                <span>Invite Friends</span>
-              </button>
-            )}
-
-            <button
-              onClick={handleOpenSecondWindow}
-              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
-              title="Open a new tab to test real multiplayer"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-              <span>Open 2nd Player Tab</span>
-            </button>
-          </div>
-
-          <div className="w-full sm:w-auto flex items-center gap-3">
-            {!isSpectator && !isHost && (
+            {!isHost && !isSpectator && (
               <button
                 onClick={onToggleReady}
-                className={`
-                  w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-sm transition-all
-                  ${myPlayer?.isReady
-                    ? 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700'
-                    : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30'}
-                `}
+                className={`w-full sm:w-auto px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                  myPlayer?.isReady
+                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20'
+                }`}
               >
-                {myPlayer?.isReady ? 'Cancel Ready' : 'I Am Ready!'}
+                {myPlayer?.isReady ? 'Cancel Ready' : 'I am Ready!'}
               </button>
             )}
 
-            {!isSpectator && isHost && (
+            {isHost && (
               <button
                 onClick={onStartGame}
                 disabled={!canStart}
-                className={`
-                  w-full sm:w-auto px-8 py-3.5 rounded-2xl font-black text-sm tracking-wider flex items-center justify-center gap-2 transition-all shadow-xl
-                  ${canStart
-                    ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:scale-105 active:scale-95 shadow-amber-500/40 cursor-pointer'
-                    : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'}
-                `}
+                className={`w-full sm:w-auto px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                  canStart
+                    ? 'bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white shadow-xl shadow-[#FF4600]/30 cursor-pointer active:scale-98'
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                }`}
               >
                 <Play className="w-4 h-4 fill-current" />
-                <span>START GAME</span>
+                <span>Start Game</span>
               </button>
             )}
           </div>
         </div>
-
-        {isHost && !canStart && (
-          <p className="text-[11px] text-amber-400/80 text-center sm:text-right mt-2 font-medium">
-            {playerCount < 3 ? 'Minimum 3 players needed (Click "Add AI Bot" to quick-fill!)' : 'Waiting for all players to be Ready'}
-          </p>
-        )}
       </div>
     );
   }
 
-  // Outside room: Main Page with Play vs Spectate tabs
+  // =========================================================================
+  // VIEW: MAIN HOMEPAGE DASHBOARD (Exact Match to screenshot "new game ui.png")
+  // =========================================================================
   return (
-    <div className="w-full max-w-xl mx-auto p-4 sm:p-8 bg-slate-900/90 border-2 border-slate-800 rounded-3xl shadow-2xl backdrop-blur-md">
-      {/* Brand Header */}
-      <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-xs font-bold mb-3">
-          <span>⚡</span>
-          <span>HEMI TESTNET ARCADE</span>
-          <span>⚡</span>
-        </div>
-        <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-          CRAZY EIGHTS / UNO
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          High-energy real-time multiplayer card battles with live spectator arena.
-        </p>
-      </div>
-
-      {error && (
-        <div className="mb-6 p-3 rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-300 text-xs flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Active Ongoing Match Resume Banner */}
-      {activeRoomCode && (
-        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/90 via-slate-900 to-slate-950 border-2 border-emerald-500/50 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-pulse">
-          <div className="flex items-center gap-3 text-left w-full sm:w-auto">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-lg shrink-0">
-              ⚡
-            </div>
-            <div>
-              <div className="text-xs font-black text-emerald-400 uppercase tracking-wide flex items-center gap-1.5">
-                <span>Active Server Match Found</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              </div>
-              <div className="text-sm font-black text-white font-mono">
-                Room Code: <span className="text-amber-400">{activeRoomCode}</span>
-              </div>
-              <div className="text-[11px] text-slate-300">
-                Your hand and seat are reserved. Click to return immediately!
-              </div>
-            </div>
-          </div>
-          {onResumeSession && (
+    <div className="w-full max-w-7xl mx-auto py-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* ========================================================= */}
+        {/* LEFT COLUMN: Navigation Sidebar & Brand Atmosphere        */}
+        {/* ========================================================= */}
+        <div className="lg:col-span-2 hidden lg:flex flex-col gap-3">
+          {/* Main Nav Items */}
+          <div className="space-y-1.5">
             <button
-              onClick={() => onResumeSession(activeRoomCode)}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95 shrink-0 flex items-center justify-center gap-1.5"
+              type="button"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] text-white font-black text-sm shadow-lg shadow-[#FF4600]/25 transition-all text-left"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>Return to Game</span>
+              <Home className="w-5 h-5" />
+              <span>Home</span>
             </button>
-          )}
-        </div>
-      )}
 
-      {/* Profile & Friends Quick Nav Bar */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        {/* Profile & Stats Button */}
-        <button
-          onClick={onOpenProfile}
-          className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-950 border border-slate-800 hover:border-amber-500/40 flex items-center justify-between text-left transition-all group cursor-pointer shadow-md"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-2xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-              {selectedAvatar}
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-black text-white truncate group-hover:text-amber-400 transition-colors">
-                {playerName}
-              </div>
-              <div className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
-                <User className="w-3 h-3 text-amber-400" />
-                <span>Profile & Stats</span>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={onQuickJoin}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-900/60 font-bold text-sm transition-all text-left cursor-pointer"
+            >
+              <Gamepad2 className="w-5 h-5" />
+              <span>Play</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenLeaderboard}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-900/60 font-bold text-sm transition-all text-left cursor-pointer"
+            >
+              <Trophy className="w-5 h-5" />
+              <span>Leaderboard</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onOpenRules}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-900/60 font-bold text-sm transition-all text-left cursor-pointer"
+            >
+              <BookOpen className="w-5 h-5" />
+              <span>How to Play</span>
+            </button>
           </div>
-          <span className="text-slate-600 group-hover:text-amber-400 text-xs font-bold transition-colors">
-            →
-          </span>
-        </button>
 
-        {/* Friends & Social Button */}
-        <button
-          onClick={onOpenFriends}
-          className="p-3 rounded-2xl bg-slate-950/80 hover:bg-slate-950 border border-slate-800 hover:border-blue-500/40 flex items-center justify-between text-left transition-all group cursor-pointer shadow-md"
-        >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-              <Users className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-black text-white truncate group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
-                <span>Friends</span>
-                {onlineFriendCount > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                )}
-              </div>
-              <div className="text-[10px] text-slate-400 font-mono">
-                {friendCount} Added {onlineFriendCount > 0 ? `• ${onlineFriendCount} Online` : ''}
-              </div>
-            </div>
-          </div>
-          <span className="text-slate-600 group-hover:text-blue-400 text-xs font-bold transition-colors">
-            →
-          </span>
-        </button>
-      </div>
-
-      {/* ⚡ Quick Play (1-Click Instant Match) - Solves "code entering is hard" */}
-      {onQuickJoin && (
-        <div
-          className={`mb-6 p-4 rounded-2xl border-2 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 ${
-            wallet.address
-              ? 'bg-gradient-to-r from-amber-500/15 via-yellow-500/10 to-slate-950 border-amber-500/40'
-              : 'bg-slate-950/80 border-slate-800'
-          }`}
-        >
-          <div className="flex items-center gap-3 text-left w-full sm:w-auto">
+          {/* Background Music Groove Card in Left Sidebar */}
+          {onToggleMusic && (
             <div
-              className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shrink-0 ${
-                wallet.address
-                  ? 'bg-amber-500 text-slate-950 shadow-amber-500/30'
-                  : 'bg-slate-800 text-slate-400'
+              onClick={onToggleMusic}
+              className={`mt-2 p-3.5 rounded-2xl border transition-all cursor-pointer group ${
+                isMusicOn
+                  ? 'bg-gradient-to-br from-[#FF4600]/15 via-slate-900 to-[#111620] border-[#FF4600]/40 shadow-lg shadow-[#FF4600]/10'
+                  : 'bg-[#111620] border-slate-800 hover:border-slate-700'
               }`}
             >
-              <Zap className="w-6 h-6 fill-current" />
-            </div>
-            <div>
-              <div className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-                <span className={wallet.address ? 'text-amber-400' : 'text-slate-400'}>
-                  1-Click Matchmaking
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-orange-400">
+                  <Music className={`w-3.5 h-3.5 ${isMusicOn ? 'text-[#FF4600] animate-bounce' : 'text-slate-500'}`} />
+                  BGM GROOVE
                 </span>
-                {wallet.address ? (
-                  <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold">
-                    Fastest
-                  </span>
-                ) : (
-                  <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 text-[10px] font-bold border border-amber-500/30">
-                    Wallet Required
+                <span
+                  className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded-full ${
+                    isMusicOn
+                      ? 'bg-[#FF4600] text-white shadow-sm shadow-[#FF4600]/40'
+                      : 'bg-slate-800 text-slate-500'
+                  }`}
+                >
+                  {isMusicOn ? 'LIVE' : 'MUTED'}
+                </span>
+              </div>
+              <div className="text-xs font-black text-white group-hover:text-[#FF4600] transition-colors flex items-center justify-between">
+                <span>Cyber Synth Uno Track</span>
+                {isMusicOn && (
+                  <span className="flex gap-0.5 items-end h-3">
+                    <span className="w-0.5 h-2 bg-[#FF4600] animate-pulse" />
+                    <span className="w-0.5 h-3.5 bg-[#FF4600] animate-pulse delay-75" />
+                    <span className="w-0.5 h-1.5 bg-[#FF4600] animate-pulse delay-150" />
                   </span>
                 )}
               </div>
-              <h3 className="text-sm font-black text-white">
-                Quick Play (No Code Required)
-              </h3>
-              <p className="text-[11px] text-slate-300">
-                {wallet.address
-                  ? 'Instantly joins an open public lobby or starts a match for you.'
-                  : 'Connect your Web3 wallet to access Quick Play and real-time multiplayer matches.'}
-              </p>
+              <div className="text-[11px] text-slate-400 mt-0.5">
+                {isMusicOn ? 'Playing energetic arcade funk beat' : 'Click to turn background song on'}
+              </div>
             </div>
-          </div>
+          )}
 
-          <button
+          {/* LIVE Spectate Games card in Left Sidebar */}
+          <div
             onClick={() => {
-              if (!wallet.address) {
-                onConnectWallet();
-              } else {
-                onQuickJoin();
+              if (displayTables.length > 0) {
+                onSpectateRoom(displayTables[0].code, playerName, selectedAvatar);
               }
             }}
-            className={`w-full sm:w-auto px-6 py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 transition-all shrink-0 cursor-pointer ${
-              wallet.address
-                ? 'bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/30'
-                : 'bg-gradient-to-r from-amber-500/20 to-yellow-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 text-amber-300 border border-amber-500/40'
-            }`}
+            className="mt-2 p-3.5 rounded-2xl bg-[#111620] border border-slate-800 hover:border-[#FF4600]/40 transition-all cursor-pointer group"
           >
-            {wallet.address ? (
-              <>
-                <Play className="w-4 h-4 fill-current" />
-                <span>Quick Play</span>
-              </>
-            ) : (
-              <>
-                <Wallet className="w-4 h-4" />
-                <span>Connect Wallet to Play</span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Profile & Wallet Linking Setup */}
-      <div className="space-y-4 mb-6">
-        {/* Wallet Link Banner */}
-        <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${wallet.address ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-400'}`}>
-              <Wallet className="w-4 h-4" />
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-red-400">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                LIVE
+              </span>
+              <Eye className="w-4 h-4 text-slate-400 group-hover:text-[#FF4600] transition-colors" />
             </div>
-            <div>
-              <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span>Hemi Web3 Wallet</span>
-                {wallet.address && (
-                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                    Connected
-                  </span>
-                )}
-              </div>
-              <div className="text-[11px] text-slate-400 font-mono">
-                {wallet.address ? (
-                  <span>{formatAddress(wallet.address)} • {wallet.balance ? `${wallet.balance} ETH` : 'Hemi Sepolia'}</span>
-                ) : (
-                  <span>Connect wallet to tie your username, stats & pot settlement to your address</span>
-                )}
-              </div>
+            <div className="text-xs font-black text-white group-hover:text-[#FF4600] transition-colors">
+              Spectate Games
+            </div>
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              Watch real-time matches
             </div>
           </div>
 
-          {!wallet.address ? (
-            <button
-              onClick={() => onConnectWallet()}
-              disabled={wallet.isConnecting}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-md shrink-0 cursor-pointer"
-            >
-              {wallet.isConnecting ? 'Linking...' : 'Connect'}
-            </button>
-          ) : (
-            <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-mono font-bold flex items-center gap-1 shrink-0">
-              <Check className="w-3 h-3" />
-              <span>Identity Linked</span>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-            Your Player / Spectator Name
-          </label>
-          <input
-            type="text"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            onBlur={(e) => {
-              const val = e.target.value.trim();
-              if (val) {
-                handleNameChange(val);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                const val = (e.target as HTMLInputElement).value.trim();
-                if (val) {
-                  handleNameChange(val);
-                }
-              }
-            }}
-            maxLength={16}
-            placeholder="Enter your handle"
-            className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder:text-slate-600 focus:outline-hidden focus:border-amber-400 text-sm font-bold transition-colors"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-            Choose Avatar
-          </label>
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-            {AVATARS.map((av) => (
-              <button
-                key={av}
-                onClick={() => handleAvatarSelect(av)}
-                className={`
-                  h-12 rounded-xl flex items-center justify-center text-2xl transition-all cursor-pointer
-                  ${selectedAvatar === av
-                    ? 'bg-amber-500/20 border-2 border-amber-400 scale-110 shadow-lg shadow-amber-500/20'
-                    : 'bg-slate-950 border border-slate-800 hover:border-slate-700'}
-                `}
-              >
-                {av}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Mode Switcher: Play vs Spectate */}
-      <div className="flex p-1.5 rounded-2xl bg-slate-950 border border-slate-800 mb-6">
-        <button
-          onClick={() => setActiveTab('play')}
-          className={`
-            flex-1 py-2.5 rounded-xl text-xs font-black tracking-wider uppercase flex items-center justify-center gap-2 transition-all
-            ${activeTab === 'play'
-              ? 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'text-slate-400 hover:text-white'}
-          `}
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>Play Match</span>
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveTab('spectate');
-            onRefreshLiveRooms?.();
-          }}
-          className={`
-            flex-1 py-2.5 rounded-xl text-xs font-black tracking-wider uppercase flex items-center justify-center gap-2 transition-all
-            ${activeTab === 'spectate'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-              : 'text-slate-400 hover:text-white'}
-          `}
-        >
-          <Radio className="w-4 h-4 text-rose-400 animate-pulse" />
-          <span>Live Spectator Arena</span>
-          {liveRooms.length > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-900 text-amber-400 text-[10px] font-bold border border-amber-500/30">
-              {liveRooms.length}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* TAB 1: PLAY (Create Room / Join Room) */}
-      {activeTab === 'play' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Create Room Box */}
-          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                  Create Room
-                </h3>
+          {/* Bottom Watermark */}
+          <div className="mt-8 pt-6 border-t border-slate-800/40 flex flex-col gap-2">
+            <div className="flex items-center gap-2 opacity-30">
+              <div className="w-6 h-6 rounded-full border border-[#FF4600] flex items-center justify-center text-[#FF4600] font-black text-xs">
+                h
               </div>
-              <p className="text-xs text-slate-400 mb-3">
-                Host a 3 to 5 player game and invite friends or AI bots.
-              </p>
-
-              <div className="mb-4">
-                <label className="block text-[11px] font-bold text-slate-400 mb-1.5">
-                  Buy-In Pot (ETH)
-                </label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {BUY_IN_OPTIONS.map((val) => (
-                    <button
-                      key={val}
-                      onClick={() => setBuyIn(val)}
-                      className={`
-                        py-1 rounded-lg text-xs font-mono font-bold transition-colors
-                        ${buyIn === val ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}
-                      `}
-                    >
-                      {val}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                if (!wallet.address) {
-                  onConnectWallet();
-                } else {
-                  onCreateRoom(playerName, selectedAvatar, buyIn, wallet.address);
-                }
-              }}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-xs tracking-wider uppercase hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-amber-500/20 cursor-pointer flex items-center justify-center gap-2"
-            >
-              {wallet.address ? (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Create New Room</span>
-                </>
-              ) : (
-                <>
-                  <Wallet className="w-4 h-4" />
-                  <span>Connect Wallet to Create Table</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Join Room Box */}
-          <div className="p-5 rounded-2xl bg-slate-950/60 border border-slate-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="w-4 h-4 text-blue-400" />
-                <h3 className="text-sm font-black text-white uppercase tracking-wider">
-                  Join Room
-                </h3>
-              </div>
-              <p className="text-xs text-slate-400 mb-3">
-                Enter a 4-letter room code from your game host.
-              </p>
-
-              <div className="mb-4">
-                <label className="block text-[11px] font-bold text-slate-400 mb-1.5">
-                  Room Code
-                </label>
-                <input
-                  type="text"
-                  value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                  maxLength={4}
-                  placeholder="e.g. 4F9B"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-center font-mono font-black text-lg tracking-widest text-amber-400 focus:outline-hidden focus:border-amber-400 uppercase placeholder:text-slate-700"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                if (!wallet.address) {
-                  onConnectWallet();
-                } else {
-                  onJoinRoom(joinCode, playerName, selectedAvatar, wallet.address);
-                }
-              }}
-              disabled={wallet.address ? joinCode.trim().length < 4 : false}
-              className={`
-                w-full py-3 rounded-xl font-black text-xs tracking-wider uppercase transition-all shadow-lg flex items-center justify-center gap-2
-                ${!wallet.address
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white cursor-pointer shadow-blue-500/20'
-                  : joinCode.trim().length >= 4
-                  ? 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95 shadow-blue-500/20 cursor-pointer'
-                  : 'bg-slate-800 text-slate-600 cursor-not-allowed'}
-              `}
-            >
-              {wallet.address ? (
-                <span>Join Room</span>
-              ) : (
-                <>
-                  <Wallet className="w-4 h-4" />
-                  <span>Connect Wallet to Join</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Open Public Tables - 1-Click Join (Solves code entering is hard) */}
-          <div className="sm:col-span-2 p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
-                <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                  Open Waiting Tables (1-Click Join)
-                </h4>
-              </div>
-              <span className="text-[10px] text-slate-400 font-mono">
-                No code typing required
+              <span className="font-mono text-xs uppercase tracking-widest text-slate-400">
+                Hemi Uno
               </span>
             </div>
-
-            {(() => {
-              const openLobbies = liveRooms.filter((r) => r.status === 'lobby' && r.playerCount < 4);
-              if (openLobbies.length === 0) {
-                return (
-                  <div className="py-4 text-center text-xs text-slate-500 italic bg-slate-900/40 rounded-xl border border-slate-800/50">
-                    No waiting tables right now. Click "Quick Play" above or "Create New Room" to start one!
-                  </div>
-                );
-              }
-              return (
-                <div className="space-y-2">
-                  {openLobbies.map((r) => {
-                    const host = r.players && r.players.length > 0 ? r.players[0] : null;
-                    const hostAvatar = host?.avatar || '🎮';
-                    const hostName = host?.name || 'Host';
-                    const buyInVal = r.escrowPot?.buyInAmount || '0.005';
-
-                    return (
-                      <div
-                        key={r.roomCode}
-                        className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3 hover:border-slate-700 transition-colors"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-sm shrink-0">
-                            {hostAvatar}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                              <span className="truncate">{hostName}'s Table</span>
-                              <span className="font-mono text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded">
-                                {r.roomCode}
-                              </span>
-                            </div>
-                            <div className="text-[11px] text-slate-400 flex items-center gap-2">
-                              <span>{r.playerCount}/4 Players</span>
-                              <span>•</span>
-                              <span className="text-amber-400 font-mono">{buyInVal} ETH</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            if (!wallet.address) {
-                              onConnectWallet();
-                            } else {
-                              onJoinRoom(r.roomCode, playerName, selectedAvatar, wallet.address);
-                            }
-                          }}
-                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0 cursor-pointer"
-                        >
-                          {wallet.address ? (
-                            <>
-                              <Play className="w-3.5 h-3.5 fill-current" />
-                              <span>1-Click Join</span>
-                            </>
-                          ) : (
-                            <>
-                              <Wallet className="w-3.5 h-3.5" />
-                              <span>Connect to Join</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
+            <div className="text-xs font-mono text-slate-500 leading-tight">
+              Same rules.<br />
+              <span className="text-slate-400 font-bold">New vibes.</span>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* TAB 2: LIVE GAMES & SPECTATE */}
-      {activeTab === 'spectate' && (
-        <div className="space-y-4">
-          {/* Direct Code Spectate Box */}
-          <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="w-full sm:w-auto">
-              <div className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Tv className="w-3.5 h-3.5 text-purple-400" />
-                <span>Spectate By Code</span>
+        {/* ========================================================= */}
+        {/* CENTER COLUMN: Hero Banner, Stats, and Open Tables       */}
+        {/* ========================================================= */}
+        <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-5">
+          {/* Hero Banner with Hemi Hero Cards illustration */}
+          <div className="rounded-3xl bg-gradient-to-br from-[#121622] via-[#0F131C] to-[#0A0D14] border border-slate-800/90 p-6 sm:p-8 relative overflow-hidden shadow-2xl">
+            {/* Ambient orange glow in the background */}
+            <div className="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-[#FF4600]/15 blur-3xl pointer-events-none" />
+
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+              {/* Left text and action */}
+              <div className="flex-1 min-w-0 text-left">
+                <span className="inline-block text-[11px] font-black font-mono tracking-widest text-[#FF4600] uppercase mb-2">
+                  HEMI UNO
+                </span>
+
+                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-2">
+                  Ready to <span className="text-[#FF4600]">play?</span>
+                </h1>
+
+                <p className="text-sm text-slate-300 mb-6 max-w-sm">
+                  Jump into the next open table — no room code needed.
+                </p>
+
+                <div className="mb-6">
+                  <button
+                    onClick={onQuickJoin}
+                    className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-sm tracking-wider uppercase shadow-xl shadow-[#FF4600]/30 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                  >
+                    <span>&lt; QUICK PLAY &gt;</span>
+                  </button>
+                </div>
+
+                {/* Badges row */}
+                <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-rose-400">🎯</span> Find a game
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-amber-400">⚡</span> Join instantly
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-blue-400">🏆</span> Play with others
+                  </span>
+                </div>
               </div>
-              <p className="text-[11px] text-slate-400">
-                Know a room code? Jump directly into the live audience.
-              </p>
-            </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <input
-                type="text"
-                value={spectateCode}
-                onChange={(e) => setSpectateCode(e.target.value.toUpperCase())}
-                maxLength={4}
-                placeholder="ROOM"
-                className="w-24 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-center font-mono font-black text-sm text-amber-400 uppercase placeholder:text-slate-700 focus:outline-hidden focus:border-purple-400"
-              />
-              <button
-                onClick={() => onSpectateRoom(spectateCode, playerName, selectedAvatar)}
-                disabled={spectateCode.trim().length < 4}
-                className={`
-                  px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5
-                  ${spectateCode.trim().length >= 4
-                    ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30 active:scale-95 cursor-pointer'
-                    : 'bg-slate-800 text-slate-600 cursor-not-allowed'}
-                `}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Watch</span>
-              </button>
+              {/* Right: The 3 Glowing Hemi Network Cards */}
+              <div className="shrink-0">
+                <HemiHeroCards />
+              </div>
             </div>
           </div>
 
-          {/* Live Games List Header */}
-          <div className="flex items-center justify-between pt-2">
-            <div className="flex items-center gap-2">
-              <Radio className="w-4 h-4 text-rose-500 animate-pulse" />
-              <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                Live Active Matches ({liveRooms.length})
-              </h3>
+          {/* 3 Metrics Counter Row */}
+          <div className="grid grid-cols-3 gap-3.5">
+            {/* Open Tables */}
+            <div className="p-4 rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-[#FF4600]">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                    OPEN TABLES
+                  </div>
+                  <div className="text-lg sm:text-xl font-black text-white font-mono">
+                    {liveStats.openTables || displayTables.length}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
             </div>
-            <button
-              onClick={onRefreshLiveRooms}
-              className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors text-xs flex items-center gap-1"
-              title="Refresh live rooms list"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-bold">Refresh</span>
-            </button>
+
+            {/* Players Online */}
+            <div className="p-4 rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                    PLAYERS ONLINE
+                  </div>
+                  <div className="text-lg sm:text-xl font-black text-white font-mono">
+                    {liveStats.playersOnline}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+            </div>
+
+            {/* Games Played */}
+            <div className="p-4 rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400">
+                  <Trophy className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                    GAMES PLAYED
+                  </div>
+                  <div className="text-lg sm:text-xl font-black text-white font-mono">
+                    {liveStats.gamesPlayed.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+            </div>
           </div>
 
-          {/* Live Rooms List Feed */}
-          {liveRooms.length === 0 ? (
-            <div className="py-12 px-4 rounded-2xl bg-slate-950/40 border border-dashed border-slate-800 text-center">
-              <Eye className="w-8 h-8 text-purple-400/40 mx-auto mb-2 animate-pulse" />
-              <h4 className="text-sm font-bold text-slate-300">No Live Matches Right Now</h4>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
-                No active games are currently being played. Create a room to start the action, and others will see you here!
-              </p>
-              <button
-                onClick={() => setActiveTab('play')}
-                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all"
-              >
-                Create Room Now
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-              {liveRooms.map((room) => (
-                <div
-                  key={room.roomId}
-                  className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 hover:border-purple-500/40 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg group"
+          {/* Open Tables Section */}
+          <div className="p-5 sm:p-6 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#FF4600]/15 flex items-center justify-center text-[#FF4600]">
+                  <Gamepad2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-white">Open Tables</h2>
+                  <p className="text-xs text-slate-400">Join a public game and start playing now.</p>
+                </div>
+              </div>
+
+              {/* Sort by dropdown */}
+              <div className="text-xs text-slate-400 font-mono flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                <span>Sort by:</span>
+                <select
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value as any)}
+                  className="bg-transparent text-white font-bold outline-none cursor-pointer"
                 >
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2.5">
-                      <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono font-black text-sm tracking-wider">
-                        {room.roomCode}
-                      </span>
+                  <option value="popular" className="bg-slate-900 text-white">Popular</option>
+                  <option value="players" className="bg-slate-900 text-white">Players</option>
+                  <option value="fastest" className="bg-slate-900 text-white">Fastest</option>
+                </select>
+              </div>
+            </div>
 
-                      {room.status === 'playing' ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold flex items-center gap-1 animate-pulse">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          <span>LIVE MATCH</span>
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-extrabold flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                          <span>LOBBY</span>
-                        </span>
-                      )}
-
-                      <span className="text-[11px] text-purple-300 font-mono flex items-center gap-1">
-                        <Eye className="w-3.5 h-3.5 text-purple-400" />
-                        <span>{room.spectatorCount || 0} watching</span>
-                      </span>
+            {/* List of Open Tables */}
+            <div className="space-y-2.5">
+              {displayTables.map((table) => (
+                <div
+                  key={table.code}
+                  className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                >
+                  {/* Left: Mode, description, host */}
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg shrink-0">
+                      {table.mode === 'Stacked Draw' ? '⚡' : table.mode === '2v2 Team' ? '👥' : table.mode === 'Quick Match' ? '⏱️' : '🎴'}
                     </div>
-
-                    {/* Players seated */}
-                    <div className="flex items-center gap-2 text-xs">
-                      <div className="flex -space-x-2">
-                        {room.players.map((p, idx) => (
-                          <div
-                            key={idx}
-                            className="w-7 h-7 rounded-full bg-slate-800 border-2 border-slate-950 flex items-center justify-center text-sm shadow-sm"
-                            title={p.name}
-                          >
-                            {p.avatar}
-                          </div>
-                        ))}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black text-white">{table.mode}</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                          • Public
+                        </span>
                       </div>
-                      <span className="text-slate-400 text-[11px] font-medium">
-                        {room.playerCount}/5 Players ({room.players.map((p) => p.name).join(', ')})
-                      </span>
-                    </div>
-
-                    {/* Pot Info */}
-                    <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                      <span className="flex items-center gap-1 font-mono text-amber-400 font-bold">
-                        <Coins className="w-3 h-3 text-amber-400" />
-                        <span>{room.escrowPot.amount} {room.escrowPot.currency}</span>
-                      </span>
-                      {room.activeColor && (
-                        <span className="flex items-center gap-1 text-[10px] uppercase font-bold">
-                          <span>Color:</span>
-                          <span
-                            className={`w-2.5 h-2.5 rounded-full ${
-                              room.activeColor === 'red'
-                                ? 'bg-rose-500'
-                                : room.activeColor === 'blue'
-                                ? 'bg-blue-500'
-                                : room.activeColor === 'green'
-                                ? 'bg-emerald-500'
-                                : 'bg-amber-400'
-                            }`}
-                          />
-                          <span className="text-white">{room.activeColor}</span>
-                        </span>
-                      )}
+                      <div className="text-xs text-slate-400 truncate">{table.desc}</div>
                     </div>
                   </div>
 
-                  {/* Spectate Button */}
-                  <button
-                    onClick={() => onSpectateRoom(room.roomCode, playerName, selectedAvatar)}
-                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black text-xs tracking-wider uppercase transition-all shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 shrink-0 group-hover:scale-105"
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span>Watch Live</span>
-                  </button>
+                  {/* Badges: Players, Buy-in, Host */}
+                  <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <Users className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{table.players}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <span className="text-slate-500">💼</span>
+                      <span>{table.buyIn}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-slate-300">
+                      <span className="text-base">{table.hostAvatar}</span>
+                      <span className="truncate max-w-[80px]">{table.hostName}</span>
+                    </div>
+
+                    {/* Join Button */}
+                    <button
+                      onClick={() => onJoinRoom(table.code, playerName, selectedAvatar, wallet.address || undefined)}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-[#FF4600]/20 active:scale-95 flex items-center gap-1 ml-auto sm:ml-2 cursor-pointer"
+                    >
+                      <span>Join</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
-      )}
+
+        {/* ========================================================= */}
+        {/* RIGHT COLUMN: Profile Card, Create, Join Code, Social     */}
+        {/* ========================================================= */}
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-4">
+          {/* User Profile Card */}
+          <div className="p-5 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden">
+            <div className="flex flex-col items-center text-center">
+              {/* Big Avatar with orange halo */}
+              <div className="relative mb-3">
+                <div className="w-20 h-20 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-4xl shadow-xl shadow-[#FF4600]/20">
+                  {selectedAvatar}
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-xs font-bold shadow-md">
+                  👑
+                </div>
+              </div>
+
+              {/* Username + Crown */}
+              <h3 className="text-lg font-black text-white flex items-center gap-1.5">
+                <span>{playerName}</span>
+              </h3>
+
+              {/* Level & XP */}
+              <div className="text-xs font-mono text-slate-400 mt-0.5 mb-2">
+                Level {playerLevel} • {playerXP} XP
+              </div>
+
+              {/* Connection Status Indicator */}
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium mb-3">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Wallet Connected</span>
+              </div>
+
+              {/* Truncated Address pill with copy */}
+              {wallet.address && (
+                <button
+                  onClick={handleCopyWalletAddress}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-mono transition-all mb-4"
+                  title="Copy address"
+                >
+                  <span>{formatAddress(wallet.address)}</span>
+                  {copiedAddress ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                </button>
+              )}
+
+              {/* Avatar Selector Row */}
+              <div className="w-full pt-3 border-t border-slate-800/80">
+                <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-2 text-left">
+                  Choose Avatar
+                </div>
+                <div className="flex items-center justify-between gap-1">
+                  {AVATARS.slice(0, 5).map((emoji) => {
+                    const active = selectedAvatar === emoji;
+                    return (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => handleAvatarSelect(emoji)}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all ${
+                          active
+                            ? 'bg-[#FF4600]/20 border-2 border-[#FF4600] scale-105'
+                            : 'bg-slate-900 border border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={onOpenProfile}
+                    className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+                    title="More Avatars & Profile Settings"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Create Table Card (Vibrant Orange Card) */}
+          <div
+            onClick={onOpenCreateTable}
+            className="p-5 rounded-3xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] text-white shadow-xl shadow-[#FF4600]/25 transition-all hover:brightness-105 active:scale-98 cursor-pointer flex items-center justify-between"
+          >
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-black/20 flex items-center justify-center text-white shrink-0 mt-0.5">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black">Create Table</h3>
+                <p className="text-xs text-white/80 leading-snug">
+                  Set your own rules, invite friends, or play for a custom buy-in.
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-white/80 shrink-0 ml-2" />
+          </div>
+
+          {/* Join by Code Card */}
+          <div className="p-5 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-blue-400">
+                <Code2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white">Join by Code</h3>
+                <p className="text-[11px] text-slate-400">Have a room code? Enter it here.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleJoinByCodeSubmit} className="mt-3 flex items-center gap-2">
+              <input
+                type="text"
+                value={joinCodeInput}
+                onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                placeholder="Enter room code..."
+                maxLength={6}
+                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-white placeholder-slate-600 uppercase focus:border-[#FF4600] outline-none transition-colors"
+              />
+              <button
+                type="submit"
+                disabled={joinCodeInput.trim().length < 4}
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100 text-white font-black text-xs uppercase tracking-wider transition-all shrink-0 flex items-center gap-1 cursor-pointer"
+              >
+                <span>Join</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          </div>
+
+          {/* LIVE Spectate Games Card */}
+          <div
+            onClick={() => {
+              if (displayTables.length > 0) {
+                onSpectateRoom(displayTables[0].code, playerName, selectedAvatar);
+              }
+            }}
+            className="p-4 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl hover:border-slate-700 transition-all cursor-pointer group"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-red-400">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                LIVE
+              </span>
+              <button className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 group-hover:border-[#FF4600]/40 text-xs font-bold text-slate-300 group-hover:text-white flex items-center gap-1 transition-all">
+                <Eye className="w-3 h-3 text-[#FF4600]" />
+                <span>Spectate</span>
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="text-sm font-black text-white group-hover:text-[#FF4600] transition-colors">
+              Spectate Games
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Watch ongoing matches in real time.
+            </p>
+          </div>
+
+          {/* Friends Online Card */}
+          <div className="p-5 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-3">
+              <div className="text-xs font-black text-white">Friends Online</div>
+              <button
+                onClick={onOpenFriends}
+                className="text-[11px] text-[#FF4600] hover:underline font-bold"
+              >
+                View All →
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-1">
+              {defaultOnlineFriends.map((f, idx) => (
+                <div
+                  key={idx}
+                  onClick={onOpenFriends}
+                  className="flex flex-col items-center gap-1 cursor-pointer group"
+                >
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 group-hover:border-[#FF4600] flex items-center justify-center text-lg transition-colors">
+                      {f.avatar}
+                    </div>
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0E1218]" />
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono truncate max-w-[48px]">
+                    {f.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* New here? Tips Card */}
+          <div
+            onClick={onOpenRules}
+            className="p-4 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl hover:border-slate-700 transition-all cursor-pointer flex items-center justify-between group"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                <Lightbulb className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-white">New here?</h4>
+                <p className="text-[11px] text-slate-400 leading-snug">
+                  Click Quick Play to join a public game instantly. No code, no setup — just play!
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0 ml-2" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

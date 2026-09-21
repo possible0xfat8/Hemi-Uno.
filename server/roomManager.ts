@@ -14,6 +14,95 @@ export class RoomManager {
 
   constructor(io: SocketIOServer) {
     this.io = io;
+    this.seedPublicTables();
+  }
+
+  private publicTemplates = [
+    { name: 'Classic', mode: 'Classic', desc: 'The original. 2-4 players.', hostName: 'LumiBear', hostAvatar: '🐻', code: 'CLSC', botCount: 2 },
+    { name: 'Stacked Draw', mode: 'Stacked Draw', desc: 'Stack it. Survive it.', hostName: 'NeoDash', hostAvatar: '🤖', code: 'STCK', botCount: 1 },
+    { name: '2v2 Team', mode: '2v2 Team', desc: 'Team up. Take over.', hostName: 'Zyro', hostAvatar: '🦊', code: 'TEAM', botCount: 2 },
+    { name: 'Speed Uno', mode: 'Speed Uno', desc: 'Fast rounds, less waiting.', hostName: 'Tobz', hostAvatar: '🐱', code: 'FAST', botCount: 1 },
+  ];
+
+  public seedPublicTables(): void {
+    if (this.rooms.size > 0) return;
+
+    for (const t of this.publicTemplates) {
+      const roomId = `room_pub_${t.code.toLowerCase()}`;
+      const hostId = `host_${t.code.toLowerCase()}`;
+      const room = new GameRoom(roomId, t.code, hostId);
+      room.buyInAmount = '0.000';
+      room.customMode = t.mode;
+      room.description = t.desc;
+      room.isSeededPublic = true;
+      room.isQuickMatch = false;
+
+      room.setCallbacks(
+        () => this.broadcastRoomState(room),
+        (sound: string) => this.io.to(room.roomId).emit('game:sound', { soundName: sound }),
+        (intensity: number) => this.io.to(room.roomId).emit('game:shake', { intensity }),
+        (data: CardsDrawnEvent) => this.io.to(room.roomId).emit('game:cards_drawn', data),
+        (data: CardPlayedEvent) => this.io.to(room.roomId).emit('game:card_played', data),
+        (msg: ChatMessage) => this.io.to(room.roomId).emit('chat:message', msg),
+        (winner: Player, players: Player[], pot: string, cardsPlayedMap: Record<string, number>) => {
+          serverDb.recordGameFinished(
+            winner.id,
+            players.filter(p => !p.isBot).map(p => p.id),
+            pot,
+            cardsPlayedMap
+          );
+        }
+      );
+
+      // Add Initial Bot Host (will be automatically transferred to the first real human who joins!)
+      room.addPlayer({
+        id: hostId,
+        socketId: `bot_host_${t.code.toLowerCase()}`,
+        name: t.hostName,
+        avatar: t.hostAvatar,
+        isHost: true,
+        isBot: true,
+        isConnected: true,
+      });
+
+      // Add initial bots
+      for (let i = 0; i < t.botCount; i++) {
+        room.addBot();
+      }
+
+      this.rooms.set(roomId, room);
+      this.codeToRoomId.set(t.code, roomId);
+    }
+  }
+
+  private reseedPublicRoom(room: GameRoom): void {
+    const template = this.publicTemplates.find(t => t.code === room.roomCode);
+    if (!template) {
+      this.destroyRoom(room.roomId);
+      return;
+    }
+
+    room.status = 'lobby';
+    room.players = [];
+    room.spectators.clear();
+    const hostId = `host_${template.code.toLowerCase()}`;
+    room.hostId = hostId;
+
+    room.addPlayer({
+      id: hostId,
+      socketId: `bot_host_${template.code.toLowerCase()}`,
+      name: template.hostName,
+      avatar: template.hostAvatar,
+      isHost: true,
+      isBot: true,
+      isConnected: true,
+    });
+
+    for (let i = 0; i < template.botCount; i++) {
+      room.addBot();
+    }
+
+    this.broadcastRoomState(room);
   }
 
   public generateRoomCode(): string {
@@ -241,6 +330,16 @@ export class RoomManager {
       isSystem: true,
     });
 
+    if (added.isHost) {
+      room.addChatMessage({
+        senderId: 'system',
+        senderName: 'SYSTEM',
+        senderAvatar: '👑',
+        text: `${added.name} is now Table Host! You can start the game or add bots.`,
+        isSystem: true,
+      });
+    }
+
     serverDb.setUserPresence(canonicalId, 'in_game', room.roomCode);
 
     this.io.emit('rooms:public_list', this.getPublicRooms());
@@ -285,10 +384,11 @@ export class RoomManager {
       }
     }
 
-    // Find first open public table waiting for players in lobby
+    // RULE: Quick Match ONLY matches real users who join, and NEVER adds bots.
+    // 1. Search for an open Quick Match room with space for more real players
     let openRoom: GameRoom | null = null;
     for (const r of this.rooms.values()) {
-      if (r.status === 'lobby' && r.players.length < 4) {
+      if (r.isQuickMatch && r.status === 'lobby' && r.players.length < 5) {
         openRoom = r;
         break;
       }
@@ -306,9 +406,13 @@ export class RoomManager {
       }
     }
 
-    // Otherwise create a fresh table instantly
+    // 2. Otherwise create a fresh Quick Match room for real users only (0 bots added)
     try {
       const newRoom = this.createRoom(canonicalId, socketId, resolvedName, resolvedAvatar, '0.000', cleanAddr);
+      newRoom.isQuickMatch = true;
+      newRoom.customMode = 'Quick Match';
+      newRoom.description = 'Real players only. Fast matching.';
+      this.broadcastRoomState(newRoom);
       return { success: true, room: newRoom, isHost: true, playerId: canonicalId };
     } catch (err: any) {
       return { success: false, error: err.message };
@@ -464,7 +568,11 @@ export class RoomManager {
 
       const humanCount = room.players.filter(pl => !pl.isBot).length;
       if (humanCount === 0) {
-        this.destroyRoom(room.roomId);
+        if (room.isSeededPublic) {
+          this.reseedPublicRoom(room);
+        } else {
+          this.destroyRoom(room.roomId);
+        }
       } else {
         this.broadcastRoomState(room);
       }
@@ -520,7 +628,11 @@ export class RoomManager {
 
         const humanCount = room.players.filter(pl => !pl.isBot).length;
         if (humanCount === 0) {
-          this.destroyRoom(room.roomId);
+          if (room.isSeededPublic) {
+            this.reseedPublicRoom(room);
+          } else {
+            this.destroyRoom(room.roomId);
+          }
         } else {
           this.broadcastRoomState(room);
         }
@@ -612,26 +724,34 @@ export class RoomManager {
   }
 
   public getPublicRooms(): PublicRoomSummary[] {
-    return Array.from(this.rooms.values()).map(room => ({
-      roomId: room.roomId,
-      roomCode: room.roomCode,
-      status: room.status,
-      playerCount: room.players.length,
-      maxPlayers: 5,
-      spectatorCount: room.spectators.size,
-      players: room.players.map(p => ({
-        id: p.id,
-        name: p.name,
-        avatar: p.avatar,
-        isBot: p.isBot,
-      })),
-      activeColor: room.activeColor,
-      topDiscardCard: room.getTopDiscard(),
-      escrowPot: {
-        amount: (room.players.length * parseFloat(room.buyInAmount)).toFixed(3),
-        currency: room.currency,
-        buyInAmount: room.buyInAmount,
-      },
-    }));
+    return Array.from(this.rooms.values()).map(room => {
+      const host = room.players.find(p => p.isHost) || room.players[0];
+      return {
+        roomId: room.roomId,
+        roomCode: room.roomCode,
+        status: room.status,
+        playerCount: room.players.length,
+        maxPlayers: 5,
+        spectatorCount: room.spectators.size,
+        mode: room.customMode || 'Classic',
+        description: room.description || 'The original. 2-4 players.',
+        hostName: host ? host.name : 'Host',
+        hostAvatar: host ? host.avatar : '🦊',
+        players: room.players.map(p => ({
+          id: p.id,
+          name: p.name,
+          avatar: p.avatar,
+          isBot: p.isBot,
+        })),
+        activeColor: room.activeColor,
+        topDiscardCard: room.getTopDiscard(),
+        escrowPot: {
+          amount: (room.players.length * parseFloat(room.buyInAmount || '0')).toFixed(3),
+          currency: room.currency,
+          buyInAmount: room.buyInAmount,
+        },
+        isQuickMatch: room.isQuickMatch,
+      };
+    });
   }
 }
