@@ -21,7 +21,7 @@ export class RoomManager {
     { name: 'Classic', mode: 'Classic', desc: 'The original. 2-4 players.', hostName: 'LumiBear', hostAvatar: '🐻', code: 'CLSC', botCount: 2 },
     { name: 'Stacked Draw', mode: 'Stacked Draw', desc: 'Stack it. Survive it.', hostName: 'NeoDash', hostAvatar: '🤖', code: 'STCK', botCount: 1 },
     { name: '2v2 Team', mode: '2v2 Team', desc: 'Team up. Take over.', hostName: 'Zyro', hostAvatar: '🦊', code: 'TEAM', botCount: 2 },
-    { name: 'Speed Uno', mode: 'Speed Uno', desc: 'Fast rounds, less waiting.', hostName: 'Tobz', hostAvatar: '🐱', code: 'FAST', botCount: 1 },
+    { name: 'Speed 8', mode: 'Speed 8', desc: 'Fast rounds, less waiting.', hostName: 'Tobz', hostAvatar: '🐱', code: 'FAST', botCount: 1 },
   ];
 
   public seedPublicTables(): void {

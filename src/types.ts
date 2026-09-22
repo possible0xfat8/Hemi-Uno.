@@ -2,7 +2,7 @@ export type CardColor = 'red' | 'blue' | 'green' | 'yellow' | 'wild';
 
 export type CardValue =
   | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
-  | 'draw2' | 'skip' | 'reverse' | 'wild' | 'wild_draw4';
+  | 'draw2' | 'skip' | 'reverse' | 'wild_draw4';
 
 export interface Card {
   id: string;

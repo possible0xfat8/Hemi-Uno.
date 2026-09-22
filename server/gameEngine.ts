@@ -10,70 +10,54 @@ export function createDeck(): Card[] {
   const deck: Card[] = [];
 
   for (const color of COLORS) {
-    // One '0' per color
+    // Exactly ONE '0' through '7' and '9' per color (100% unique cards, ZERO duplicate cards)
+    for (const num of ['0', '1', '2', '3', '4', '5', '6', '7', '9'] as CardValue[]) {
+      deck.push({
+        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        color,
+        value: num,
+        label: num,
+      });
+    }
+
+    // Exactly ONE 'skip', ONE 'reverse', ONE 'draw2' per color (100% unique)
     deck.push({
       id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       color,
-      value: '0',
-      label: '0',
+      value: 'skip',
+      label: 'Skip',
     });
-
-    // Two '1' through '9' per color
-    for (const num of NUMBERS.slice(1)) {
-      deck.push({
-        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        color,
-        value: num,
-        label: num,
-      });
-      deck.push({
-        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        color,
-        value: num,
-        label: num,
-      });
-    }
-
-    // Two 'skip', 'reverse', 'draw2' per color
-    for (let i = 0; i < 2; i++) {
-      deck.push({
-        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        color,
-        value: 'skip',
-        label: '⊘ Skip',
-      });
-      deck.push({
-        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        color,
-        value: 'reverse',
-        label: '⇄ Rev',
-      });
-      deck.push({
-        id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-        color,
-        value: 'draw2',
-        label: '+2',
-      });
-    }
+    deck.push({
+      id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      color,
+      value: 'reverse',
+      label: 'Reverse',
+    });
+    deck.push({
+      id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      color,
+      value: 'draw2',
+      label: '+2',
+    });
   }
 
-  // 4 Wild cards (Wild color pickers)
+  // Exactly 4 Crazy 8 Cards (Universal rainbow wild cards)
   for (let i = 0; i < 4; i++) {
     deck.push({
       id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       color: 'wild',
-      value: 'wild',
-      label: 'Wild',
+      value: '8',
+      label: 'Crazy 8',
     });
   }
 
-  // 4 Wild Draw 4s
+  // Exactly 4 Crazy Draw 4 Cards
   for (let i = 0; i < 4; i++) {
     deck.push({
       id: `c_${globalCardIdCounter++}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       color: 'wild',
       value: 'wild_draw4',
-      label: '+4 Wild',
+      label: 'Crazy Draw 4',
     });
   }
 
@@ -396,32 +380,28 @@ export class GameRoom {
       player.hasCalledLastCard = false;
     }
 
-    for (let round = 0; round < 7; round++) {
-      for (const player of this.players) {
-        if (!player.hand) player.hand = [];
-        const hand = player.hand;
-        let card = this.popDrawCard();
-        if (card) {
-          // Hand Deduplication: prevent the same player from receiving duplicate identical cards in starting hand
-          const hasDuplicate = hand.some(c => c.color === card!.color && c.value === card!.value);
-          if (hasDuplicate && this.drawPile.length > 5) {
-            // Find an alternative card from drawPile that player does not already hold
-            const altIdx = this.drawPile.findIndex(c => !hand.some(h => h.color === c.color && h.value === c.value));
-            if (altIdx !== -1) {
-              const [altCard] = this.drawPile.splice(altIdx, 1);
-              // Return duplicate card deeper into draw pile
-              this.drawPile.push(card);
-              card = altCard;
-            }
-          }
-          hand.push(card);
-          player.cardCount = hand.length;
+    // Deal 7 cards round-robin with strict starting-hand deduplication:
+    // Guarantees no player receives duplicate identical cards in their opening hand
+    for (const player of this.players) {
+      player.hand = [];
+      for (let i = 0; i < 7; i++) {
+        const idx = this.drawPile.findIndex(
+          c => !player.hand!.some(h => h.color === c.color && h.value === c.value)
+        );
+        if (idx !== -1) {
+          const [card] = this.drawPile.splice(idx, 1);
+          player.hand.push(card);
+        } else {
+          const card = this.drawPile.pop();
+          if (card) player.hand.push(card);
         }
       }
+      player.cardCount = player.hand.length;
+      player.hasCalledLastCard = false;
     }
 
-    // Flip top card for discard pile (ensure it's not a wild card initially for clean start)
-    let startCardIdx = this.drawPile.findIndex(c => c.color !== 'wild' && !['skip', 'reverse', 'draw2'].includes(c.value));
+    // Flip top card for discard pile (ensure it's not a wild card, 8, or action initially for clean start)
+    let startCardIdx = this.drawPile.findIndex(c => c.color !== 'wild' && c.value !== '8' && !['skip', 'reverse', 'draw2'].includes(c.value));
     if (startCardIdx === -1) startCardIdx = 0;
     const [startCard] = this.drawPile.splice(startCardIdx, 1);
     this.discardPile.push(startCard);
@@ -460,7 +440,8 @@ export class GameRoom {
 
     const card = curPlayer.hand[cardIndex];
     const topCard = this.getTopDiscard();
-    const isWild = card.color === 'wild';
+    // In Crazy 8: Any 8, wild_draw4, or wild-colored card is wild!
+    const isWild = card.color === 'wild' || card.value === '8' || card.value === 'wild_draw4';
 
     // Validation
     if (this.pendingDrawCount > 0) {
@@ -483,19 +464,19 @@ export class GameRoom {
     }
 
     if (isWild && !chosenColor) {
-      return { success: false, error: 'Color selection required for Wild card' };
+      return { success: false, error: 'Color nomination required for Crazy 8 / Wild card' };
     }
 
     // Play card
     curPlayer.hand.splice(cardIndex, 1);
     curPlayer.cardCount = curPlayer.hand.length;
 
-    // Transform Wild card directly to requested color so top discard card physically transforms to that color!
+    // Transform Crazy 8 / Crazy Draw 4 directly to requested color so top discard card physically transforms to that color!
     const playedCard: Card = (isWild && chosenColor)
       ? {
           ...card,
           color: chosenColor,
-          label: card.value === 'wild_draw4' ? `+4 ${chosenColor.toUpperCase()}` : `${chosenColor.toUpperCase()} WILD`,
+          label: card.value === 'wild_draw4' ? `Crazy Draw 4 (${chosenColor.toUpperCase()})` : `Crazy 8 (${chosenColor.toUpperCase()})`,
         }
       : card;
 
@@ -517,10 +498,12 @@ export class GameRoom {
     this.triggerSound('play');
     this.cardsPlayedPerPlayer[curPlayer.id] = (this.cardsPlayedPerPlayer[curPlayer.id] || 0) + 1;
 
-    // Handle Wild color selection
+    // Handle Crazy 8 / Crazy Draw 4 color nomination
     if (isWild && chosenColor) {
       this.activeColor = chosenColor;
-      this.lastActionMessage = `${curPlayer.name} played ${card.label} and chose ${chosenColor.toUpperCase()}!`;
+      this.lastActionMessage = card.value === '8'
+        ? `${curPlayer.name} played Crazy 8 and changed the color to ${chosenColor.toUpperCase()}!`
+        : `${curPlayer.name} played Crazy Draw 4 and changed the color to ${chosenColor.toUpperCase()}!`;
       this.triggerSound('wild');
     } else {
       this.activeColor = card.color;
@@ -642,9 +625,9 @@ export class GameRoom {
 
     this.triggerSound('draw');
 
-    // Check if playable
+    // Check if playable (Crazy 8, Wild, matching active color, or matching rank)
     const topCard = this.getTopDiscard();
-    const isPlayable = card.color === 'wild' || card.color === this.activeColor || (topCard && card.value === topCard.value);
+    const isPlayable = card.color === 'wild' || card.value === '8' || card.value === 'wild_draw4' || card.color === this.activeColor || (topCard && card.value === topCard.value);
 
     this.drawPendingForPlayer = true;
     this.drawnCard = card;
@@ -708,10 +691,14 @@ export class GameRoom {
       // Reshuffle discard pile into draw pile (leaving top card)
       if (this.discardPile.length > 1) {
         const top = this.discardPile.pop()!;
-        // Reset wild cards' temporary chosenColor before returning to draw pile
+        // Reset wild cards' temporary chosenColor and original label before returning to draw pile
         const recycled = this.discardPile.map(c => {
-          if (c.value === 'wild' || c.value === 'wild_draw4') {
-            return { ...c, color: 'wild' as CardColor };
+          if (c.value === '8' || c.value === 'wild_draw4') {
+            return {
+              ...c,
+              color: 'wild' as CardColor,
+              label: c.value === 'wild_draw4' ? 'Crazy Draw 4' : 'Crazy 8',
+            };
           }
           return c;
         });
@@ -719,9 +706,15 @@ export class GameRoom {
         this.discardPile = [top];
         this.lastActionMessage = 'Discard pile reshuffled into draw deck!';
       } else {
-        // Deck exhausted: replenish fresh cards so draw never fails
-        this.drawPile = createDeck();
-        this.lastActionMessage = 'Draw deck replenished with fresh cards!';
+        // Deck exhausted and discard pile empty: replenish fresh cards ensuring NO card already in players' hands or discard pile is duplicated!
+        const heldCards = new Set<string>();
+        for (const p of this.players) {
+          p.hand?.forEach(c => heldCards.add(`${c.color}_${c.value}`));
+        }
+        this.discardPile.forEach(c => heldCards.add(`${c.color}_${c.value}`));
+        const freshUniqueCards = createDeck().filter(c => !heldCards.has(`${c.color}_${c.value}`));
+        this.drawPile = shuffle(freshUniqueCards, 5);
+        this.lastActionMessage = 'Draw deck replenished with unique cards!';
       }
     }
     return this.drawPile.pop() || null;
@@ -840,33 +833,30 @@ export class GameRoom {
 
       const topCard = this.getTopDiscard();
 
-      // Find valid cards to play
+      // Find valid cards to play (in Crazy 8, all 8s are wild)
       const playable = curPlayer.hand.filter(c => {
-        if (c.color === 'wild') return true;
+        if (c.color === 'wild' || c.value === '8' || c.value === 'wild_draw4') return true;
         if (c.color === this.activeColor) return true;
         if (topCard && c.value === topCard.value) return true;
         return false;
       });
 
       if (playable.length > 0) {
-        // Pick best card (prioritize action cards / color cards over wild)
+        // Pick best card (prioritize normal cards over 8s/wilds unless no choice)
         const chosen = playable.sort((a, b) => {
-          if (a.color === 'wild' && b.color !== 'wild') return 1;
-          if (b.color === 'wild' && a.color !== 'wild') return -1;
+          const isAWild = a.color === 'wild' || a.value === '8' || a.value === 'wild_draw4';
+          const isBWild = b.color === 'wild' || b.value === '8' || b.value === 'wild_draw4';
+          if (isAWild && !isBWild) return 1;
+          if (!isAWild && isBWild) return -1;
           return 0;
         })[0];
 
         let chosenColor: CardColor | undefined = undefined;
-        if (chosen.color === 'wild') {
+        if (chosen.color === 'wild' || chosen.value === '8' || chosen.value === 'wild_draw4') {
           // Count bot's colors in hand to pick the one it has the most of
           const counts: Record<CardColor, number> = { red: 0, blue: 0, green: 0, yellow: 0, wild: 0 };
-          curPlayer.hand.forEach(c => { if (c.color !== 'wild') counts[c.color]++; });
+          curPlayer.hand.forEach(c => { if (c.color !== 'wild' && c.value !== '8') counts[c.color]++; });
           chosenColor = (['red', 'blue', 'green', 'yellow'] as CardColor[]).reduce((a, b) => counts[a] >= counts[b] ? a : b);
-        }
-
-        // Randomly call UNO if 2 cards left
-        if (curPlayer.hand.length === 2 && Math.random() > 0.3) {
-          this.callLastCard(curPlayer.id);
         }
 
         this.playCard(curPlayer.id, chosen.id, chosenColor);
@@ -878,7 +868,7 @@ export class GameRoom {
           setTimeout(() => {
             if (this.getCurrentPlayer()?.id === curPlayer.id && this.status === 'playing') {
               let color: CardColor | undefined = undefined;
-              if (res.drawnCard?.color === 'wild') {
+              if (res.drawnCard?.color === 'wild' || res.drawnCard?.value === '8' || res.drawnCard?.value === 'wild_draw4') {
                 color = (['red', 'blue', 'green', 'yellow'] as CardColor[])[Math.floor(Math.random() * 4)];
               }
               this.playCard(curPlayer.id, res.drawnCard!.id, color);
@@ -903,7 +893,7 @@ export class GameRoom {
       if (p.id !== winner.id && p.hand) {
         let handVal = 0;
         for (const c of p.hand) {
-          if (c.value === 'wild' || c.value === 'wild_draw4') {
+          if (c.value === '8' || c.value === 'wild_draw4') {
             handVal += 50;
           } else if (['draw2', 'skip', 'reverse'].includes(c.value)) {
             handVal += 20;
@@ -919,8 +909,9 @@ export class GameRoom {
     const winnerPl = this.players.find(p => p.id === winner.id);
     if (winnerPl) {
       winnerPl.wins = (winnerPl.wins || 0) + 1;
-      winnerPl.lastRoundScore = roundPointsWon;
-      winnerPl.score = (winnerPl.score || 0) + roundPointsWon;
+      const finalRoundPoints = Math.max(roundPointsWon, 25);
+      winnerPl.lastRoundScore = finalRoundPoints;
+      winnerPl.score = (winnerPl.score || 0) + finalRoundPoints;
     }
 
     this.winner = {
@@ -1032,6 +1023,10 @@ export class GameRoom {
         seatIndex: p.seatIndex,
         hasCalledLastCard: p.hasCalledLastCard,
         address: p.address,
+        score: p.score ?? 0,
+        wins: p.wins ?? 0,
+        roundsPlayed: p.roundsPlayed ?? 0,
+        lastRoundScore: p.lastRoundScore ?? 0,
         // Hand is strictly hidden from other players! Only target player sees their own hand
         // In game_over state, all hands can optionally be revealed
         hand: p.id === targetPlayerId || this.status === 'game_over' ? p.hand : undefined,

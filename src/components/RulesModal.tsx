@@ -1,5 +1,6 @@
 import React from 'react';
-import { X, BookOpen } from 'lucide-react';
+import { X } from 'lucide-react';
+import { CardComponent } from './CardComponent';
 
 interface RulesModalProps {
   isOpen: boolean;
@@ -10,54 +11,137 @@ export const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl text-slate-200 relative max-h-[85vh] overflow-y-auto">
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-2 mb-4 text-amber-400">
-          <BookOpen className="w-5 h-5" />
-          <h3 className="text-xl font-black tracking-tight">Game Rules & Mechanics</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in duration-150 select-none">
+      <div className="bg-[#18181b] border border-white/20 rounded-2xl sm:rounded-3xl p-4 sm:p-7 max-w-lg w-full shadow-2xl text-slate-100 relative max-h-[92vh] sm:max-h-[90vh] overflow-y-auto custom-scrollbar">
+        {/* Top Header matching iMessage screenshot */}
+        <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-white/10 mb-3 sm:mb-4 sticky top-0 bg-[#18181b]/95 backdrop-blur-sm z-20">
+          <button
+            onClick={onClose}
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+          </button>
+          <h3 className="font-['Montserrat','Arial_Black',sans-serif] font-bold text-sm sm:text-lg text-white/90 tracking-wide text-center flex-1 pr-7 sm:pr-8">
+            How to play CRAZY 8
+          </h3>
         </div>
 
-        <div className="space-y-4 text-xs sm:text-sm leading-relaxed text-slate-300">
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-            <span className="font-bold text-amber-300 block mb-1">🎯 Objective</span>
-            Be the first player to shed all cards from your hand to win the match and claim the escrow pot!
+        {/* Special cards section */}
+        <div className="space-y-6 text-sm">
+          <div>
+            <h4 className="font-['Montserrat','Arial_Black',sans-serif] font-black text-lg sm:text-xl text-white tracking-tight mb-4">
+              Special cards:
+            </h4>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-            <span className="font-bold text-sky-300 block mb-1">🃏 Valid Plays</span>
-            Play a card that matches the <span className="text-white font-bold">active color</span> OR the <span className="text-white font-bold">active number/rank</span> of the top discard card.
+          {/* 1. Crazy 8 */}
+          <div className="space-y-2.5 pb-4 border-b border-white/10">
+            <h5 className="font-['Montserrat','Arial_Black',sans-serif] font-black text-base text-white">
+              Crazy 8
+            </h5>
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 p-2 rounded-xl bg-[#5c1313] border border-white/15 shadow-inner">
+                <CardComponent
+                  card={{ id: 'preview-8', color: 'wild', value: '8', label: 'Crazy 8' }}
+                  size="sm"
+                  isPlayable={false}
+                />
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Can be played on any card on the discard pile, and allows you to change its color.
+              </p>
+            </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-            <span className="font-bold text-rose-300 block mb-1">⚡ Action Cards</span>
-            <div>• <strong className="text-white">Wild Card (Multicolor Oval):</strong> Can be played on any turn. Choose the new active color.</div>
-            <div>• <strong className="text-white">+4 Wild Draw 4:</strong> Next player draws 4 cards and loses their turn. You choose the active color.</div>
-            <div>• <strong className="text-white">+2 Draw 2:</strong> Next player draws 2 cards and loses their turn.</div>
-            <div>• <strong className="text-white">⊘ Skip:</strong> Next player is skipped.</div>
-            <div>• <strong className="text-white">⇄ Reverse:</strong> Flips turn direction (Clockwise ⇄ Counter-clockwise).</div>
+          {/* 2. Skip */}
+          <div className="space-y-2.5 pb-4 border-b border-white/10">
+            <h5 className="font-['Montserrat','Arial_Black',sans-serif] font-black text-base text-white">
+              Skip
+            </h5>
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 p-2 rounded-xl bg-[#5c1313] border border-white/15 shadow-inner">
+                <CardComponent
+                  card={{ id: 'preview-skip', color: 'red', value: 'skip', label: 'Skip' }}
+                  size="sm"
+                  isPlayable={false}
+                />
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Next player loses their turn.
+              </p>
+            </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-            <span className="font-bold text-emerald-300 block mb-1">⏱️ Turn Timer & Draw Deck</span>
-            Each turn has a strict 20-second authoritative server timer. If you cannot play, draw 1 card. If the drawn card is playable, play it or pass. If time expires, a card is drawn and turn passes.
+          {/* 3. Reverse */}
+          <div className="space-y-2.5 pb-4 border-b border-white/10">
+            <h5 className="font-['Montserrat','Arial_Black',sans-serif] font-black text-base text-white">
+              Reverse
+            </h5>
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 p-2 rounded-xl bg-[#5c1313] border border-white/15 shadow-inner">
+                <CardComponent
+                  card={{ id: 'preview-reverse', color: 'green', value: 'reverse', label: 'Reverse' }}
+                  size="sm"
+                  isPlayable={false}
+                />
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Changes the direction of play.
+              </p>
+            </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
-            <span className="font-bold text-purple-300 block mb-1">⛓️ Hemi Testnet Escrow (Phase 2)</span>
-            Pot is escrowed in smart contracts. The authoritative server signs an EIP-712 settlement voucher for the winner to claim 95% of the pot on-chain.
+          {/* 4. Draw 2 */}
+          <div className="space-y-2.5 pb-4 border-b border-white/10">
+            <h5 className="font-['Montserrat','Arial_Black',sans-serif] font-black text-base text-white">
+              Draw 2
+            </h5>
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 p-2 rounded-xl bg-[#5c1313] border border-white/15 shadow-inner">
+                <CardComponent
+                  card={{ id: 'preview-draw2', color: 'blue', value: 'draw2', label: 'Draw 2' }}
+                  size="sm"
+                  isPlayable={false}
+                />
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Next player draws 2 cards and skips their turn. If the next player has a Draw 2 card of his own, then he can defend himself and stack his Draw 2 card on top and transfer the result over to the next player.
+              </p>
+            </div>
+          </div>
+
+          {/* 5. Crazy Draw 4 */}
+          <div className="space-y-2.5 pb-4 border-b border-white/10">
+            <h5 className="font-['Montserrat','Arial_Black',sans-serif] font-black text-base text-white">
+              Crazy Draw 4
+            </h5>
+            <div className="flex items-center gap-4">
+              <div className="shrink-0 p-2 rounded-xl bg-[#5c1313] border border-white/15 shadow-inner">
+                <CardComponent
+                  card={{ id: 'preview-draw4', color: 'wild', value: 'wild_draw4', label: 'Crazy Draw 4' }}
+                  size="sm"
+                  isPlayable={false}
+                />
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Can be played on any card on the discard pile, and allows you to change its color. Next player draws 4 cards and skips their turn. If the next player has a Draw 4 card of his own, then he can defend himself and stack his Draw 4 card on top and transfer the result over to the next player.
+              </p>
+            </div>
+          </div>
+
+          {/* Objective & Turn Rules */}
+          <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2 text-xs text-slate-300">
+            <div className="font-bold text-amber-400 text-sm">🎯 Goal & Turn Flow</div>
+            <p>• Shed all your cards first to win the match and claim the Hemi crypto pot!</p>
+            <p>• Play a card matching either the active suit/color or the number of the top card.</p>
+            <p>• Crazy 8 and Crazy Draw 4 have temporary rainbow colors in your hand and allow you to change the active suit to any color when played!</p>
           </div>
         </div>
 
         <button
           onClick={onClose}
-          className="w-full mt-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+          className="w-full mt-6 py-3 rounded-2xl bg-gradient-to-r from-red-600 via-amber-500 to-emerald-600 hover:opacity-90 text-white font-['Montserrat','Arial_Black',sans-serif] font-black text-xs uppercase tracking-wider transition-all shadow-lg cursor-pointer"
         >
           Got It, Let's Play!
         </button>

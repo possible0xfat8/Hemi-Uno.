@@ -35,21 +35,21 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
 
   if (!wallet.address) {
     return (
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
           onClick={() => onConnect()}
           disabled={wallet.isConnecting}
           className={`
-            px-3.5 py-1.5 rounded-xl font-bold text-xs tracking-wider uppercase transition-all duration-200
-            flex items-center gap-2 cursor-pointer shadow-md select-none
+            px-2.5 xs:px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-xl font-bold text-[11px] sm:text-xs tracking-wider uppercase transition-all duration-200
+            flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md select-none shrink-0
             ${wallet.isConnecting
               ? 'bg-slate-800 text-slate-400 cursor-wait'
               : 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:brightness-110 active:scale-95 shadow-amber-500/20'}
           `}
           title="Connect Web3 Wallet (MetaMask, OKX, Rabby, Zerion)"
         >
-          <Wallet className="w-4 h-4" />
-          <span>{wallet.isConnecting ? 'Connecting...' : 'Connect Wallet'}</span>
+          <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <span>{wallet.isConnecting ? '...' : <><span className="hidden xs:inline">Connect </span>Wallet</>}</span>
         </button>
 
         {wallet.error && (
@@ -66,18 +66,18 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
 
   // Connected state
   return (
-    <div className="relative">
+    <div className="relative shrink-0">
       <button
         onClick={() => setDropdownOpen(!dropdownOpen)}
-        className="px-3 py-1.5 rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 transition-all flex items-center gap-2 text-xs select-none shadow-sm cursor-pointer"
+        className="px-2 xs:px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 transition-all flex items-center gap-1.5 sm:gap-2 text-xs select-none shadow-sm cursor-pointer shrink-0"
       >
         {/* Orange Wallet Icon */}
-        <div className="w-6 h-6 rounded-lg bg-[#FF4600]/15 border border-[#FF4600]/30 flex items-center justify-center text-[#FF4600] shrink-0">
-          <Wallet className="w-3.5 h-3.5" />
+        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg bg-[#FF4600]/15 border border-[#FF4600]/30 flex items-center justify-center text-[#FF4600] shrink-0">
+          <Wallet className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
         </div>
 
-        {/* Text Details */}
-        <div className="flex flex-col text-left leading-tight hidden sm:flex">
+        {/* Text Details (Desktop only) */}
+        <div className="flex flex-col text-left leading-tight hidden md:flex">
           <span className="font-black text-white text-[11px]">Hemi Wallet</span>
           <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -86,11 +86,12 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
         </div>
 
         {/* Truncated Address */}
-        <span className="font-mono text-xs font-bold text-slate-300 ml-1">
-          {formatAddress(wallet.address)}
+        <span className="font-mono text-[10px] xs:text-[11px] sm:text-xs font-bold text-slate-300">
+          <span className="sm:hidden">{wallet.address.slice(0, 4)}..{wallet.address.slice(-2)}</span>
+          <span className="hidden sm:inline">{formatAddress(wallet.address)}</span>
         </span>
 
-        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+        <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400" />
       </button>
 
       {/* Dropdown Menu */}

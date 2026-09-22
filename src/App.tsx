@@ -6,8 +6,8 @@ import { CardComponent } from './components/CardComponent';
 import { OpponentSeat } from './components/OpponentSeat';
 import { CenterTable } from './components/CenterTable';
 import { LobbyView } from './components/LobbyView';
-import { WildColorModal } from './components/WildColorModal';
-import { ReactionWheel } from './components/ReactionWheel';
+import { Crazy8ColorModal } from './components/Crazy8ColorModal';
+import { ReactionWheel, FloatingEmoteDisplay } from './components/ReactionWheel';
 import { VictoryModal } from './components/VictoryModal';
 import { RulesModal } from './components/RulesModal';
 import { CardTransferAnimation } from './components/CardTransferAnimation';
@@ -51,9 +51,198 @@ import {
   Zap,
   Bell,
   Music,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
 } from 'lucide-react';
 
+const COLOR_ORDER: Record<string, number> = { red: 0, blue: 1, green: 2, yellow: 3, wild: 4 };
+const VALUE_ORDER: Record<string, number> = {
+  '0': 0, '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+  'skip': 10, 'reverse': 11, 'draw2': 12, 'wild_draw4': 13,
+};
+
+function sortPlayerCards(rawCards: Card[] | undefined, mode: 'default' | 'color' | 'value'): Card[] {
+  if (!rawCards || rawCards.length === 0) return [];
+  if (mode === 'default') return rawCards;
+  return [...rawCards].sort((a, b) => {
+    if (mode === 'color') {
+      const cDiff = (COLOR_ORDER[a.color] ?? 99) - (COLOR_ORDER[b.color] ?? 99);
+      if (cDiff !== 0) return cDiff;
+      return (VALUE_ORDER[a.value] ?? 99) - (VALUE_ORDER[b.value] ?? 99);
+    } else {
+      const vDiff = (VALUE_ORDER[a.value] ?? 99) - (VALUE_ORDER[b.value] ?? 99);
+      if (vDiff !== 0) return vDiff;
+      return (COLOR_ORDER[a.color] ?? 99) - (COLOR_ORDER[b.color] ?? 99);
+    }
+  });
+}
+
+interface SeatPosition {
+  leftPercent: number;
+  topPercent: number;
+  angleDeg: number;
+  stackPlacement: 'left' | 'right' | 'top';
+  beamRotationDeg: number;
+}
+
+function getOpponentPosition(
+  idx: number,
+  totalOpponents: number,
+  isSpectator: boolean,
+  isMobile: boolean = false
+): SeatPosition {
+  let leftPercent: number;
+  let topPercent: number;
+  let stackPlacement: 'left' | 'right' | 'top';
+  let angleDeg: number;
+
+  if (isSpectator) {
+    // Spectator view: evenly distribute all players in a 360-degree circle around the table
+    const step = 360 / Math.max(totalOpponents, 1);
+    angleDeg = (270 - idx * step + 360) % 360;
+    const angleRad = (angleDeg * Math.PI) / 180;
+    leftPercent = 50 + 40 * Math.cos(angleRad);
+    topPercent = 50 - 36 * Math.sin(angleRad);
+    stackPlacement =
+      topPercent < 22 && Math.abs(leftPercent - 50) < 15 ? 'top' : leftPercent < 50 ? 'left' : 'right';
+  } else if (isMobile) {
+    // GamePigeon Crazy 8 Stadium Arc Formation (Screenshot 2)
+    // Distributes players cleanly around the perimeter without crowding or overlap
+    if (totalOpponents === 1) {
+      leftPercent = 50;
+      topPercent = 20; // Brought down so card stack is never cut off at the top
+      stackPlacement = 'top';
+      angleDeg = 90;
+    } else if (totalOpponents === 2) {
+      if (idx === 0) {
+        leftPercent = 14;
+        topPercent = 32;
+        stackPlacement = 'left';
+        angleDeg = 140;
+      } else {
+        leftPercent = 86;
+        topPercent = 32;
+        stackPlacement = 'right';
+        angleDeg = 40;
+      }
+    } else if (totalOpponents === 3) {
+      // 3 opponents (classic 4-player game): Mid-Left, Top Center, Mid-Right
+      if (idx === 0) {
+        leftPercent = 13; // Pushed outward towards left edge to avoid center cards
+        topPercent = 33; // Kept above center cards (which sit at 56%)
+        stackPlacement = 'left';
+        angleDeg = 175;
+      } else if (idx === 1) {
+        leftPercent = 50;
+        topPercent = 20; // Brought down so top player card stack is completely inside table
+        stackPlacement = 'top';
+        angleDeg = 90;
+      } else {
+        leftPercent = 87; // Pushed outward towards right edge to avoid center cards
+        topPercent = 33; // Kept above center cards (which sit at 56%)
+        stackPlacement = 'right';
+        angleDeg = 5;
+      }
+    } else if (totalOpponents === 4) {
+      // 4 opponents (5-player game): Lower-Left, Upper-Left, Upper-Right, Lower-Right
+      if (idx === 0) {
+        leftPercent = 13;
+        topPercent = 56;
+        stackPlacement = 'left';
+        angleDeg = 195;
+      } else if (idx === 1) {
+        leftPercent = 18;
+        topPercent = 24;
+        stackPlacement = 'left';
+        angleDeg = 145;
+      } else if (idx === 2) {
+        leftPercent = 82;
+        topPercent = 24;
+        stackPlacement = 'right';
+        angleDeg = 35;
+      } else {
+        leftPercent = 87;
+        topPercent = 56;
+        stackPlacement = 'right';
+        angleDeg = 345;
+      }
+    } else if (totalOpponents === 5) {
+      // 5 opponents (6-player game):
+      // Lower-Left, Upper-Left, Top Center, Upper-Right, Lower-Right
+      if (idx === 0) {
+        leftPercent = 13;
+        topPercent = 56;
+        stackPlacement = 'left';
+        angleDeg = 200;
+      } else if (idx === 1) {
+        leftPercent = 18;
+        topPercent = 26;
+        stackPlacement = 'left';
+        angleDeg = 145;
+      } else if (idx === 2) {
+        leftPercent = 50;
+        topPercent = 20; // Brought down so top stack is not cut off
+        stackPlacement = 'top';
+        angleDeg = 90;
+      } else if (idx === 3) {
+        leftPercent = 82;
+        topPercent = 26;
+        stackPlacement = 'right';
+        angleDeg = 35;
+      } else {
+        leftPercent = 87;
+        topPercent = 56;
+        stackPlacement = 'right';
+        angleDeg = 340;
+      }
+    } else {
+      // Fallback for > 5 opponents: distribute along wide stadium horseshoe arc (215° to -35°)
+      const startAngle = 215;
+      const endAngle = -35;
+      angleDeg = startAngle - (idx / (totalOpponents - 1)) * (startAngle - endAngle);
+      const angleRad = (angleDeg * Math.PI) / 180;
+      leftPercent = 50 + 35 * Math.cos(angleRad);
+      topPercent = 52 - 32 * Math.sin(angleRad);
+      stackPlacement =
+        topPercent < 24 && Math.abs(leftPercent - 50) < 15 ? 'top' : leftPercent < 50 ? 'left' : 'right';
+    }
+  } else {
+    // Desktop Widescreen View:
+    // Full 360° circular equal-angle spacing around the compact circular center table.
+    const totalPlayers = totalOpponents + 1;
+    const step = 360 / totalPlayers;
+    angleDeg = (270 - (idx + 1) * step + 360) % 360;
+    const angleRad = (angleDeg * Math.PI) / 180;
+    leftPercent = 50 + 40 * Math.cos(angleRad);
+    topPercent = 50 - 33 * Math.sin(angleRad);
+    stackPlacement =
+      topPercent < 22 && Math.abs(leftPercent - 50) < 15 ? 'top' : leftPercent < 50 ? 'left' : 'right';
+  }
+
+  // Active turn conic spotlight rotation pointing from seat towards center table (50, 63)
+  const deltaX = 50 - leftPercent;
+  const deltaY = (isMobile ? 60 : 63) - topPercent;
+  const beamRotationDeg = Math.atan2(deltaX, deltaY) * (180 / Math.PI);
+
+  return { leftPercent, topPercent, angleDeg, stackPlacement, beamRotationDeg };
+}
+
 export default function App() {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 640;
+  });
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('reconnecting');
@@ -67,6 +256,16 @@ export default function App() {
   const [showRules, setShowRules] = useState(false);
   const [screenShake, setScreenShake] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<Card | null>(null);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [handSortMode, setHandSortMode] = useState<'default' | 'color' | 'value'>('default');
+  const handScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollHand = (dir: 'left' | 'right') => {
+    if (handScrollRef.current) {
+      const offset = dir === 'left' ? -220 : 220;
+      handScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+    }
+  };
 
   // Profile & Social State
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -941,8 +1140,8 @@ export default function App() {
     if (!socket || !gameState) return;
     if (gameState.currentTurnPlayerId !== myPlayerId) return;
 
-    if (card.color === 'wild') {
-      // Prompt color picker
+    if (card.color === 'wild' || card.value === '8' || card.value === 'wild_draw4') {
+      // Prompt Crazy 8 color nomination cross modal
       setPendingWildCard(card);
     } else {
       socket.emit('game:play_card', { cardId: card.id }, (res: any) => {
@@ -983,11 +1182,6 @@ export default function App() {
         setTimeout(() => setErrorMessage(null), 3000);
       }
     });
-  };
-
-  const handleCallLastCard = () => {
-    if (!socket) return;
-    socket.emit('game:call_last_card');
   };
 
   const handleSendEmote = (emoji: string, text?: string) => {
@@ -1056,14 +1250,14 @@ export default function App() {
     return list;
   }, [gameState?.players, myPlayerId, isSpectator]);
 
-  // Check if each card in hand is playable
+  // Check if each card in hand is playable (Crazy 8 rules: all 8s and wild_draw4 are wild)
   const isCardPlayable = (c: Card) => {
     if (!isMyTurn || isSpectator) return false;
     // Defense stacking rule: If under attack (+2 or +4), player MUST defend with +2 or +4
     if (gameState?.pendingDrawCount && gameState.pendingDrawCount > 0) {
       return c.value === 'draw2' || c.value === 'wild_draw4';
     }
-    if (c.color === 'wild') return true;
+    if (c.color === 'wild' || c.value === '8' || c.value === 'wild_draw4') return true;
     if (c.color === gameState?.activeColor) return true;
     if (topCard && c.value === topCard.value) return true;
     return false;
@@ -1072,7 +1266,11 @@ export default function App() {
   return (
     <div
       id="game-root"
-      className={`min-h-screen ${gameState && gameState.status !== 'lobby' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : ''} bg-[#090B0E] text-slate-100 flex flex-col justify-between overflow-x-hidden hemi-radial-bg ${screenShake ? 'shake-effect' : ''}`}
+      className={`min-h-screen ${
+        gameState && gameState.status !== 'lobby'
+          ? 'h-[100dvh] max-h-[100dvh] overflow-hidden bg-gradient-to-b from-[#1c0808] via-[#240c0c] to-[#120404]'
+          : 'bg-[#090B0E] hemi-radial-bg'
+      } text-slate-100 flex flex-col justify-between overflow-x-hidden ${screenShake ? 'shake-effect' : ''}`}
     >
       {/* Top Spectator Banner if in spectator mode */}
       {isSpectator && gameState && (
@@ -1098,8 +1296,8 @@ export default function App() {
       )}
 
       {/* Top Navigation Bar */}
-      <header className="h-13 sm:h-16 px-3 sm:px-8 border-b border-slate-800/80 bg-[#0E1217]/90 backdrop-blur-md flex items-center justify-between shrink-0 z-20">
-        <div className="flex items-center gap-3 sm:gap-4">
+      <header className="h-12 sm:h-16 px-2 sm:px-6 md:px-8 border-b border-slate-800/80 bg-[#0E1217]/90 backdrop-blur-md flex items-center justify-between shrink-0 z-20 safe-bottom">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 min-w-0">
           <HemiUnoLogo size="md" variant="clean" />
           <div className="hidden sm:flex flex-col">
             <div className="text-[11px] text-slate-400 flex items-center gap-1.5 font-mono">
@@ -1123,76 +1321,77 @@ export default function App() {
           </div>
         </div>
 
-        {/* Action Controls matching Screenshot */}
-        <div className="flex items-center gap-2.5">
-          {/* Header Wallet Connect Widget */}
+        {/* Action Controls */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Wallet Connect — always visible */}
           <WalletConnectButton
             wallet={wallet}
             onConnect={handleConnectWallet}
             onDisconnect={handleDisconnectWallet}
             onSwitchNetwork={handleSwitchNetwork}
-            compact={!!gameState && gameState.status !== 'lobby'}
+            compact={isMobile || (!!gameState && gameState.status !== 'lobby')}
           />
 
-          {/* Friends Quick Button */}
+          {/* Friends — always visible, compact on mobile */}
           <button
             onClick={() => setIsFriendsOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-200 hover:text-white transition-all cursor-pointer shadow-sm"
+            className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-200 hover:text-white transition-all cursor-pointer shadow-sm shrink-0"
             title="Friends & Social"
           >
-            <Users className="w-4 h-4 text-slate-400" />
-            <span className="hidden sm:inline">Friends</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-[#FF4600] text-white text-[10px] font-black">
+            <Users className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden sm:inline text-xs">Friends</span>
+            <span className="px-1 py-0.5 rounded-full bg-[#FF4600] text-white text-[9px] font-black leading-none">
               {friendCount || 12}
             </span>
           </button>
 
-          {/* Notification Bell */}
-          <button
-            onClick={() => setIsFriendsOpen(true)}
-            className="w-9 h-9 rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer relative shadow-sm"
-            title="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            {onlineFriendCount > 0 && (
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#FF4600]" />
-            )}
-          </button>
-
-          {/* User Avatar Circle */}
+          {/* User Avatar — ALWAYS VISIBLE */}
           <button
             onClick={() => setIsProfileOpen(true)}
-            className="w-9 h-9 rounded-full bg-slate-900 border border-slate-700 hover:border-[#FF4600] flex items-center justify-center text-lg transition-all cursor-pointer shadow-md"
+            className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-slate-900 border border-slate-700 hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-all cursor-pointer shadow-md shrink-0"
             title="Profile & Career Stats"
           >
             {account.avatar}
           </button>
 
+          {/* Notification Bell — desktop only */}
+          <button
+            onClick={() => setIsFriendsOpen(true)}
+            className="hidden md:flex w-8 h-8 rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer relative shadow-sm shrink-0"
+            title="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            {onlineFriendCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#FF4600]" />
+            )}
+          </button>
+
+          {/* Room code badge — desktop only, during game */}
           {gameState && gameState.status !== 'lobby' && (
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl bg-[#090B0E] border border-[#FF4600]/30 text-xs font-mono">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl bg-[#090B0E] border border-[#FF4600]/30 text-xs font-mono">
               <span className="text-slate-500">ROOM:</span>
               <span className="text-[#FF4600] font-black">{gameState.roomCode}</span>
               {isSpectator && (
-                <span className="px-1.5 py-0.2 rounded bg-[#FF4600]/20 text-orange-300 text-[10px] font-bold">
+                <span className="px-1.5 py-0.5 rounded bg-[#FF4600]/20 text-orange-300 text-[10px] font-bold">
                   SPECTATING
                 </span>
               )}
             </div>
           )}
 
-          {/* Background Music Toggle Button */}
+          {/* Background Music — desktop only */}
           <button
             onClick={toggleMusic}
-            className={`p-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`hidden md:flex p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer items-center gap-1.5 ${
               isMusicOn && !isMuted
                 ? 'bg-[#FF4600]/20 text-[#FF4600] border border-[#FF4600]/40 hover:bg-[#FF4600]/30 shadow-sm'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white'
             }`}
-            title={isMusicOn && !isMuted ? 'Background Music (Playing) - Click to Turn Off' : 'Background Music (Off) - Click to Turn On'}
+            title={isMusicOn && !isMuted ? 'Background Music (Playing)' : 'Background Music (Off)'}
           >
             <Music className={`w-4 h-4 ${isMusicOn && !isMuted ? 'animate-bounce' : ''}`} />
             {isMusicOn && !isMuted && (
-              <span className="hidden md:flex gap-0.5 items-end h-3">
+              <span className="hidden lg:flex gap-0.5 items-end h-3">
                 <span className="w-0.5 h-1.5 bg-[#FF4600] animate-pulse" />
                 <span className="w-0.5 h-3 bg-[#FF4600] animate-pulse delay-75" />
                 <span className="w-0.5 h-2 bg-[#FF4600] animate-pulse delay-150" />
@@ -1200,9 +1399,10 @@ export default function App() {
             )}
           </button>
 
+          {/* Mute — desktop only */}
           <button
             onClick={toggleMute}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className="hidden md:flex p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
             title={isMuted ? 'Unmute All Audio' : 'Mute All Audio'}
           >
             {isMuted ? (
@@ -1212,38 +1412,38 @@ export default function App() {
             )}
           </button>
 
-          {/* In Lobby: Player can quit the lobby */}
+          {/* In Lobby: Quit button */}
           {gameState && gameState.status === 'lobby' && !isSpectator && (
             <button
               onClick={handleLeaveRoom}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
               title="Quit Lobby"
             >
               <LogOut className="w-3.5 h-3.5 text-rose-400" />
-              <span className="hidden sm:inline">Quit Lobby</span>
+              <span className="hidden sm:inline">Quit</span>
             </button>
           )}
 
-          {/* While Playing: Quitting is locked until game ends */}
+          {/* Playing: Match Locked — desktop only */}
           {gameState && gameState.status === 'playing' && !isSpectator && (
             <div
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-500 select-none cursor-not-allowed"
-              title="Quitting is locked while the match is in progress. Complete the game to exit."
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-mono text-slate-500 select-none cursor-not-allowed shrink-0"
+              title="Quitting is locked while the match is in progress."
             >
               <Lock className="w-3.5 h-3.5 text-amber-500/80" />
-              <span className="hidden sm:inline">Match Locked</span>
+              <span className="hidden lg:inline">Match Locked</span>
             </div>
           )}
 
-          {/* After Game Over: Player can leave the table and return to lobby */}
+          {/* Game Over: Quit to Lobby */}
           {gameState && gameState.status === 'game_over' && !isSpectator && (
             <button
               onClick={handleLeaveRoom}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all cursor-pointer active:scale-95"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all cursor-pointer active:scale-95 shrink-0"
               title="Quit Table and return to Lobby"
             >
               <LogOut className="w-3.5 h-3.5 text-rose-400" />
-              <span>Quit to Lobby</span>
+              <span className="hidden sm:inline">Quit to Lobby</span>
             </button>
           )}
         </div>
@@ -1313,63 +1513,122 @@ export default function App() {
                 <span>Re-syncing match state with server...</span>
               </div>
             )}
-            {/* Circular Table Arena (GamePigeon Crazy 8 Table Formation) */}
-            <div className="relative w-full max-w-2xl sm:max-w-3xl md:max-w-4xl flex-1 flex flex-col items-center justify-center my-auto px-1 sm:px-4 pt-1 sm:pt-2 pb-1 select-none">
-              {/* Opponent Seats in circular / horseshoe arc along upper rim */}
-              <div className="relative w-full max-w-[340px] xs:max-w-[390px] sm:max-w-lg md:max-w-xl h-18 xs:h-20 sm:h-24 shrink-0">
-                {opponents.map((opp, idx) => {
-                  const totalOpponents = opponents.length;
-                  let seatStyle: React.CSSProperties = {};
-                  let positionClasses = '';
+            {/* Circular Table Arena with GamePigeon Red Felt Surface */}
+            <div
+              className="relative w-full max-w-2xl sm:max-w-3xl md:max-w-4xl flex-1 flex items-center justify-center my-auto px-1 sm:px-4 select-none min-h-[350px] xs:min-h-[390px] sm:min-h-[430px] md:min-h-[470px] rounded-3xl sm:rounded-[44px] overflow-hidden shadow-2xl border border-red-950/40"
+              style={{
+                backgroundColor: '#631313',
+                backgroundImage: `
+                  radial-gradient(ellipse at 50% 50%, rgba(135, 26, 26, 0.88) 0%, rgba(85, 14, 14, 0.96) 65%, rgba(42, 6, 6, 1) 100%),
+                  radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)
+                `,
+                backgroundSize: '100% 100%, 16px 16px',
+              }}
+            >
+              {/* Opponent Seats in circular / elliptical formation with equal angle spacing around the felt table */}
+              {opponents.map((opp, idx) => {
+                const pos = getOpponentPosition(idx, opponents.length, isSpectator, isMobile);
+                const isOppTurn = gameState.currentTurnPlayerId === opp.id;
 
-                  if (totalOpponents === 1) {
-                    positionClasses = 'top-0 left-1/2 -translate-x-1/2';
-                  } else if (totalOpponents === 2) {
-                    positionClasses = idx === 0 ? 'top-1 left-3 sm:left-10' : 'top-1 right-3 sm:right-10';
-                  } else if (totalOpponents === 3) {
-                    // Classic GamePigeon 4-player Crazy 8 table formation:
-                    // West (10 o'clock), North (12 o'clock), East (2 o'clock)
-                    if (idx === 0) positionClasses = 'top-1.5 left-1 sm:left-4';
-                    else if (idx === 1) positionClasses = 'top-0 left-1/2 -translate-x-1/2';
-                    else positionClasses = 'top-1.5 right-1 sm:right-4';
-                  } else if (totalOpponents === 4) {
-                    if (idx === 0) positionClasses = 'top-3 left-0.5 sm:left-2';
-                    else if (idx === 1) positionClasses = 'top-0 left-[28%] -translate-x-1/2';
-                    else if (idx === 2) positionClasses = 'top-0 left-[72%] -translate-x-1/2';
-                    else positionClasses = 'top-3 right-0.5 sm:right-2';
-                  } else {
-                    // 5+ opponents: evenly distribute in an arc across top half of the table
-                    const angle = Math.PI - (idx / (totalOpponents - 1)) * Math.PI;
-                    const leftPercent = 50 - 44 * Math.cos(angle);
-                    const topPercent = 40 - 35 * Math.sin(angle);
-                    seatStyle = {
-                      left: `${leftPercent}%`,
-                      top: `${topPercent}%`,
-                      transform: 'translate(-50%, -50%)',
-                    };
-                    positionClasses = '';
-                  }
+                return (
+                  <React.Fragment key={opp.id}>
+                    {/* Active Opponent Conic Spotlight shining from seat towards center table */}
+                    {isOppTurn && (
+                      <div
+                        className="absolute pointer-events-none z-15 overflow-hidden flex items-start justify-center"
+                        style={{
+                          left: `${pos.leftPercent}%`,
+                          top: `${pos.topPercent}%`,
+                          width: '260px',
+                          height: '200px',
+                          transformOrigin: 'top center',
+                          transform: `translate(-50%, 0) rotate(${pos.beamRotationDeg}deg)`,
+                        }}
+                      >
+                        <div
+                          className="w-full h-full opacity-40 animate-pulse"
+                          style={{
+                            background:
+                              'radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.15) 45%, transparent 75%)',
+                            clipPath: 'polygon(38% 0%, 62% 0%, 94% 100%, 6% 100%)',
+                          }}
+                        />
+                      </div>
+                    )}
 
-                  return (
                     <div
-                      key={opp.id}
-                      className={`absolute z-20 ${positionClasses}`}
-                      style={seatStyle}
+                      className="absolute z-20 transition-all duration-500 ease-out"
+                      style={{
+                        left: `${pos.leftPercent}%`,
+                        top: `${pos.topPercent}%`,
+                        transform: 'translate(-50%, -50%)',
+                      }}
                     >
                       <OpponentSeat
                         player={opp}
-                        isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
+                        isCurrentTurn={isOppTurn}
                         turnTimeRemaining={gameState.turnTimeRemaining}
                         turnTimeTotal={gameState.turnTimeTotal}
                         emotes={emotes}
+                        stackPlacement={pos.stackPlacement}
                       />
                     </div>
-                  );
-                })}
+                  </React.Fragment>
+                );
+              })}
+
+              {/* GamePigeon Directional Felt Arrows (Screenshot 2: Chunky white arrows on the felt) */}
+              <div className="absolute inset-0 pointer-events-none z-5">
+                {/* Left Arrow (between lower-left and bottom player, pointing in turn direction) */}
+                <div
+                  className={`absolute left-[28%] ${isMobile ? 'top-[65%]' : 'top-[67%]'} transition-transform duration-700 ${
+                    gameState.turnDirection === 1 ? 'rotate-[-35deg]' : 'rotate-[145deg]'
+                  }`}
+                >
+                  <svg
+                    className="w-5 h-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] opacity-90 animate-pulse"
+                    viewBox="0 0 24 24"
+                    fill="white"
+                  >
+                    <path d="M10 5L3 12L10 19V14H21V10H10V5Z" />
+                  </svg>
+                </div>
+
+                {/* Right Arrow (between bottom and lower-right player, pointing in turn direction) */}
+                <div
+                  className={`absolute right-[28%] ${isMobile ? 'top-[65%]' : 'top-[67%]'} transition-transform duration-700 ${
+                    gameState.turnDirection === 1 ? 'rotate-[-35deg]' : 'rotate-[145deg]'
+                  }`}
+                >
+                  <svg
+                    className="w-5 h-5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] opacity-90 animate-pulse"
+                    viewBox="0 0 24 24"
+                    fill="white"
+                  >
+                    <path d="M10 5L3 12L10 19V14H21V10H10V5Z" />
+                  </svg>
+                </div>
               </div>
 
-              {/* Center Felt Table (Draw deck & Discard pile completely clear and unobstructed) */}
-              <div className="z-10 w-full flex justify-center -mt-1 xs:mt-0 sm:mt-1">
+              {/* Center Cards (Draw deck & Discard pile brought down so opponent profiles never overlap) */}
+              <div
+                className={`absolute left-1/2 ${
+                  isMobile ? 'top-[60%]' : 'top-[63%]'
+                } -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-auto`}
+              >
+                {/* Active Player Conic Spotlight (Screenshot 2: GamePigeon turn beam shining up toward center cards) */}
+                {isMyTurn && (
+                  <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-64 sm:w-80 h-44 sm:h-56 pointer-events-none z-0 overflow-hidden flex items-end justify-center">
+                    <div
+                      className="w-full h-full opacity-40 animate-pulse"
+                      style={{
+                        background: 'radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.15) 50%, transparent 80%)',
+                        clipPath: 'polygon(38% 100%, 62% 100%, 92% 0%, 8% 0%)',
+                      }}
+                    />
+                  </div>
+                )}
+
                 <CenterTable
                   topDiscardCard={gameState.topDiscardCard}
                   activeColor={gameState.activeColor}
@@ -1382,6 +1641,7 @@ export default function App() {
                   lastActionMessage={gameState.lastActionMessage}
                   escrowPot={gameState.escrowPot}
                   pendingDrawCount={gameState.pendingDrawCount}
+                  isMobile={isMobile}
                 />
               </div>
             </div>
@@ -1421,8 +1681,11 @@ export default function App() {
               </div>
             ) : (
               /* Player's Turn Notification & Action Bar */
-              <div className="w-full flex flex-col items-center mt-1 sm:mt-2 z-20 shrink-0">
-                {/* Turn indicator / Defense Stack Banner */}
+              <div className="w-full flex flex-col items-center mt-0.5 sm:mt-1 z-20 shrink-0">
+                {/* Floating Emote for current player */}
+                {myPlayer && <FloatingEmoteDisplay emotes={emotes} targetPlayerId={myPlayer.id} />}
+
+                {/* Turn indicator / Defense Stack Banner / Current Player Seat */}
                 <div className="mb-1 flex items-center justify-center w-full">
                   {isMyTurn ? (
                     gameState.pendingDrawCount && gameState.pendingDrawCount > 0 ? (
@@ -1473,141 +1736,267 @@ export default function App() {
                         </div>
                       )
                     ) : (
-                      <div className="px-3.5 py-1 rounded-full bg-[#FF4600] text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-lg shadow-[#FF4600]/40 animate-pulse flex items-center gap-2">
-                        <Flame className="w-4 h-4 fill-current" />
-                        <span>YOUR TURN! ({gameState.turnTimeRemaining}s)</span>
-                      </div>
+                      /* GAMEPIGEON CURRENT PLAYER SEAT (Screenshots 1 & 3: Avatar + Name + Turn halo) */
+                      myPlayer && (
+                        <div className="flex items-center gap-1.5 select-none">
+                          <div className="relative">
+                            <div className="absolute -inset-1 rounded-full border-2 border-white animate-ping opacity-50 pointer-events-none" />
+                            <div
+                              className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm xs:text-base sm:text-lg transition-all duration-300 shadow-xl ring-2 sm:ring-3 ring-white scale-105 shadow-white/50"
+                              style={{ backgroundColor: '#a3e635' }}
+                            >
+                              <span className="drop-shadow-sm select-none">{myPlayer.avatar}</span>
+                              <div className="absolute -bottom-1 -right-1 bg-black/90 text-white font-black text-[7px] sm:text-[8px] px-1 py-0.2 rounded-full shadow-lg font-mono border border-white/60">
+                                {gameState.turnTimeRemaining}s
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/20 shadow-md">
+                            <span className="text-[10px] sm:text-xs font-black text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] truncate max-w-[90px] sm:max-w-[130px]">
+                              {myPlayer.name}
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded-full bg-[#FF4600] text-white text-[7px] xs:text-[8px] font-black uppercase tracking-wider shadow-sm animate-pulse">
+                              YOUR TURN
+                            </span>
+                          </div>
+                        </div>
+                      )
                     )
                   ) : (
-                    <div className="px-3 py-1 rounded-full bg-[#0E1217] border border-slate-800 text-slate-400 font-mono text-xs">
-                      Waiting for{' '}
-                      {gameState.players.find((p) => p.id === gameState.currentTurnPlayerId)?.name ||
-                        'opponent'}
-                      ...
-                    </div>
+                    /* Waiting for Opponent: Show current player avatar in waiting state */
+                    myPlayer && (
+                      <div className="flex items-center gap-1.5 select-none">
+                        <div
+                          className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm xs:text-base ring-1.5 ring-white/30 shadow-md"
+                          style={{ backgroundColor: '#84cc16' }}
+                        >
+                          <span className="drop-shadow-sm select-none">{myPlayer.avatar}</span>
+                        </div>
+                        <div className="flex flex-col items-start">
+                          <span className="text-[10px] sm:text-xs font-black text-white drop-shadow truncate max-w-[90px] sm:max-w-[130px]">
+                            {myPlayer.name}
+                          </span>
+                          <span className="text-[8px] sm:text-[9px] text-amber-300 font-mono flex items-center gap-1 drop-shadow">
+                            <span>Waiting for</span>
+                            <span className="font-bold text-white truncate max-w-[70px]">
+                              {gameState.players.find((p) => p.id === gameState.currentTurnPlayerId)?.name || 'opponent'}
+                            </span>
+                            <span>({gameState.turnTimeRemaining}s)</span>
+                          </span>
+                        </div>
+                      </div>
+                    )
                   )}
                 </div>
 
                 {/* Player's Hand of Cards */}
                 <div
                   id="player-hand-container"
-                  className="relative w-full max-w-3xl flex flex-col items-center justify-end px-1 sm:px-4 pb-1 shrink-0"
+                  className="relative w-full max-w-4xl flex flex-col items-center justify-end px-1 sm:px-4 pb-1 shrink-0"
                 >
-                  {/* Hovered Card Inspection Helper Tooltip */}
-                  <div className="h-6 sm:h-7 mb-1 flex items-center justify-center">
-                    {hoveredCard ? (
-                      <div className="px-2.5 py-0.5 rounded-full bg-[#0E1217]/95 border border-[#FF4600]/60 text-[11px] sm:text-xs text-white shadow-xl shadow-black/80 flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md max-w-[92vw] truncate">
-                        {hoveredCard.value === 'wild_draw4' ? (
-                          <>
-                            <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-red-600 via-[#FF4600] to-amber-500 text-white font-black text-[9px] sm:text-[10px] shadow-sm">
-                              +4 WILD
-                            </span>
-                            <span className="font-bold text-slate-100 truncate">
-                              Wild Draw Four — Forces next player to draw 4 cards!
-                            </span>
-                          </>
-                        ) : hoveredCard.value === 'draw2' ? (
-                          <>
-                            <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] sm:text-[10px] shadow-sm">
-                              +2 DRAW
-                            </span>
-                            <span className="font-bold text-slate-100 truncate">
-                              {hoveredCard.color.toUpperCase()} Draw Two — Forces next player to draw 2 cards!
-                            </span>
-                          </>
-                        ) : hoveredCard.value === 'wild' ? (
-                          <>
-                            <span className="px-1.5 py-0.2 rounded-full bg-purple-600 text-white font-black text-[9px] sm:text-[10px] shadow-sm">
-                              ★ WILD
-                            </span>
-                            <span className="font-bold text-slate-100 truncate">
-                              Wild Card — Choose any color (Red, Blue, Green, Yellow)
-                            </span>
-                          </>
-                        ) : hoveredCard.value === 'skip' ? (
-                          <>
-                            <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white font-black text-[9px] sm:text-[10px] shadow-sm">
-                              ⊘ SKIP
-                            </span>
-                            <span className="font-bold text-slate-100 truncate">
-                              {hoveredCard.color.toUpperCase()} Skip — Skips next player's turn
-                            </span>
-                          </>
-                        ) : hoveredCard.value === 'reverse' ? (
-                          <>
-                            <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-black text-[9px] sm:text-[10px] shadow-sm">
-                              ⇄ REV
-                            </span>
-                            <span className="font-bold text-slate-100 truncate">
-                              {hoveredCard.color.toUpperCase()} Reverse — Changes turn rotation
-                            </span>
-                          </>
-                        ) : (
-                          <span className="font-semibold text-slate-300 truncate">
-                            {hoveredCard.color.toUpperCase()} {hoveredCard.value} Card
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-[9px] sm:text-[10px] font-mono text-slate-500 tracking-wider uppercase">
-                        YOUR CARDS ({myPlayer?.hand?.length || 0})
+                  {/* Hand Header: Card count, Tooltip, and Sort Toggle */}
+                  <div className="w-full max-w-3xl flex items-center justify-between px-2 mb-1 gap-2">
+                    {/* Left: Card count and quick sort toggle */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="text-[10px] sm:text-xs font-mono font-bold text-slate-400 tracking-wider uppercase">
+                        CARDS ({myPlayer?.hand?.length || 0})
                       </span>
-                    )}
+                      {(myPlayer?.hand?.length || 0) > 4 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHandSortMode((prev) =>
+                              prev === 'default' ? 'color' : prev === 'color' ? 'value' : 'default'
+                            );
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-[#0E1217] hover:bg-slate-800 border border-slate-700/80 text-[9px] sm:text-[10px] font-bold text-slate-300 flex items-center gap-1 transition-colors cursor-pointer"
+                          title="Sort cards by Color or Number Value"
+                        >
+                          <ArrowUpDown className="w-2.5 h-2.5 text-[#FF4600]" />
+                          <span>
+                            {handSortMode === 'color' ? 'By Color' : handSortMode === 'value' ? 'By Value' : 'Sort'}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Center / Right: Active Card Inspection Tooltip */}
+                    <div className="flex-1 min-w-0 flex justify-end">
+                      {hoveredCard ? (
+                        <div className="px-2.5 py-0.5 rounded-full bg-[#0E1217]/95 border border-[#FF4600]/60 text-[10px] sm:text-xs text-white shadow-xl shadow-black/80 flex items-center gap-1.5 animate-in fade-in duration-100 backdrop-blur-md truncate max-w-full">
+                          {hoveredCard.value === '8' ? (
+                            <>
+                              <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 via-yellow-400 to-blue-500 text-white font-black text-[9px] shadow-sm">
+                                CRAZY 8
+                              </span>
+                              <span className="font-bold text-slate-100 truncate">
+                                Crazy 8 — Play on any card & change suit
+                              </span>
+                            </>
+                          ) : hoveredCard.value === 'wild_draw4' ? (
+                            <>
+                              <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-red-600 via-amber-500 to-purple-600 text-white font-black text-[9px] shadow-sm">
+                                CRAZY +4
+                              </span>
+                              <span className="font-bold text-slate-100 truncate">
+                                Crazy Draw 4 — Play on any card, next draws 4 (can be stacked)
+                              </span>
+                            </>
+                          ) : hoveredCard.value === 'draw2' ? (
+                            <>
+                              <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] shadow-sm">
+                                +2 DRAW
+                              </span>
+                              <span className="font-bold text-slate-100 truncate">
+                                {hoveredCard.color.toUpperCase()} Draw 2 — Next player draws 2 (can be stacked)
+                              </span>
+                            </>
+                          ) : hoveredCard.value === 'skip' ? (
+                            <>
+                              <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white font-black text-[9px] shadow-sm">
+                                ⊘ SKIP
+                              </span>
+                              <span className="font-bold text-slate-100 truncate">
+                                {hoveredCard.color.toUpperCase()} Skip — Next player loses their turn
+                              </span>
+                            </>
+                          ) : hoveredCard.value === 'reverse' ? (
+                            <>
+                              <span className="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white font-black text-[9px] shadow-sm">
+                                ⇄ REVERSE
+                              </span>
+                              <span className="font-bold text-slate-100 truncate">
+                                {hoveredCard.color.toUpperCase()} Reverse — Changes the direction of play
+                              </span>
+                            </>
+                          ) : (
+                            <span className="font-semibold text-slate-300 truncate">
+                              {hoveredCard.color.toUpperCase()} {hoveredCard.value} Card
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        isMyTurn && (
+                          <span className="text-[10px] text-amber-400 font-bold animate-pulse">
+                            Tap card to play
+                          </span>
+                        )
+                      )}
+                    </div>
                   </div>
 
-                  {/* Dynamic Overlap and Sizing so ALL cards remain visible and playable on mobile */}
+                  {/* Horizontal Scrollable Hand Tray with Dynamic Responsive Spacing */}
                   {(() => {
-                    const handCount = myPlayer?.hand?.length || 0;
-                    const handCardSize = handCount > 13 ? 'xs' : handCount > 8 ? 'sm' : 'adaptive';
-                    const overlapClasses =
-                      handCount > 15
-                        ? '-space-x-7 xs:-space-x-8 sm:-space-x-14'
+                    const sortedCards = sortPlayerCards(myPlayer?.hand, handSortMode);
+                    const handCount = sortedCards.length;
+                    const handCardSize = isMobile ? 'sm' : handCount > 14 ? 'xs' : handCount > 7 ? 'sm' : 'adaptive';
+
+                    // Responsive spacing that preserves at least 26px-34px of visible corner per card
+                    const spacingClass =
+                      handCount > 16
+                        ? '-space-x-7 xs:-space-x-8 sm:-space-x-10'
                         : handCount > 11
-                        ? '-space-x-6.5 xs:-space-x-7.5 sm:-space-x-12'
+                        ? '-space-x-6 xs:-space-x-7 sm:-space-x-9'
                         : handCount > 7
-                        ? '-space-x-5.5 xs:-space-x-6.5 sm:-space-x-10'
+                        ? '-space-x-5 xs:-space-x-6 sm:-space-x-8'
                         : handCount > 4
-                        ? '-space-x-4 xs:-space-x-5 sm:-space-x-7'
-                        : '-space-x-2.5 xs:-space-x-3.5 sm:-space-x-5';
+                        ? '-space-x-3.5 xs:-space-x-4.5 sm:-space-x-6'
+                        : '-space-x-1 sm:-space-x-2';
 
                     return (
-                      <div
-                        className={`w-full flex justify-center items-end overflow-x-auto no-scrollbar py-1 px-1 sm:px-2 touch-pan-x ${overlapClasses}`}
-                      >
-                        {myPlayer?.hand?.map((card, idx) => {
-                          const playable = isCardPlayable(card);
-                          const isDefendingCard =
-                            isMyTurn &&
-                            (gameState.pendingDrawCount || 0) > 0 &&
-                            (card.value === 'draw2' || card.value === 'wild_draw4');
-                          const total = myPlayer.hand?.length || 1;
-                          const rot = (idx - (total - 1) / 2) * (total > 10 ? 1.2 : 2);
+                      <div className="relative w-full max-w-4xl flex items-center justify-center">
+                        {/* Scroll Left Arrow (shows on high card counts) */}
+                        {handCount > 7 && (
+                          <button
+                            type="button"
+                            onClick={() => scrollHand('left')}
+                            className="absolute -left-1 sm:-left-3 z-30 p-1.5 sm:p-2 rounded-full bg-[#0E1217]/90 hover:bg-slate-800 text-slate-300 border border-slate-700/80 shadow-lg backdrop-blur-md cursor-pointer hover:text-white transition-all active:scale-90"
+                            title="Scroll Hand Left"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
+                        )}
 
-                          return (
-                            <div
-                              key={card.id}
-                              className="transition-all duration-150 transform hover:-translate-y-3 sm:hover:-translate-y-5 hover:z-30 hover:scale-105 active:-translate-y-2 cursor-pointer shrink-0"
-                              style={{
-                                transformOrigin: 'bottom center',
-                              }}
-                              onMouseEnter={() => setHoveredCard(card)}
-                              onMouseLeave={() => setHoveredCard(null)}
-                            >
-                              <CardComponent
-                                card={card}
-                                isPlayable={playable}
-                                size={handCardSize}
-                                rotation={rot}
-                                onClick={() => handlePlayCard(card)}
-                                className={
-                                  isDefendingCard
-                                    ? 'ring-3 sm:ring-4 ring-rose-500 shadow-2xl shadow-rose-500/80 -translate-y-2 sm:-translate-y-4 animate-pulse'
-                                    : ''
-                                }
-                              />
-                            </div>
-                          );
-                        })}
+                        {/* Horizontal Card Tray */}
+                        <div
+                          ref={handScrollRef}
+                          className={`
+                            w-full flex items-end overflow-x-auto no-scrollbar scroll-smooth touch-pan-x
+                            py-3 px-6 sm:px-12 min-h-[100px] xs:min-h-[110px] sm:min-h-[140px]
+                            ${spacingClass}
+                          `}
+                          style={{
+                            justifyContent: handCount > 8 ? 'flex-start' : 'center',
+                          }}
+                        >
+                          {sortedCards.map((card, idx) => {
+                            const playable = isCardPlayable(card);
+                            const isSelected = selectedCardId === card.id;
+                            const isDefendingCard =
+                              isMyTurn &&
+                              (gameState.pendingDrawCount || 0) > 0 &&
+                              (card.value === 'draw2' || card.value === 'wild_draw4');
+                            const total = handCount || 1;
+                            const rot = (idx - (total - 1) / 2) * (total > 12 ? 0.7 : total > 7 ? 1.3 : 2.2);
+
+                            return (
+                              <div
+                                key={card.id}
+                                className={`
+                                  transition-all duration-150 transform shrink-0 cursor-pointer
+                                  ${playable ? 'hover:-translate-y-4 hover:z-30 hover:scale-105 active:scale-95' : 'hover:-translate-y-2'}
+                                  ${isSelected ? '-translate-y-5 z-40 scale-105' : ''}
+                                `}
+                                style={{
+                                  transformOrigin: 'bottom center',
+                                }}
+                                onMouseEnter={() => setHoveredCard(card)}
+                                onMouseLeave={() => {
+                                  if (!selectedCardId) setHoveredCard(null);
+                                }}
+                                onClick={() => {
+                                  if (selectedCardId === card.id) {
+                                    if (playable && isMyTurn) {
+                                      handlePlayCard(card);
+                                      setSelectedCardId(null);
+                                    }
+                                  } else {
+                                    setSelectedCardId(card.id);
+                                    setHoveredCard(card);
+                                    if (playable && isMyTurn) {
+                                      handlePlayCard(card);
+                                      setSelectedCardId(null);
+                                    }
+                                  }
+                                }}
+                              >
+                                <CardComponent
+                                  card={card}
+                                  isPlayable={playable}
+                                  isSelected={isSelected}
+                                  size={handCardSize}
+                                  rotation={rot}
+                                  className={`
+                                    ${isDefendingCard ? 'ring-3 sm:ring-4 ring-rose-500 shadow-2xl shadow-rose-500/80 -translate-y-3 animate-pulse' : ''}
+                                    ${playable && !isDefendingCard ? 'hover:ring-2 hover:ring-white/90' : ''}
+                                  `}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Scroll Right Arrow (shows on high card counts) */}
+                        {handCount > 7 && (
+                          <button
+                            type="button"
+                            onClick={() => scrollHand('right')}
+                            className="absolute -right-1 sm:-right-3 z-30 p-1.5 sm:p-2 rounded-full bg-[#0E1217]/90 hover:bg-slate-800 text-slate-300 border border-slate-700/80 shadow-lg backdrop-blur-md cursor-pointer hover:text-white transition-all active:scale-90"
+                            title="Scroll Hand Right"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
+                        )}
                       </div>
                     );
                   })()}
@@ -1618,21 +2007,6 @@ export default function App() {
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     {/* Reaction Emote Wheel */}
                     <ReactionWheel onSendEmote={handleSendEmote} />
-
-                    {/* Last Card / UNO Callout */}
-                    <button
-                      onClick={handleCallLastCard}
-                      className={`
-                        px-2.5 sm:px-3.5 py-1.5 rounded-xl font-black text-[11px] sm:text-xs tracking-wider uppercase transition-all flex items-center gap-1 sm:gap-1.5 shadow-md cursor-pointer
-                        ${myPlayer && myPlayer.cardCount <= 2
-                          ? 'bg-[#FF4600] hover:bg-[#ff5a1a] text-white animate-bounce shadow-[#FF4600]/40 ring-2 ring-white/50'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-400'}
-                      `}
-                      title="Call Last Card! / UNO!"
-                    >
-                      <span>🔥</span>
-                      <span>LAST CARD!</span>
-                    </button>
                   </div>
 
                   {/* Hand Action Buttons */}
@@ -1687,8 +2061,8 @@ export default function App() {
       {/* Real-time Staggered Card Draw Motion Animation */}
       <CardTransferAnimation socket={socket} myPlayerId={myPlayerId} />
 
-      {/* Modals */}
-      <WildColorModal
+      {/* Crazy 8 4-Card Compass Cross Modal */}
+      <Crazy8ColorModal
         isOpen={!!pendingWildCard}
         cardLabel={pendingWildCard?.label}
         onSelectColor={handleConfirmWildColor}

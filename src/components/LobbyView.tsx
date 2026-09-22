@@ -227,29 +227,29 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     };
 
     return (
-      <div className="w-full max-w-2xl mx-auto p-6 bg-[#0E1217]/95 border border-slate-800 rounded-3xl shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 bg-[#0E1217]/95 border border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
         {/* Spectator Notice */}
         {isSpectator && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-[#FF4600]/10 border border-[#FF4600]/40 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-[#FF4600]/20 flex items-center justify-center text-[#FF4600] shrink-0">
-                <Eye className="w-4 h-4" />
+          <div className="mb-4 sm:mb-5 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#FF4600]/10 border border-[#FF4600]/40 flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#FF4600]/20 flex items-center justify-center text-[#FF4600] shrink-0">
+                <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div>
-                <div className="text-xs font-black text-white flex items-center gap-1.5">
+                <div className="text-[11px] sm:text-xs font-black text-white flex items-center gap-1.5">
                   <span>Spectating Room</span>
-                  <span className="px-1.5 py-0.2 rounded bg-[#FF4600]/30 text-orange-200 text-[10px] font-bold">
+                  <span className="px-1.5 py-0.5 rounded bg-[#FF4600]/30 text-orange-200 text-[9px] sm:text-[10px] font-bold">
                     Watcher
                   </span>
                 </div>
-                <div className="text-[11px] text-orange-200/80">
-                  You are watching this lobby in real time. The match will start once the host initiates it.
+                <div className="text-[10px] sm:text-[11px] text-orange-200/80">
+                  You are watching this lobby in real time.
                 </div>
               </div>
             </div>
             <button
               onClick={onLeaveRoom}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold shrink-0 transition-colors cursor-pointer"
+              className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] sm:text-xs font-bold shrink-0 transition-colors cursor-pointer"
             >
               Exit
             </button>
@@ -258,31 +258,31 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
         {/* Quick Match Real Players Notice */}
         {isQuickMatch && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-3 text-emerald-200">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold shrink-0">
-                <Users className="w-4 h-4" />
+          <div className="mb-4 sm:mb-5 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2 sm:gap-3 text-xs">
+            <div className="flex items-center gap-2 sm:gap-3 text-emerald-200">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold shrink-0">
+                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div>
-                <div className="font-black text-white text-xs sm:text-sm flex items-center gap-2">
-                  <span>Quick Match — Real Players Only</span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px] font-bold">
+                <div className="font-black text-white text-[11px] sm:text-sm flex items-center gap-2">
+                  <span>Quick Match</span>
+                  <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[9px] sm:text-[10px] font-bold">
                     No Bots
                   </span>
                 </div>
-                <div className="text-emerald-200/80 text-[11px]">
+                <div className="text-emerald-200/80 text-[10px] sm:text-[11px]">
                   {playerCount < 2
-                    ? 'Waiting for other players to join Quick Match or share your code!'
-                    : `${playerCount} real players ready. Host can launch match at any time!`}
+                    ? 'Waiting for other players to join...'
+                    : `${playerCount} players ready. Host can launch!`}
                 </div>
               </div>
             </div>
             <button
               onClick={handleCopyCode}
-              className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+              className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono text-[10px] sm:text-xs font-bold transition-colors flex items-center gap-1 sm:gap-1.5 shrink-0 cursor-pointer"
               title="Share Room Code"
             >
-              <Share2 className="w-3.5 h-3.5" />
+              <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span className="hidden sm:inline">Invite</span>
             </button>
           </div>
@@ -290,29 +290,29 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
         {/* Open Tables Host Banner */}
         {!isQuickMatch && isHost && (
-          <div className="mb-5 p-3.5 rounded-2xl bg-[#FF4600]/10 border border-[#FF4600]/30 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-3 text-orange-200">
-              <div className="w-8 h-8 rounded-xl bg-[#FF4600]/20 flex items-center justify-center text-lg shrink-0">
+          <div className="mb-4 sm:mb-5 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#FF4600]/10 border border-[#FF4600]/30 flex items-center justify-between gap-2 sm:gap-3 text-xs">
+            <div className="flex items-center gap-2 sm:gap-3 text-orange-200">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#FF4600]/20 flex items-center justify-center text-base sm:text-lg shrink-0">
                 👑
               </div>
               <div>
-                <div className="font-black text-white text-xs sm:text-sm flex items-center gap-2">
+                <div className="font-black text-white text-[11px] sm:text-sm flex items-center gap-2 flex-wrap">
                   <span>You are Table Host!</span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#FF4600]/20 text-orange-300 font-mono text-[10px] font-bold">
+                  <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-[#FF4600]/20 text-orange-300 font-mono text-[9px] sm:text-[10px] font-bold">
                     Open Table
                   </span>
                 </div>
-                <div className="text-orange-200/80 text-[11px]">
-                  You have full table control. Add bots or wait for real players to join, then click Start Game.
+                <div className="text-orange-200/80 text-[10px] sm:text-[11px]">
+                  Add bots or wait for players, then click Start Game.
                 </div>
               </div>
             </div>
             {playerCount < 5 && (
               <button
                 onClick={onAddBot}
-                className="px-3 py-1.5 rounded-xl bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-xs transition-all flex items-center gap-1.5 shrink-0 shadow-md shadow-[#FF4600]/20 cursor-pointer"
+                className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-[10px] sm:text-xs transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 shadow-md shadow-[#FF4600]/20 cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span>Add Bot</span>
               </button>
             )}
@@ -320,42 +320,42 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         )}
 
         {/* Lobby Header */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 border-b border-slate-800">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-slate-800">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <HemiUnoLogo size="sm" variant="clean" />
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl sm:text-2xl font-black text-white">
-                  {isQuickMatch ? 'Quick Match Lobby' : `${gameState.customMode || 'Open'} Table`}
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg sm:text-2xl font-black text-white">
+                  {isQuickMatch ? 'Quick Match' : `${gameState.customMode || 'Classic'} Table`}
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full bg-[#FF4600]/20 text-[#FF4600] font-mono text-xs font-bold border border-[#FF4600]/30">
+                <span className="px-2 sm:px-2.5 py-0.5 rounded-full bg-[#FF4600]/20 text-[#FF4600] font-mono text-[10px] sm:text-xs font-bold border border-[#FF4600]/30">
                   {playerCount}/5 Players
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-[10px] sm:text-xs text-slate-400">
                 {isHost
                   ? isQuickMatch
-                    ? 'Match begins once 2 or more real players are seated.'
+                    ? 'Match begins once 2+ real players are seated.'
                     : 'Invite players or add bots, then click Start Game.'
                   : 'Waiting for host to begin match...'}
               </p>
             </div>
           </div>
 
-          {/* Room Code & Audio Mood Control */}
-          <div className="flex items-center gap-2">
+          {/* Room Code & Audio Mood Control — stacked on mobile */}
+          <div className="flex flex-wrap items-center gap-2">
             {onToggleMusic && (
               <button
                 type="button"
                 onClick={onToggleMusic}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl border text-xs font-mono font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl border text-[10px] sm:text-xs font-mono font-bold transition-all cursor-pointer ${
                   isMusicOn
                     ? 'bg-[#FF4600]/15 border-[#FF4600]/40 text-orange-300 hover:bg-[#FF4600]/25 shadow-sm'
                     : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
                 }`}
                 title={isMusicOn ? 'Mute Background Groove' : 'Play Cool Cyber Uno Song'}
               >
-                <Music className={`w-3.5 h-3.5 ${isMusicOn ? 'text-[#FF4600] animate-bounce' : 'text-slate-500'}`} />
+                <Music className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${isMusicOn ? 'text-[#FF4600] animate-bounce' : 'text-slate-500'}`} />
                 <span className="hidden sm:inline text-[11px]">
                   {isMusicOn ? 'Groove ON' : 'Groove OFF'}
                 </span>
@@ -369,27 +369,27 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </button>
             )}
 
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-2xl px-3 py-1.5">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400">CODE:</span>
-              <span className="font-mono text-lg font-black text-[#FF4600] tracking-wider">
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-900 border border-slate-800 rounded-xl sm:rounded-2xl px-2.5 sm:px-3 py-1 sm:py-1.5">
+              <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-slate-400">CODE:</span>
+              <span className="font-mono text-base sm:text-lg font-black text-[#FF4600] tracking-wider">
                 {gameState.roomCode}
               </span>
               <button
                 onClick={handleCopyCode}
-                className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-1 sm:p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
                 title="Copy Room Code"
               >
-                {copiedRoomCode ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copiedRoomCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
             </div>
 
             <button
               type="button"
               onClick={onLeaveRoom}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-[10px] sm:text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-sm"
               title="Quit Lobby"
             >
-              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <LogOut className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-rose-400" />
               <span className="hidden sm:inline">Quit Lobby</span>
             </button>
           </div>
@@ -397,32 +397,32 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
         {/* Lobby Leaderboard Summary if games or scores exist */}
         {gameState.players.some((p) => (p.score || 0) > 0 || (p.roundsPlayed || 0) > 0) && (
-          <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#090B0E] to-orange-500/10 border border-amber-500/30 shadow-lg">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Trophy className="w-3.5 h-3.5 text-amber-400" />
+          <div className="mt-3 sm:mt-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#090B0E] to-orange-500/10 border border-amber-500/30 shadow-lg">
+            <div className="flex items-center justify-between mb-2 sm:mb-2.5">
+              <span className="text-[10px] sm:text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1 sm:gap-1.5">
+                <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
                 Lobby Standings & Scores
               </span>
-              <span className="text-[11px] text-slate-400 font-mono">
+              <span className="text-[10px] sm:text-[11px] text-slate-400 font-mono">
                 {gameState.players[0]?.roundsPlayed || 0} Rounds Completed
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
               {[...gameState.players]
                 .sort((a, b) => (b.score || 0) - (a.score || 0))
                 .map((p, idx) => (
                   <div
                     key={p.id}
-                    className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between"
+                    className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between"
                   >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-[10px] font-black text-amber-400 font-mono">#{idx + 1}</span>
-                      <span className="text-base">{p.avatar}</span>
-                      <span className="text-xs font-bold text-slate-200 truncate max-w-[60px] sm:max-w-[75px]">
+                    <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                      <span className="text-[9px] sm:text-[10px] font-black text-amber-400 font-mono">#{idx + 1}</span>
+                      <span className="text-sm sm:text-base">{p.avatar}</span>
+                      <span className="text-[10px] sm:text-xs font-bold text-slate-200 truncate max-w-[50px] sm:max-w-[75px]">
                         {p.name}
                       </span>
                     </div>
-                    <span className="text-xs font-black text-amber-300 font-mono">
+                    <span className="text-[10px] sm:text-xs font-black text-amber-300 font-mono">
                       {p.score || 0}p
                     </span>
                   </div>
@@ -432,52 +432,52 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         )}
 
         {/* Players List */}
-        <div className="py-6 space-y-3">
-          <div className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
+        <div className="py-4 sm:py-6 space-y-2.5 sm:space-y-3">
+          <div className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
             <span>Seat Roster ({playerCount}/5)</span>
             <span className="text-emerald-400 lowercase font-mono font-normal">
               {gameState.players.filter(p => p.isReady || p.isHost || p.isBot).length} ready
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-2.5">
+          <div className="grid grid-cols-1 gap-2 sm:gap-2.5">
             {gameState.players.map((p) => {
               const isMe = p.id === myPlayerId;
               return (
                 <div
                   key={p.id}
-                  className={`p-3.5 rounded-2xl border flex items-center justify-between transition-all ${
+                  className={`p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border flex items-center justify-between transition-all ${
                     isMe
                       ? 'bg-[#FF4600]/10 border-[#FF4600]/40 shadow-sm'
                       : 'bg-slate-900/60 border-slate-800'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-xl shrink-0">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg sm:text-xl shrink-0">
                       {p.avatar}
                     </div>
-                    <div>
-                      <div className="text-sm font-black text-white flex items-center gap-2">
-                        <span>{p.name}</span>
+                    <div className="min-w-0">
+                      <div className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <span className="truncate max-w-[100px] sm:max-w-none">{p.name}</span>
                         {p.isHost && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">
+                          <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">
                             HOST
                           </span>
                         )}
                         {p.isBot && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
+                          <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold border border-blue-500/30">
                             BOT
                           </span>
                         )}
                         {isMe && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#FF4600] text-white font-bold">
+                          <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded bg-[#FF4600] text-white font-bold">
                             YOU
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-amber-400 flex items-center gap-1">
-                          <Trophy className="w-3 h-3 text-amber-400" />
+                      <div className="text-[10px] sm:text-[11px] text-slate-400 font-mono flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                        <span className="font-bold text-amber-400 flex items-center gap-0.5 sm:gap-1">
+                          <Trophy className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-400" />
                           {p.score || 0} pts
                         </span>
                         <span className="text-slate-600">•</span>
@@ -495,18 +495,18 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {p.isHost ? (
-                      <span className="text-xs font-mono text-amber-400 font-bold px-2 py-1 bg-amber-500/10 rounded-lg">
+                      <span className="text-[10px] sm:text-xs font-mono text-amber-400 font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 bg-amber-500/10 rounded-lg">
                         Host
                       </span>
                     ) : p.isReady || p.isBot ? (
-                      <span className="text-xs font-mono text-emerald-400 font-bold px-2 py-1 bg-emerald-500/10 rounded-lg flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5" />
+                      <span className="text-[10px] sm:text-xs font-mono text-emerald-400 font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 bg-emerald-500/10 rounded-lg flex items-center gap-0.5 sm:gap-1">
+                        <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         Ready
                       </span>
                     ) : (
-                      <span className="text-xs font-mono text-slate-500 px-2 py-1 bg-slate-800 rounded-lg">
+                      <span className="text-[10px] sm:text-xs font-mono text-slate-500 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-800 rounded-lg">
                         Waiting
                       </span>
                     )}
@@ -514,10 +514,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     {isHost && !p.isHost && (
                       <button
                         onClick={() => onRemovePlayer(p.id)}
-                        className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer"
+                        className="p-1 sm:p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-colors cursor-pointer"
                         title={p.isBot ? "Remove bot" : "Kick player"}
                       >
-                        <UserX className="w-3.5 h-3.5" />
+                        <UserX className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                       </button>
                     )}
                   </div>
@@ -529,29 +529,30 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             {Array.from({ length: Math.max(0, 5 - playerCount) }).map((_, idx) => (
               <div
                 key={`empty-${idx}`}
-                className="p-3.5 rounded-2xl border border-dashed border-slate-800/80 bg-slate-950/20 flex items-center justify-between text-slate-600 text-xs font-mono"
+                className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border border-dashed border-slate-800/80 bg-slate-950/20 flex items-center justify-between text-slate-600 text-[10px] sm:text-xs font-mono"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl border border-dashed border-slate-800 flex items-center justify-center text-slate-700">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl border border-dashed border-slate-800 flex items-center justify-center text-slate-700">
                     +
                   </div>
                   <span>Open Seat {playerCount + idx + 1}</span>
                 </div>
                 {isQuickMatch ? (
-                  <div className="flex items-center gap-2 text-slate-500 text-xs font-mono">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Searching for player...</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-slate-500 text-[10px] sm:text-xs font-mono">
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="hidden sm:inline">Searching for player...</span>
+                    <span className="sm:hidden">Searching...</span>
                   </div>
                 ) : isHost ? (
                   <button
                     onClick={onAddBot}
-                    className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                    className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] sm:text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                     <span>Add Bot</span>
                   </button>
                 ) : (
-                  <span className="text-slate-600 text-xs">Waiting for player</span>
+                  <span className="text-slate-600 text-[10px] sm:text-xs">Waiting for player</span>
                 )}
               </div>
             ))}
@@ -559,22 +560,22 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         </div>
 
         {/* Host and Player Controls */}
-        <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="pt-3 sm:pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3">
           <button
             onClick={onLeaveRoom}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all text-center cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+            className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-rose-100 text-[10px] sm:text-xs font-bold transition-all text-center cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95"
           >
-            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <LogOut className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-rose-400" />
             <span>Quit Lobby</span>
           </button>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-end">
             {isHost && !isQuickMatch && playerCount < 5 && (
               <button
                 onClick={onAddBot}
-                className="px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-[10px] sm:text-xs transition-colors flex items-center gap-1 sm:gap-1.5 cursor-pointer"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 <span>Add Bot</span>
               </button>
             )}
@@ -582,7 +583,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             {!isHost && !isSpectator && !canStart && (
               <button
                 onClick={onToggleReady}
-                className={`w-full sm:w-auto px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                className={`w-full sm:w-auto px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all cursor-pointer ${
                   myPlayer?.isReady
                     ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                     : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20'
@@ -596,18 +597,18 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             {canStart ? (
               <button
                 onClick={onStartGame}
-                className="w-full sm:w-auto px-7 py-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white shadow-xl shadow-[#FF4600]/30 cursor-pointer active:scale-98 animate-pulse"
+                className="w-full sm:w-auto px-5 sm:px-7 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white shadow-xl shadow-[#FF4600]/30 cursor-pointer active:scale-98 animate-pulse"
                 title="Launch Match (Any seated player can start!)"
               >
-                <Play className="w-4 h-4 fill-current" />
+                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
                 <span>Start Match!</span>
               </button>
             ) : isHost ? (
               <button
                 disabled
-                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-black text-sm uppercase tracking-wider bg-slate-800 text-slate-500 cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider bg-slate-800 text-slate-500 cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <Play className="w-4 h-4 fill-current" />
+                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
                 <span>Waiting for Ready</span>
               </button>
             ) : null}
@@ -618,13 +619,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   }
 
   // =========================================================================
-  // VIEW: MAIN HOMEPAGE DASHBOARD (Exact Match to screenshot "new game ui.png")
+  // VIEW: MAIN HOMEPAGE DASHBOARD
   // =========================================================================
   return (
-    <div className="w-full max-w-7xl mx-auto py-2">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+    <div className="w-full max-w-7xl mx-auto py-1 sm:py-2 pb-16 lg:pb-2">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-5 items-start">
         {/* ========================================================= */}
-        {/* LEFT COLUMN: Navigation Sidebar & Brand Atmosphere        */}
+        {/* LEFT COLUMN: Navigation Sidebar (Desktop Only)            */}
         {/* ========================================================= */}
         <div className="lg:col-span-2 hidden lg:flex flex-col gap-3">
           {/* Main Nav Items */}
@@ -665,7 +666,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             </button>
           </div>
 
-          {/* Background Music Groove Card in Left Sidebar */}
+          {/* Background Music Groove Card */}
           {onToggleMusic && (
             <div
               onClick={onToggleMusic}
@@ -706,7 +707,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             </div>
           )}
 
-          {/* LIVE Spectate Games card in Left Sidebar */}
+          {/* LIVE Spectate Games */}
           <div
             onClick={() => {
               if (displayTables.length > 0) {
@@ -750,135 +751,133 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         {/* ========================================================= */}
         {/* CENTER COLUMN: Hero Banner, Stats, and Open Tables       */}
         {/* ========================================================= */}
-        <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-5">
-          {/* Hero Banner with Hemi Hero Cards illustration */}
-          <div className="rounded-3xl bg-gradient-to-br from-[#121622] via-[#0F131C] to-[#0A0D14] border border-slate-800/90 p-6 sm:p-8 relative overflow-hidden shadow-2xl">
-            {/* Ambient orange glow in the background */}
+        <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-3 sm:gap-5">
+          {/* Hero Banner */}
+          <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#121622] via-[#0F131C] to-[#0A0D14] border border-slate-800/90 p-4 sm:p-8 relative overflow-hidden shadow-2xl">
             <div className="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-[#FF4600]/15 blur-3xl pointer-events-none" />
 
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-              {/* Left text and action */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6 relative z-10">
               <div className="flex-1 min-w-0 text-left">
-                <span className="inline-block text-[11px] font-black font-mono tracking-widest text-[#FF4600] uppercase mb-2">
+                <span className="inline-block text-[10px] sm:text-[11px] font-black font-mono tracking-widest text-[#FF4600] uppercase mb-1 sm:mb-2">
                   HEMI UNO
                 </span>
 
-                <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-2">
+                <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-1.5 sm:mb-2">
                   Ready to <span className="text-[#FF4600]">play?</span>
                 </h1>
 
-                <p className="text-sm text-slate-300 mb-6 max-w-sm">
+                <p className="text-xs sm:text-sm text-slate-300 mb-4 sm:mb-6 max-w-sm">
                   Jump into the next open table — no room code needed.
                 </p>
 
-                <div className="mb-6">
+                <div className="mb-4 sm:mb-6">
                   <button
                     onClick={onQuickJoin}
-                    className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-sm tracking-wider uppercase shadow-xl shadow-[#FF4600]/30 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    className="px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-xl shadow-[#FF4600]/30 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
                     <span>&lt; QUICK PLAY &gt;</span>
                   </button>
                 </div>
 
                 {/* Badges row */}
-                <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-400">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[11px] sm:text-xs font-semibold text-slate-400">
                   <span className="flex items-center gap-1.5">
                     <span className="text-rose-400">🎯</span> Find a game
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="text-amber-400">⚡</span> Join instantly
                   </span>
-                  <span className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-1.5 hidden sm:flex">
                     <span className="text-blue-400">🏆</span> Play with others
                   </span>
                 </div>
               </div>
 
-              {/* Right: The 3 Glowing Hemi Network Cards */}
-              <div className="shrink-0">
+              {/* Hero Cards — hidden on mobile */}
+              <div className="shrink-0 hidden md:block">
                 <HemiHeroCards />
               </div>
             </div>
           </div>
 
-          {/* 3 Metrics Counter Row */}
-          <div className="grid grid-cols-3 gap-3.5">
+          {/* 3 Metrics Counter Row — horizontal scroll on mobile */}
+          <div className="flex gap-2 sm:gap-3.5 overflow-x-auto no-scrollbar scroll-snap-x sm:grid sm:grid-cols-3 sm:overflow-visible">
             {/* Open Tables */}
-            <div className="p-4 rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-[#FF4600]">
-                  <Users className="w-4 h-4" />
+            <div className="min-w-[140px] sm:min-w-0 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all shrink-0 sm:shrink">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-[#FF4600]">
+                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                  <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
                     OPEN TABLES
                   </div>
-                  <div className="text-lg sm:text-xl font-black text-white font-mono">
+                  <div className="text-base sm:text-xl font-black text-white font-mono">
                     {liveStats.openTables || displayTables.length}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+              <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600 group-hover:text-slate-400 transition-colors hidden sm:block" />
             </div>
 
             {/* Players Online */}
-            <div className="p-4 rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="min-w-[140px] sm:min-w-0 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all shrink-0 sm:shrink">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400">
+                  <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                  <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
                     PLAYERS ONLINE
                   </div>
-                  <div className="text-lg sm:text-xl font-black text-white font-mono">
+                  <div className="text-base sm:text-xl font-black text-white font-mono">
                     {liveStats.playersOnline}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+              <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600 group-hover:text-slate-400 transition-colors hidden sm:block" />
             </div>
 
             {/* Games Played */}
-            <div className="p-4 rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400">
-                  <Trophy className="w-4 h-4" />
+            <div className="min-w-[140px] sm:min-w-0 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all shrink-0 sm:shrink">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400">
+                  <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
+                  <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider text-slate-400 uppercase">
                     GAMES PLAYED
                   </div>
-                  <div className="text-lg sm:text-xl font-black text-white font-mono">
+                  <div className="text-base sm:text-xl font-black text-white font-mono">
                     {liveStats.gamesPlayed.toLocaleString()}
                   </div>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+              <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600 group-hover:text-slate-400 transition-colors hidden sm:block" />
             </div>
           </div>
 
           {/* Open Tables Section */}
-          <div className="p-5 sm:p-6 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
+          <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#FF4600]/15 flex items-center justify-center text-[#FF4600]">
-                  <Gamepad2 className="w-4 h-4" />
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800/80 mb-3 sm:mb-4">
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#FF4600]/15 flex items-center justify-center text-[#FF4600]">
+                  <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
                 <div>
-                  <h2 className="text-base font-black text-white">Open Tables</h2>
-                  <p className="text-xs text-slate-400">Join a public game and start playing now.</p>
+                  <h2 className="text-sm sm:text-base font-black text-white">Open Tables</h2>
+                  <p className="text-[10px] sm:text-xs text-slate-400">Join a public game and start playing now.</p>
                 </div>
               </div>
 
               {/* Sort by dropdown */}
-              <div className="text-xs text-slate-400 font-mono flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-                <span>Sort by:</span>
+              <div className="text-[10px] sm:text-xs text-slate-400 font-mono flex items-center gap-1 sm:gap-1.5 bg-slate-900 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl border border-slate-800">
+                <span className="hidden sm:inline">Sort by:</span>
                 <select
                   value={sortOption}
                   onChange={(e) => setSortOption(e.target.value as any)}
-                  className="bg-transparent text-white font-bold outline-none cursor-pointer"
+                  className="bg-transparent text-white font-bold outline-none cursor-pointer text-[10px] sm:text-xs"
                 >
                   <option value="popular" className="bg-slate-900 text-white">Popular</option>
                   <option value="players" className="bg-slate-900 text-white">Players</option>
@@ -887,53 +886,52 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </div>
             </div>
 
-            {/* List of Open Tables */}
-            <div className="space-y-2.5">
+            {/* Table List */}
+            <div className="space-y-2 sm:space-y-2.5">
               {displayTables.map((table) => (
                 <div
                   key={table.code}
-                  className="p-3.5 sm:p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                  className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-all group"
                 >
-                  {/* Left: Mode, description, host */}
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg shrink-0">
+                  {/* Top: Mode info */}
+                  <div className="flex items-center gap-3 mb-2 sm:mb-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-base sm:text-lg shrink-0">
                       {table.mode === 'Stacked Draw' ? '⚡' : table.mode === '2v2 Team' ? '👥' : table.mode === 'Quick Match' ? '⏱️' : '🎴'}
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-black text-white">{table.mode}</span>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                        <span className="text-xs sm:text-sm font-black text-white">{table.mode}</span>
+                        <span className="text-[9px] sm:text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
                           • Public
                         </span>
                       </div>
-                      <div className="text-xs text-slate-400 truncate">{table.desc}</div>
+                      <div className="text-[10px] sm:text-xs text-slate-400 truncate">{table.desc}</div>
                     </div>
                   </div>
 
-                  {/* Badges: Players, Buy-in, Host */}
-                  <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <Users className="w-3.5 h-3.5 text-slate-500" />
-                      <span>{table.players}</span>
+                  {/* Bottom: Badges + Join */}
+                  <div className="flex items-center justify-between gap-2 mt-2 sm:mt-0 sm:pl-12">
+                    <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs font-mono text-slate-400 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <Users className="w-3 h-3 text-slate-500" />
+                        <span>{table.players}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-500">💼</span>
+                        <span>{table.buyIn}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-slate-300">
+                        <span className="text-sm">{table.hostAvatar}</span>
+                        <span className="truncate max-w-[60px] sm:max-w-[80px]">{table.hostName}</span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <span className="text-slate-500">💼</span>
-                      <span>{table.buyIn}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-slate-300">
-                      <span className="text-base">{table.hostAvatar}</span>
-                      <span className="truncate max-w-[80px]">{table.hostName}</span>
-                    </div>
-
-                    {/* Join Button */}
                     <button
                       onClick={() => onJoinRoom(table.code, playerName, selectedAvatar, wallet.address || undefined)}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-black text-xs uppercase tracking-wider transition-all shadow-md shadow-[#FF4600]/20 active:scale-95 flex items-center gap-1 ml-auto sm:ml-2 cursor-pointer"
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all shadow-md shadow-[#FF4600]/20 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
                     >
                       <span>Join</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
+                      <ChevronRight className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -945,55 +943,49 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         {/* ========================================================= */}
         {/* RIGHT COLUMN: Profile Card, Create, Join Code, Social     */}
         {/* ========================================================= */}
-        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-4">
+        <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3 sm:gap-4">
           {/* User Profile Card */}
-          <div className="p-5 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden">
+          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden">
             <div className="flex flex-col items-center text-center">
-              {/* Big Avatar with orange halo */}
-              <div className="relative mb-3">
-                <div className="w-20 h-20 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-4xl shadow-xl shadow-[#FF4600]/20">
+              {/* Avatar */}
+              <div className="relative mb-2 sm:mb-3">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-[#FF4600]/20">
                   {selectedAvatar}
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-xs font-bold shadow-md">
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-md">
                   👑
                 </div>
               </div>
 
-              {/* Username + Crown */}
-              <h3 className="text-lg font-black text-white flex items-center gap-1.5">
-                <span>{playerName}</span>
-              </h3>
+              <h3 className="text-base sm:text-lg font-black text-white">{playerName}</h3>
 
-              {/* Level & XP */}
-              <div className="text-xs font-mono text-slate-400 mt-0.5 mb-2">
+              <div className="text-[10px] sm:text-xs font-mono text-slate-400 mt-0.5 mb-1.5 sm:mb-2">
                 Level {playerLevel} • {playerXP} XP
               </div>
 
-              {/* Connection Status Indicator */}
-              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium mb-3">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-emerald-400 font-medium mb-2 sm:mb-3">
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span>Wallet Connected</span>
               </div>
 
-              {/* Truncated Address pill with copy */}
               {wallet.address && (
                 <button
                   onClick={handleCopyWalletAddress}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-mono transition-all mb-4"
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-[10px] sm:text-xs font-mono transition-all mb-3 sm:mb-4"
                   title="Copy address"
                 >
                   <span>{formatAddress(wallet.address)}</span>
                   {copiedAddress ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <Check className="w-3 h-3 text-emerald-400" />
                   ) : (
-                    <Copy className="w-3.5 h-3.5 text-slate-400" />
+                    <Copy className="w-3 h-3 text-slate-400" />
                   )}
                 </button>
               )}
 
               {/* Avatar Selector Row */}
-              <div className="w-full pt-3 border-t border-slate-800/80">
-                <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-2 text-left">
+              <div className="w-full pt-2.5 sm:pt-3 border-t border-slate-800/80">
+                <div className="text-[9px] sm:text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 text-left">
                   Choose Avatar
                 </div>
                 <div className="flex items-center justify-between gap-1">
@@ -1004,7 +996,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                         key={emoji}
                         type="button"
                         onClick={() => handleAvatarSelect(emoji)}
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition-all ${
+                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center text-base sm:text-lg transition-all ${
                           active
                             ? 'bg-[#FF4600]/20 border-2 border-[#FF4600] scale-105'
                             : 'bg-slate-900 border border-slate-800 hover:border-slate-700'
@@ -1017,102 +1009,101 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   <button
                     type="button"
                     onClick={onOpenProfile}
-                    className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all"
                     title="More Avatars & Profile Settings"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Create Table Card (Vibrant Orange Card) */}
+          {/* Create Table Card */}
           <div
             onClick={onOpenCreateTable}
-            className="p-5 rounded-3xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] text-white shadow-xl shadow-[#FF4600]/25 transition-all hover:brightness-105 active:scale-98 cursor-pointer flex items-center justify-between"
+            className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] text-white shadow-xl shadow-[#FF4600]/25 transition-all hover:brightness-105 active:scale-98 cursor-pointer flex items-center justify-between"
           >
-            <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-black/20 flex items-center justify-center text-white shrink-0 mt-0.5">
-                <Users className="w-5 h-5" />
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-black/20 flex items-center justify-center text-white shrink-0 mt-0.5">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div>
-                <h3 className="text-base font-black">Create Table</h3>
-                <p className="text-xs text-white/80 leading-snug">
+                <h3 className="text-sm sm:text-base font-black">Create Table</h3>
+                <p className="text-[10px] sm:text-xs text-white/80 leading-snug">
                   Set your own rules, invite friends, or play for a custom buy-in.
                 </p>
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 text-white/80 shrink-0 ml-2" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-white/80 shrink-0 ml-2" />
           </div>
 
           {/* Join by Code Card */}
-          <div className="p-5 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-blue-400">
-                <Code2 className="w-4 h-4" />
+          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
+            <div className="flex items-center gap-2 sm:gap-2.5 mb-2">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-blue-400">
+                <Code2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-black text-white">Join by Code</h3>
-                <p className="text-[11px] text-slate-400">Have a room code? Enter it here.</p>
+                <h3 className="text-xs sm:text-sm font-black text-white">Join by Code</h3>
+                <p className="text-[10px] sm:text-[11px] text-slate-400">Have a room code? Enter it here.</p>
               </div>
             </div>
 
-            <form onSubmit={handleJoinByCodeSubmit} className="mt-3 flex items-center gap-2">
+            <form onSubmit={handleJoinByCodeSubmit} className="mt-2 sm:mt-3 flex items-center gap-2">
               <input
                 type="text"
                 value={joinCodeInput}
                 onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
                 placeholder="Enter room code..."
                 maxLength={6}
-                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-white placeholder-slate-600 uppercase focus:border-[#FF4600] outline-none transition-colors"
+                className="flex-1 bg-slate-900 border border-slate-800 rounded-lg sm:rounded-xl px-3 py-2 text-xs font-mono font-bold text-white placeholder-slate-600 uppercase focus:border-[#FF4600] outline-none transition-colors"
               />
               <button
                 type="submit"
                 disabled={joinCodeInput.trim().length < 4}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100 text-white font-black text-xs uppercase tracking-wider transition-all shrink-0 flex items-center gap-1 cursor-pointer"
+                className="px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100 text-white font-black text-xs uppercase tracking-wider transition-all shrink-0 flex items-center gap-1 cursor-pointer"
               >
                 <span>Join</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-3 h-3" />
               </button>
             </form>
           </div>
 
-          {/* LIVE Spectate Games Card */}
+          {/* LIVE Spectate Card */}
           <div
             onClick={() => {
               if (displayTables.length > 0) {
                 onSpectateRoom(displayTables[0].code, playerName, selectedAvatar);
               }
             }}
-            className="p-4 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl hover:border-slate-700 transition-all cursor-pointer group"
+            className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl hover:border-slate-700 transition-all cursor-pointer group"
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-red-400">
+            <div className="flex items-center justify-between mb-1">
+              <span className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono font-bold text-red-400">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                 LIVE
               </span>
-              <button className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 group-hover:border-[#FF4600]/40 text-xs font-bold text-slate-300 group-hover:text-white flex items-center gap-1 transition-all">
+              <button className="px-2 py-0.5 sm:py-1 rounded-lg bg-slate-900 border border-slate-800 group-hover:border-[#FF4600]/40 text-[10px] sm:text-xs font-bold text-slate-300 group-hover:text-white flex items-center gap-1 transition-all">
                 <Eye className="w-3 h-3 text-[#FF4600]" />
                 <span>Spectate</span>
-                <ChevronRight className="w-3 h-3" />
               </button>
             </div>
-            <div className="text-sm font-black text-white group-hover:text-[#FF4600] transition-colors">
+            <div className="text-xs sm:text-sm font-black text-white group-hover:text-[#FF4600] transition-colors">
               Spectate Games
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
               Watch ongoing matches in real time.
             </p>
           </div>
 
           {/* Friends Online Card */}
-          <div className="p-5 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-3">
+          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
+            <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-800/80 mb-2.5 sm:mb-3">
               <div className="text-xs font-black text-white">Friends Online</div>
               <button
                 onClick={onOpenFriends}
-                className="text-[11px] text-[#FF4600] hover:underline font-bold"
+                className="text-[10px] sm:text-[11px] text-[#FF4600] hover:underline font-bold"
               >
                 View All →
               </button>
@@ -1123,15 +1114,15 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 <div
                   key={idx}
                   onClick={onOpenFriends}
-                  className="flex flex-col items-center gap-1 cursor-pointer group"
+                  className="flex flex-col items-center gap-0.5 sm:gap-1 cursor-pointer group"
                 >
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 group-hover:border-[#FF4600] flex items-center justify-center text-lg transition-colors">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 border border-slate-800 group-hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-colors">
                       {f.avatar}
                     </div>
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#0E1218]" />
+                    <span className="absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 border-2 border-[#0E1218]" />
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono truncate max-w-[48px]">
+                  <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate max-w-[40px] sm:max-w-[48px]">
                     {f.name}
                   </span>
                 </div>
@@ -1142,21 +1133,58 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           {/* New here? Tips Card */}
           <div
             onClick={onOpenRules}
-            className="p-4 rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl hover:border-slate-700 transition-all cursor-pointer flex items-center justify-between group"
+            className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl hover:border-slate-700 transition-all cursor-pointer flex items-center justify-between group"
           >
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
-                <Lightbulb className="w-4 h-4" />
+            <div className="flex items-start gap-2.5 sm:gap-3">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                <Lightbulb className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div>
-                <h4 className="text-xs font-black text-white">New here?</h4>
-                <p className="text-[11px] text-slate-400 leading-snug">
-                  Click Quick Play to join a public game instantly. No code, no setup — just play!
+                <h4 className="text-[11px] sm:text-xs font-black text-white">New here?</h4>
+                <p className="text-[10px] sm:text-[11px] text-slate-400 leading-snug">
+                  Click Quick Play to join a public game instantly.
                 </p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0 ml-2" />
+            <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0 ml-2" />
           </div>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Navigation — replaces hidden left sidebar */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-[#0E1217]/95 backdrop-blur-xl border-t border-slate-800/80 safe-bottom">
+        <div className="flex items-center justify-around py-2 px-2 max-w-md mx-auto">
+          <button
+            type="button"
+            className="flex flex-col items-center gap-0.5 px-3 py-1 text-[#FF4600]"
+          >
+            <Home className="w-5 h-5" />
+            <span className="text-[9px] font-bold">Home</span>
+          </button>
+          <button
+            type="button"
+            onClick={onQuickJoin}
+            className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <Gamepad2 className="w-5 h-5" />
+            <span className="text-[9px] font-bold">Play</span>
+          </button>
+          <button
+            type="button"
+            onClick={onOpenLeaderboard}
+            className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <Trophy className="w-5 h-5" />
+            <span className="text-[9px] font-bold">Ranks</span>
+          </button>
+          <button
+            type="button"
+            onClick={onOpenRules}
+            className="flex flex-col items-center gap-0.5 px-3 py-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <BookOpen className="w-5 h-5" />
+            <span className="text-[9px] font-bold">Rules</span>
+          </button>
         </div>
       </div>
     </div>

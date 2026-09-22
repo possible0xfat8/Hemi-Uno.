@@ -38,34 +38,34 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-[#0E1217] border border-slate-800 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-2 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-[#0E1217] border border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 md:p-8 shadow-2xl relative overflow-y-auto max-h-[92vh] sm:max-h-[90vh] custom-scrollbar">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800/80 mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] text-white flex items-center justify-center shadow-lg shadow-[#FF4600]/25">
-              <Users className="w-5 h-5" />
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800/80 mb-4 sm:mb-6">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] text-white flex items-center justify-center shadow-lg shadow-[#FF4600]/25 shrink-0">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-black text-white">Create Table</h2>
-              <p className="text-xs text-slate-400">Host your own game with custom rules and buy-in</p>
+              <h2 className="text-base sm:text-xl font-black text-white">Create Table</h2>
+              <p className="text-[10px] sm:text-xs text-slate-400">Host your own game with custom rules</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
 
         {/* Game Mode Selector */}
-        <div className="space-y-4 mb-6">
-          <label className="text-xs font-black uppercase tracking-wider text-slate-400 block">
+        <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
+          <label className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 block">
             Select Game Mode
           </label>
-          <div className="grid grid-cols-1 gap-2.5">
+          <div className="grid grid-cols-1 gap-2 sm:gap-2.5">
             {MODES.map((m) => {
               const active = selectedMode === m.id;
               return (
@@ -73,23 +73,23 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                   key={m.id}
                   onClick={() => setSelectedMode(m.id)}
                   type="button"
-                  className={`p-3.5 rounded-2xl border text-left transition-all flex items-center gap-3.5 ${
+                  className={`p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border text-left transition-all flex items-center gap-2.5 sm:gap-3.5 cursor-pointer ${
                     active
                       ? 'bg-[#FF4600]/15 border-[#FF4600] shadow-md shadow-[#FF4600]/10'
                       : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  <span className="text-2xl shrink-0">{m.icon}</span>
+                  <span className="text-xl sm:text-2xl shrink-0">{m.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-black text-white flex items-center gap-2">
+                    <div className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5 sm:gap-2">
                       <span>{m.title}</span>
                       {active && (
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#FF4600] text-white font-bold">
+                        <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-[#FF4600] text-white font-bold">
                           Selected
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-slate-400 truncate">{m.desc}</div>
+                    <div className="text-[10px] sm:text-xs text-slate-400 truncate">{m.desc}</div>
                   </div>
                 </button>
               );
@@ -98,11 +98,11 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
         </div>
 
         {/* Buy-In Selection */}
-        <div className="mb-8">
-          <label className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-2.5">
+        <div className="mb-5 sm:mb-8">
+          <label className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 block mb-2 sm:mb-2.5">
             Buy-in Pot (ETH)
           </label>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
             {BUY_INS.map((amount) => {
               const active = selectedBuyIn === amount;
               return (
@@ -110,9 +110,9 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                   key={amount}
                   onClick={() => setSelectedBuyIn(amount)}
                   type="button"
-                  className={`py-2.5 px-2 rounded-xl text-xs font-mono font-bold transition-all text-center border ${
+                  className={`py-2 sm:py-2.5 px-1.5 sm:px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-mono font-bold transition-all text-center border cursor-pointer ${
                     active
-                      ? 'bg-[#FF4600] text-white border-[#FF4600] shadow-lg shadow-[#FF4600]/25 scale-105'
+                      ? 'bg-[#FF4600] text-white border-[#FF4600] shadow-lg shadow-[#FF4600]/25 scale-102 sm:scale-105'
                       : 'bg-slate-900/80 text-slate-300 border-slate-800 hover:border-slate-700'
                   }`}
                 >
@@ -126,10 +126,10 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
         {/* Action Button */}
         <button
           onClick={handleCreate}
-          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-sm uppercase tracking-wider transition-all shadow-xl shadow-[#FF4600]/30 active:scale-98 flex items-center justify-center gap-2"
+          className="w-full py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-[#FF4600]/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
         >
           <span>Create and Open Table</span>
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
     </div>

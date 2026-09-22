@@ -17,7 +17,7 @@ interface ChatPanelProps {
 const QUICK_CHATS = [
   'Good luck! 🍀',
   'Watch out! 🔥',
-  'UNO! ⚡',
+  'CRAZY 8! ⚡',
   'Nice counter! 🛡️',
   'Please no +4! 😭',
   'GG! 🏆',
@@ -68,22 +68,22 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <>
-      {/* Floating Toggle Button (Always visible on bottom-right) */}
+      {/* Floating Toggle Button (Positioned above bottom action bar on mobile, corner on desktop) */}
       <button
         id="chat-toggle-button"
         onClick={onToggle}
         className={`
-          fixed bottom-4 right-4 z-40 p-3.5 rounded-2xl flex items-center gap-2 shadow-2xl transition-all duration-200 active:scale-95
+          fixed bottom-18 right-3 sm:bottom-5 sm:right-5 z-40 p-2.5 sm:p-3.5 rounded-2xl flex items-center gap-2 shadow-2xl transition-all duration-200 active:scale-95
           ${isOpen
             ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400'
-            : 'bg-slate-900/95 hover:bg-slate-800 text-white border-2 border-slate-700/80 shadow-black/60'}
+            : 'bg-slate-900/95 hover:bg-slate-800 text-white border-2 border-slate-700/80 shadow-black/70 backdrop-blur-md'}
         `}
         title="Open Live Chat"
       >
         <div className="relative">
-          <MessageSquare className="w-5 h-5 fill-current" />
+          <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
           {!isOpen && unreadCount > 0 && (
-            <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.5 min-w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center animate-bounce shadow-md">
+            <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.5 min-w-4 h-4 sm:min-w-5 sm:h-5 rounded-full bg-rose-500 text-white text-[9px] sm:text-[10px] font-black flex items-center justify-center animate-bounce shadow-md">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
@@ -102,7 +102,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       {isOpen && (
         <div
           id="chat-panel-container"
-          className="fixed bottom-20 right-4 z-40 w-[calc(100vw-2rem)] sm:w-96 max-h-[540px] h-[75vh] flex flex-col bg-slate-900/95 border-2 border-amber-500/30 rounded-3xl shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-5 duration-200"
+          className="fixed bottom-32 right-2 sm:bottom-20 sm:right-4 z-40 w-[calc(100vw-1rem)] sm:w-96 max-h-[500px] h-[65vh] sm:h-[75vh] flex flex-col bg-slate-900/95 border-2 border-amber-500/30 rounded-3xl shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-bottom-5 duration-200"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800 bg-slate-950/70 rounded-t-3xl">

@@ -10,7 +10,7 @@ import { CardColor } from './src/types.js';
 async function startServer() {
   const app = express();
   const httpServer = createServer(app);
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // JSON body parser for REST APIs
   app.use(express.json());

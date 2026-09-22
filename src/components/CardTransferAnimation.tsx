@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'motion/react';
 import { CardsDrawnEvent, CardPlayedEvent, Card, CardColor } from '../types';
+import { CardComponent } from './CardComponent';
 import { soundEngine } from '../utils/audio';
-import { getCardAssetSrc } from './CardComponent';
 
 interface CardTransferAnimationProps {
   socket: Socket | null;
@@ -170,7 +170,7 @@ export const CardTransferAnimation: React.FC<CardTransferAnimationProps> = ({ so
         targetY = rect.top + rect.height / 2;
       }
 
-      const isWild = data.card.color === 'wild' || data.card.value === 'wild' || data.card.value === 'wild_draw4';
+      const isWild = data.card.color === 'wild' || data.card.value === '8' || data.card.value === 'wild_draw4';
       const isAction = ['skip', 'reverse', 'draw2', 'wild_draw4'].includes(data.card.value);
 
       const playItem: ActivePlayAnimation = {
@@ -299,14 +299,11 @@ export const CardTransferAnimation: React.FC<CardTransferAnimationProps> = ({ so
                     }}
                     className="will-change-transform z-40 filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)]"
                   >
-                    <div className="relative w-full h-full rounded-xl overflow-hidden border-2 border-white/90 shadow-2xl bg-slate-900">
-                      <img
-                        src="/assets/cards/card_back.svg"
-                        alt="UNO Card"
-                        className="w-full h-full object-cover select-none pointer-events-none"
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
+                    <CardComponent
+                      card={{ id: 'back', color: 'red', value: '0', label: 'Crazy 8' }}
+                      isBack
+                      size="xs"
+                    />
                   </motion.div>
                 );
               })}
@@ -337,10 +334,15 @@ export const CardTransferAnimation: React.FC<CardTransferAnimationProps> = ({ so
 
         {/* ===================== 2. CARDS PLAYED ANIMATIONS ===================== */}
         {playAnimations.map(play => {
-          const midX = (play.startX + play.targetX) / 2 + (Math.random() - 0.5) * 40;
-          const midY = Math.min(play.startY, play.targetY) - 75;
+          const midX = (play.startX + play.targetX) / 2 + (Math.random() - 0.5) * 30;
+          // Natural arc: if playing downwards from top seat, arc down naturally; if playing from bottom, arc up slightly
+          const isPlayingFromTop = play.startY < play.targetY;
+          const rawMidY = isPlayingFromTop
+            ? play.startY + (play.targetY - play.startY) * 0.4 - 15
+            : play.targetY + (play.startY - play.targetY) * 0.35 - 35;
+          // Guarantee it never enters the top header region (y >= 130)
+          const midY = Math.max(130, rawMidY);
           const theme = COLOR_THEME[play.card.color] || COLOR_THEME.wild;
-          const cardImg = getCardAssetSrc(play.card);
 
           return (
             <React.Fragment key={play.id}>
@@ -353,7 +355,7 @@ export const CardTransferAnimation: React.FC<CardTransferAnimationProps> = ({ so
                 style={{
                   position: 'absolute',
                   left: midX,
-                  top: midY - 35,
+                  top: Math.max(95, midY - 35),
                   transform: 'translate(-50%, -50%)',
                 }}
                 className="z-50"
@@ -379,70 +381,36 @@ export const CardTransferAnimation: React.FC<CardTransferAnimationProps> = ({ so
               {/* The Actual Flying Card */}
               <motion.div
                 initial={{
-                  x: play.startX - 40,
-                  y: play.startY - 60,
+                  x: play.startX - 36,
+                  y: play.startY - 54,
                   scale: 0.75,
                   opacity: 0,
                   rotate: -15,
                 }}
                 animate={{
-                  x: [play.startX - 40, midX - 40, play.targetX - 40],
-                  y: [play.startY - 60, midY - 60, play.targetY - 60],
+                  x: [play.startX - 36, midX - 36, play.targetX - 36],
+                  y: [play.startY - 54, midY - 54, play.targetY - 54],
                   scale: [0.75, 1.25, 1.0],
                   opacity: [0, 1, 1],
                   rotate: [-15, play.rotation * 1.8, play.rotation],
                 }}
                 transition={{
                   duration: 0.58,
-                  ease: [0.22, 1, 0.36, 1], // snappy natural flick arc
+                  ease: [0.22, 1, 0.36, 1],
                 }}
                 style={{
                   position: 'absolute',
-                  width: '80px',
-                  height: '120px',
+                  width: '72px',
+                  height: '108px',
                 }}
                 className="will-change-transform z-50 filter drop-shadow-[0_16px_32px_rgba(0,0,0,0.85)]"
               >
-                <div
-                  className={`
-                    relative w-full h-full rounded-2xl overflow-hidden border-2 border-white shadow-2xl bg-slate-900 ring-2
-                    ${theme.ring}
-                  `}
-                >
-                  <img
-                    src={cardImg}
-                    alt={play.card.label}
-                    className="w-full h-full object-cover select-none pointer-events-none"
-                    referrerPolicy="no-referrer"
-                  />
-                  {play.card.value === 'wild_draw4' && (
-                    <>
-                      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-gradient-to-r from-red-600 via-[#FF4600] to-amber-500 text-white font-black text-[11px] border border-white/80 shadow-md">
-                        +4
-                      </div>
-                      <div className="absolute bottom-2 inset-x-1 flex justify-center">
-                        <span className="px-2 py-0.5 rounded-full bg-black/90 border border-[#FF4600] text-[#FF4600] font-black text-[10px]">
-                          +4 WILD
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  {play.card.value === 'draw2' && (
-                    <>
-                      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 font-black text-[11px] border border-white/80 shadow-md">
-                        +2
-                      </div>
-                      <div className="absolute bottom-2 inset-x-1 flex justify-center">
-                        <span className="px-2 py-0.5 rounded-full bg-black/90 border border-white/60 text-white font-black text-[10px]">
-                          +2 DRAW
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  {play.isWild && (
-                    <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-purple-500/20 via-transparent to-amber-400/20 animate-pulse" />
-                  )}
-                </div>
+                <CardComponent
+                  card={play.card}
+                  size="sm"
+                  isPlayable={false}
+                  className="shadow-2xl ring-2 ring-white/80"
+                />
               </motion.div>
 
               {/* Slam Impact Wave on Discard Pile Landing */}

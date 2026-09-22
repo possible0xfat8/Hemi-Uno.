@@ -1,7 +1,7 @@
 import React from 'react';
 import { Player, FloatingEmote } from '../types';
-import { CardComponent } from './CardComponent';
 import { FloatingEmoteDisplay } from './ReactionWheel';
+import { OpponentCardStack } from './OpponentCardStack';
 
 interface OpponentSeatProps {
   player: Player;
@@ -10,97 +10,109 @@ interface OpponentSeatProps {
   turnTimeTotal: number;
   emotes: FloatingEmote[];
   positionStyle?: string;
+  sidePosition?: 'left' | 'right' | 'top';
+  stackPlacement?: 'left' | 'right' | 'top';
 }
 
 export const OpponentSeat: React.FC<OpponentSeatProps> = ({
   player,
   isCurrentTurn,
   turnTimeRemaining,
-  turnTimeTotal,
+  turnTimeTotal: _turnTimeTotal,
   emotes,
   positionStyle = '',
+  sidePosition,
+  stackPlacement,
 }) => {
+  // Determine if card stack sits to the left, right, or top of the avatar
+  const effectiveStackPlacement: 'left' | 'right' | 'top' =
+    stackPlacement || (sidePosition === 'left' ? 'left' : sidePosition === 'top' ? 'top' : 'right');
+
+  const isTopStack = effectiveStackPlacement === 'top';
+
   return (
     <div
       id={`opponent-seat-${player.id}`}
-      className={`relative flex flex-col items-center select-none ${positionStyle}`}
+      className={`relative flex items-center select-none ${
+        isTopStack
+          ? 'flex-col gap-1'
+          : effectiveStackPlacement === 'left'
+          ? 'flex-row gap-1.5 xs:gap-2 sm:gap-2.5'
+          : 'flex-row-reverse gap-1.5 xs:gap-2 sm:gap-2.5'
+      } ${positionStyle}`}
     >
       {/* Floating Emote on top */}
       <FloatingEmoteDisplay emotes={emotes} targetPlayerId={player.id} />
 
-      {/* Turn Countdown Ring / Glow & Avatar */}
-      <div className="relative">
-        {isCurrentTurn && (
-          <div className="absolute -inset-1 sm:-inset-1.5 rounded-full border-2 border-[#FF4600] animate-ping opacity-35" />
-        )}
+      {/* Opponent Physical Card Stack (Always attached & whole, never cut out) */}
+      {player.cardCount > 0 && (
+        <OpponentCardStack
+          cardCount={player.cardCount}
+          isCurrentTurn={isCurrentTurn}
+          playerName={player.name}
+        />
+      )}
 
-        <div
-          className={`
-            relative w-10 h-10 xs:w-11 xs:h-11 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-lg xs:text-xl sm:text-2xl
-            bg-[#090B0E] border-2 transition-all duration-300 shadow-xl
-            ${isCurrentTurn ? 'border-[#FF4600] ring-3 ring-[#FF4600]/40 scale-105 shadow-[#FF4600]/40' : 'border-slate-800'}
-            ${!player.isConnected ? 'opacity-50 grayscale' : ''}
-          `}
-        >
-          {player.avatar}
-
-          {/* Turn timer badge when it is their turn */}
+      {/* Avatar & Name Column */}
+      <div className="flex flex-col items-center">
+        {/* GAMEPIGEON CIRCULAR AVATAR (Screenshots 1 & 2) */}
+        <div className="relative">
           {isCurrentTurn && (
-            <div className="absolute -bottom-1 -right-1 bg-[#FF4600] text-white font-black text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full shadow-md font-mono">
-              {turnTimeRemaining}s
-            </div>
+            <div className="absolute -inset-1 rounded-full border-2 border-white animate-ping opacity-50 pointer-events-none" />
           )}
 
-          {/* Bot / Host Tag */}
-          {player.isBot && (
-            <div className="absolute -top-1 -right-1 bg-sky-600 text-white text-[7px] sm:text-[8px] font-extrabold px-1 rounded-sm uppercase tracking-wider">
-              BOT
-            </div>
-          )}
-          {player.isHost && !player.isBot && (
-            <div className="absolute -top-1 -left-1 bg-[#FF4600] text-white text-[7px] sm:text-[8px] font-extrabold px-1 rounded-sm uppercase tracking-wider">
-              HOST
-            </div>
-          )}
+          <div
+            className={`
+              relative w-7 h-7 xs:w-8 xs:h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm xs:text-base sm:text-xl
+              transition-all duration-300 shadow-xl
+              ${isCurrentTurn ? 'ring-2 sm:ring-3 ring-white scale-105 shadow-white/50' : 'ring-1.5 ring-white/40'}
+              ${!player.isConnected ? 'opacity-50 grayscale' : ''}
+            `}
+            style={{
+              backgroundColor: isCurrentTurn ? '#a3e635' : '#84cc16',
+            }}
+          >
+            <span className="drop-shadow-sm select-none">{player.avatar}</span>
+
+            {/* Turn timer badge when it is their turn */}
+            {isCurrentTurn && (
+              <div className="absolute -bottom-1 -right-1 bg-black/90 text-white font-black text-[7px] sm:text-[8px] px-1 py-0.2 rounded-full shadow-lg font-mono border border-white/60">
+                {turnTimeRemaining}s
+              </div>
+            )}
+
+            {/* Bot / Host Tag */}
+            {player.isBot && (
+              <div className="absolute -top-1 -right-1 bg-sky-600 text-white text-[5px] xs:text-[6px] sm:text-[7px] font-extrabold px-0.8 rounded-sm uppercase tracking-wider shadow-sm">
+                BOT
+              </div>
+            )}
+            {player.isHost && !player.isBot && (
+              <div className="absolute -top-1 -left-1 bg-amber-500 text-slate-950 text-[5px] xs:text-[6px] sm:text-[7px] font-extrabold px-0.8 rounded-sm uppercase tracking-wider shadow-sm">
+                HOST
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Player Name and Card Count Tag */}
-      <div className="mt-1 flex flex-col items-center max-w-[85px] sm:max-w-[110px]">
-        <div className="px-1.5 sm:px-2 py-0.5 rounded-full bg-[#0E1217]/95 border border-slate-700/80 backdrop-blur-md flex items-center gap-1 shadow-sm max-w-full">
-          <span className="text-[10px] sm:text-xs font-bold text-slate-200 truncate max-w-[45px] sm:max-w-[65px]">
+        {/* Player Name (GamePigeon Typography: Screenshot 2) */}
+        <div className="mt-0.5 flex flex-col items-center max-w-[55px] xs:max-w-[65px] sm:max-w-[85px]">
+          <span className="text-[8px] xs:text-[9px] sm:text-[10px] font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] truncate tracking-tight text-center">
             {player.name}
           </span>
-          <span
-            className={`
-              text-[9px] sm:text-[10px] font-black px-1.5 py-0.2 rounded-full font-mono shrink-0 flex items-center gap-0.5
-              ${player.cardCount <= 2 ? 'bg-rose-600 text-white animate-pulse' : 'bg-[#090B0E] text-[#FF4600] border border-[#FF4600]/30'}
-            `}
-            title={`${player.cardCount} cards remaining`}
-          >
-            <span className="text-[8px] opacity-70">🂠</span>
-            <span>{player.cardCount}</span>
-          </span>
+
+          {player.cardCount === 1 && (
+            <span className="text-[7px] sm:text-[8px] font-black text-amber-300 tracking-wider animate-bounce mt-0.2 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+              1 CARD!
+            </span>
+          )}
+
+          {!player.isConnected && (
+            <span className="text-[7px] text-red-300 font-semibold mt-0.2">
+              Offline
+            </span>
+          )}
         </div>
-
-        {/* Score display during match */}
-        {(player.score !== undefined && player.score > 0) && (
-          <span className="text-[8px] sm:text-[9px] text-amber-400 font-mono font-bold mt-0.5 flex items-center gap-0.5">
-            🏆 {player.score} pts
-          </span>
-        )}
-
-        {player.cardCount === 1 && (
-          <span className="text-[8px] sm:text-[9px] font-black text-rose-400 tracking-wider animate-bounce mt-0.5">
-            LAST CARD!
-          </span>
-        )}
-
-        {!player.isConnected && (
-          <span className="text-[8px] text-red-400 font-semibold mt-0.5">
-            Offline
-          </span>
-        )}
       </div>
     </div>
   );

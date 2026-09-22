@@ -19,21 +19,21 @@ export const HemiUnoLogo: React.FC<HemiUnoLogoProps> = ({
 }) => {
   // Dimensions for emblem and full logo
   const emblemSizes = {
-    sm: 'w-7 h-7',
-    md: 'w-9 h-9',
-    lg: 'w-11 h-11',
-    xl: 'w-14 h-14',
+    sm: 'w-6 h-6',
+    md: 'w-7 h-7 sm:w-9 sm:h-9',
+    lg: 'w-9 h-9 sm:w-11 sm:h-11',
+    xl: 'w-12 h-12 sm:w-14 sm:h-14',
   }[size];
 
   const textSizes = {
-    sm: 'text-base',
-    md: 'text-xl',
-    lg: 'text-2xl sm:text-3xl',
-    xl: 'text-3xl sm:text-4xl',
+    sm: 'text-xs xs:text-sm',
+    md: 'text-sm xs:text-base sm:text-xl',
+    lg: 'text-lg sm:text-2xl',
+    xl: 'text-2xl sm:text-4xl',
   }[size];
 
   return (
-    <div className={`inline-flex items-center gap-2 select-none ${className}`}>
+    <div className={`inline-flex items-center gap-1.5 sm:gap-2 select-none shrink-0 ${className}`}>
       {/* Hemi Uno Signature Emblem */}
       <div
         className={`relative ${emblemSizes} shrink-0 ${
@@ -79,9 +79,9 @@ export const HemiUnoLogo: React.FC<HemiUnoLogoProps> = ({
         </svg>
       </div>
 
-      {/* Typography: "Hemi Uno" */}
+      {/* Typography: "Hemi Crazy 8" - Non-wrapping on mobile */}
       {showText && (
-        <div className={`flex items-baseline font-black tracking-tight ${textSizes}`}>
+        <div className={`flex items-baseline font-black tracking-tight ${textSizes} whitespace-nowrap`}>
           <span
             className={`font-black tracking-tight font-['Montserrat','Plus_Jakarta_Sans',sans-serif] ${
               theme === 'light' ? 'text-[#111318]' : 'text-white'
@@ -89,8 +89,8 @@ export const HemiUnoLogo: React.FC<HemiUnoLogoProps> = ({
           >
             Hemi
           </span>
-          <span className="text-[#FF4600] font-black tracking-tight ml-0.5 font-['Montserrat','Plus_Jakarta_Sans',sans-serif] drop-shadow-[0_0_12px_rgba(255,70,0,0.4)]">
-            Uno
+          <span className="text-[#FF4600] font-black tracking-tight ml-1 sm:ml-1.5 font-['Montserrat','Plus_Jakarta_Sans',sans-serif] drop-shadow-[0_0_12px_rgba(255,70,0,0.4)]">
+            Crazy 8
           </span>
         </div>
       )}
