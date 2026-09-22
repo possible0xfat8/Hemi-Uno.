@@ -25,6 +25,10 @@ export interface Player {
   seatIndex: number;
   hasCalledLastCard?: boolean;
   address?: string;
+  score?: number; // Cumulative lobby score points
+  wins?: number; // Cumulative match wins in this lobby
+  roundsPlayed?: number; // Total rounds in current lobby
+  lastRoundScore?: number; // Score earned in the most recent completed round
 }
 
 export type BannerType = 'REVERSE' | 'SKIP' | 'LAST_CARD' | 'DRAW2' | 'DRAW4' | 'WILD' | 'TURN_TIMEOUT';

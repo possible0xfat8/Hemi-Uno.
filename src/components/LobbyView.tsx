@@ -395,6 +395,42 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
         </div>
 
+        {/* Lobby Leaderboard Summary if games or scores exist */}
+        {gameState.players.some((p) => (p.score || 0) > 0 || (p.roundsPlayed || 0) > 0) && (
+          <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#090B0E] to-orange-500/10 border border-amber-500/30 shadow-lg">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-xs font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                Lobby Standings & Scores
+              </span>
+              <span className="text-[11px] text-slate-400 font-mono">
+                {gameState.players[0]?.roundsPlayed || 0} Rounds Completed
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[...gameState.players]
+                .sort((a, b) => (b.score || 0) - (a.score || 0))
+                .map((p, idx) => (
+                  <div
+                    key={p.id}
+                    className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[10px] font-black text-amber-400 font-mono">#{idx + 1}</span>
+                      <span className="text-base">{p.avatar}</span>
+                      <span className="text-xs font-bold text-slate-200 truncate max-w-[60px] sm:max-w-[75px]">
+                        {p.name}
+                      </span>
+                    </div>
+                    <span className="text-xs font-black text-amber-300 font-mono">
+                      {p.score || 0}p
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         {/* Players List */}
         <div className="py-6 space-y-3">
           <div className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
@@ -439,8 +475,22 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-slate-400 font-mono">
-                        {p.isBot ? 'Automated Player' : p.isHost ? 'Room Organizer' : 'Challenger'}
+                      <div className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-amber-400 flex items-center gap-1">
+                          <Trophy className="w-3 h-3 text-amber-400" />
+                          {p.score || 0} pts
+                        </span>
+                        <span className="text-slate-600">•</span>
+                        <span>{p.wins || 0} wins</span>
+                        {(p.roundsPlayed || 0) > 0 && (
+                          <>
+                            <span className="text-slate-600">•</span>
+                            <span>{p.roundsPlayed} rnds</span>
+                          </>
+                        )}
+                        {p.lastRoundScore !== undefined && p.lastRoundScore > 0 && (
+                          <span className="text-emerald-400 font-bold">(+{p.lastRoundScore})</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -529,7 +579,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </button>
             )}
 
-            {!isHost && !isSpectator && (
+            {!isHost && !isSpectator && !canStart && (
               <button
                 onClick={onToggleReady}
                 className={`w-full sm:w-auto px-6 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
@@ -542,20 +592,25 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </button>
             )}
 
-            {isHost && (
+            {/* Any seated player can start once the minimum ready players threshold is met! */}
+            {canStart ? (
               <button
                 onClick={onStartGame}
-                disabled={!canStart}
-                className={`w-full sm:w-auto px-8 py-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                  canStart
-                    ? 'bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white shadow-xl shadow-[#FF4600]/30 cursor-pointer active:scale-98'
-                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                }`}
+                className="w-full sm:w-auto px-7 py-3 rounded-2xl font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white shadow-xl shadow-[#FF4600]/30 cursor-pointer active:scale-98 animate-pulse"
+                title="Launch Match (Any seated player can start!)"
               >
                 <Play className="w-4 h-4 fill-current" />
-                <span>Start Game</span>
+                <span>Start Match!</span>
               </button>
-            )}
+            ) : isHost ? (
+              <button
+                disabled
+                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-black text-sm uppercase tracking-wider bg-slate-800 text-slate-500 cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>Waiting for Ready</span>
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

@@ -8,7 +8,7 @@ interface CardProps {
   isSelected?: boolean;
   onClick?: () => void;
   className?: string;
-  size?: 'sm' | 'md' | 'lg' | 'adaptive';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'adaptive';
   rotation?: number;
 }
 
@@ -47,12 +47,13 @@ export const CardComponent: React.FC<CardProps> = ({
 }) => {
   const [imgError, setImgError] = useState(false);
 
-  // Aspect ratio of UNO card is 2:3 (e.g. 240x360)
+  // Aspect ratio of UNO card is 2:3
   const sizeClasses = {
-    sm: 'w-11 h-[68px] sm:w-13 sm:h-[80px]',
-    md: 'w-20 h-[120px] sm:w-24 sm:h-[144px]',
-    lg: 'w-28 h-[168px] sm:w-32 sm:h-[192px]',
-    adaptive: 'w-14 h-[86px] sm:w-20 sm:h-[120px] md:w-24 md:h-[144px]',
+    xs: 'w-8.5 h-[53px] xs:w-9.5 xs:h-[59px] sm:w-13 sm:h-[80px]',
+    sm: 'w-10 h-[62px] xs:w-11 xs:h-[68px] sm:w-16 sm:h-[98px]',
+    md: 'w-16 h-[100px] sm:w-22 sm:h-[135px]',
+    lg: 'w-24 h-[148px] sm:w-28 sm:h-[172px]',
+    adaptive: 'w-11 h-[68px] xs:w-12.5 xs:h-[77px] sm:w-18 sm:h-[110px] md:w-22 md:h-[135px]',
   }[size];
 
   const imgSrc = getCardAssetSrc(card, isBack);
@@ -90,6 +91,7 @@ export const CardComponent: React.FC<CardProps> = ({
   const isWildRegular = card.value === 'wild';
   const isSkip = card.value === 'skip';
   const isReverse = card.value === 'reverse';
+  const isTransformedWild = (isDraw4 || isWildRegular) && card.color !== 'wild';
 
   // Badge styles based on card type
   const draw2Bg = {
@@ -99,6 +101,22 @@ export const CardComponent: React.FC<CardProps> = ({
     yellow: 'bg-amber-400 border-amber-300 text-slate-950 shadow-amber-500/60 font-black',
     wild: 'bg-purple-600 border-purple-400 text-white shadow-purple-500/60',
   }[card.color] || 'bg-slate-800 text-white border-white/50';
+
+  const transformedBg = {
+    red: 'bg-red-600 text-white border-red-300 shadow-red-600/80',
+    blue: 'bg-blue-600 text-white border-blue-300 shadow-blue-600/80',
+    green: 'bg-emerald-600 text-white border-emerald-300 shadow-emerald-600/80',
+    yellow: 'bg-amber-400 text-slate-950 border-amber-200 shadow-amber-500/80 font-black',
+    wild: 'bg-purple-600 text-white border-purple-300 shadow-purple-600/80',
+  }[card.color] || 'bg-slate-800 text-white border-white/50';
+
+  const transformedTint = {
+    red: 'from-red-600/40 via-red-900/20 to-transparent border-red-500/80',
+    blue: 'from-blue-600/40 via-blue-900/20 to-transparent border-blue-500/80',
+    green: 'from-emerald-600/40 via-emerald-900/20 to-transparent border-emerald-500/80',
+    yellow: 'from-amber-400/40 via-amber-600/20 to-transparent border-amber-400/80',
+    wild: 'from-purple-600/40 via-purple-900/20 to-transparent border-purple-500/80',
+  }[card.color];
 
   return (
     <div
@@ -136,6 +154,11 @@ export const CardComponent: React.FC<CardProps> = ({
         </div>
       )}
 
+      {/* Visual Color Overlay when Wild card transforms to a chosen color */}
+      {isTransformedWild && (
+        <div className={`absolute inset-0 bg-gradient-to-b ${transformedTint} border-2 pointer-events-none rounded-xl z-10 transition-all duration-300`} />
+      )}
+
       {/* SPECIAL CARD: Prominent Corner & Center Badges */}
       {/* 1. WILD DRAW 4 SPECIAL CARD */}
       {isDraw4 && (
@@ -145,8 +168,8 @@ export const CardComponent: React.FC<CardProps> = ({
             <span
               className={`
                 inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
-                bg-gradient-to-br from-black via-[#090B0E] to-[#FF4600] text-white border-[#FF4600]
-                ${size === 'sm' ? 'text-[9px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
+                ${isTransformedWild ? transformedBg : 'bg-gradient-to-br from-black via-[#090B0E] to-[#FF4600] text-white border-[#FF4600]'}
+                ${(size === 'sm' || size === 'xs') ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
               `}
             >
               +4
@@ -158,23 +181,25 @@ export const CardComponent: React.FC<CardProps> = ({
             <span
               className={`
                 inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
-                bg-gradient-to-br from-black via-[#090B0E] to-[#FF4600] text-white border-[#FF4600]
-                ${size === 'sm' ? 'text-[9px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
+                ${isTransformedWild ? transformedBg : 'bg-gradient-to-br from-black via-[#090B0E] to-[#FF4600] text-white border-[#FF4600]'}
+                ${(size === 'sm' || size === 'xs') ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
               `}
             >
               +4
             </span>
           </div>
 
-          {/* Center Explicit Pill Identifier */}
-          <div className="absolute inset-x-1 bottom-3 sm:bottom-4 z-20 flex justify-center pointer-events-none">
-            <div className="px-1.5 py-0.5 rounded-full bg-black/90 border border-[#FF4600] text-[#FF4600] font-black tracking-wider text-[9px] sm:text-[10px] shadow-lg shadow-black/80 flex items-center gap-0.5 backdrop-blur-sm">
-              <span className="bg-[#FF4600] text-white px-1 py-0.2 rounded-full font-mono text-[8px] sm:text-[9px]">
-                +4
-              </span>
-              <span>WILD</span>
+          {/* Center Explicit Pill Identifier (Hidden on xs to avoid clutter) */}
+          {size !== 'xs' && (
+            <div className="absolute inset-x-1 bottom-3 sm:bottom-4 z-20 flex justify-center pointer-events-none">
+              <div className={`px-1.5 py-0.5 rounded-full border text-white font-black tracking-wider text-[9px] sm:text-[10px] shadow-lg flex items-center gap-0.5 backdrop-blur-sm ${isTransformedWild ? `${transformedBg} shadow-black/80 ring-1 ring-white/50 animate-pulse` : 'bg-black/90 border-[#FF4600] text-[#FF4600] shadow-black/80'}`}>
+                <span className={`px-1 py-0.2 rounded-full font-mono text-[8px] sm:text-[9px] ${isTransformedWild ? 'bg-white/30 text-white' : 'bg-[#FF4600] text-white'}`}>
+                  +4
+                </span>
+                <span>{isTransformedWild ? `${card.color.toUpperCase()} WILD` : 'WILD'}</span>
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
 
@@ -187,7 +212,7 @@ export const CardComponent: React.FC<CardProps> = ({
               className={`
                 inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
                 ${draw2Bg}
-                ${size === 'sm' ? 'text-[9px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
+                ${(size === 'sm' || size === 'xs') ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
               `}
             >
               +2
@@ -200,7 +225,7 @@ export const CardComponent: React.FC<CardProps> = ({
               className={`
                 inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
                 ${draw2Bg}
-                ${size === 'sm' ? 'text-[9px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
+                ${(size === 'sm' || size === 'xs') ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-xs px-1.5 py-0.5' : 'text-sm px-2 py-0.5'}
               `}
             >
               +2
@@ -208,14 +233,16 @@ export const CardComponent: React.FC<CardProps> = ({
           </div>
 
           {/* Center Explicit Pill Identifier */}
-          <div className="absolute inset-x-1 bottom-3 sm:bottom-4 z-20 flex justify-center pointer-events-none">
-            <div className="px-1.5 py-0.5 rounded-full bg-black/90 border border-white/40 text-white font-black tracking-wider text-[9px] sm:text-[10px] shadow-lg shadow-black/80 flex items-center gap-0.5 backdrop-blur-sm">
-              <span className={`px-1 py-0.2 rounded-full font-mono text-[8px] sm:text-[9px] ${draw2Bg}`}>
-                +2
-              </span>
-              <span>DRAW</span>
+          {size !== 'xs' && (
+            <div className="absolute inset-x-1 bottom-3 sm:bottom-4 z-20 flex justify-center pointer-events-none">
+              <div className="px-1.5 py-0.5 rounded-full bg-black/90 border border-white/40 text-white font-black tracking-wider text-[9px] sm:text-[10px] shadow-lg shadow-black/80 flex items-center gap-0.5 backdrop-blur-sm">
+                <span className={`px-1 py-0.2 rounded-full font-mono text-[8px] sm:text-[9px] ${draw2Bg}`}>
+                  +2
+                </span>
+                <span>DRAW</span>
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
 
@@ -227,21 +254,23 @@ export const CardComponent: React.FC<CardProps> = ({
             <span
               className={`
                 inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
-                bg-gradient-to-br from-purple-700 via-pink-600 to-amber-500 text-white border-white/60
-                ${size === 'sm' ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}
+                ${isTransformedWild ? transformedBg : 'bg-gradient-to-br from-purple-700 via-pink-600 to-amber-500 text-white border-white/60'}
+                ${(size === 'sm' || size === 'xs') ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}
               `}
             >
-              W
+              {isTransformedWild ? card.color[0].toUpperCase() : 'W'}
             </span>
           </div>
 
           {/* Center Explicit Pill Identifier */}
-          <div className="absolute inset-x-1 bottom-3 sm:bottom-4 z-20 flex justify-center pointer-events-none">
-            <div className="px-2 py-0.5 rounded-full bg-black/90 border border-purple-400 text-purple-200 font-black tracking-wider text-[9px] sm:text-[10px] shadow-lg shadow-black/80 flex items-center gap-1 backdrop-blur-sm">
-              <span className="w-2 h-2 rounded-full bg-gradient-to-r from-red-500 via-yellow-400 to-blue-500" />
-              <span>WILD</span>
+          {size !== 'xs' && (
+            <div className="absolute inset-x-1 bottom-3 sm:bottom-4 z-20 flex justify-center pointer-events-none">
+              <div className={`px-2 py-0.5 rounded-full border font-black tracking-wider text-[9px] sm:text-[10px] shadow-lg flex items-center gap-1 backdrop-blur-sm ${isTransformedWild ? `${transformedBg} ring-1 ring-white/50 animate-pulse` : 'bg-black/90 border-purple-400 text-purple-200 shadow-black/80'}`}>
+                <span className={`w-2 h-2 rounded-full ${isTransformedWild ? 'bg-white' : 'bg-gradient-to-r from-red-500 via-yellow-400 to-blue-500'}`} />
+                <span>{isTransformedWild ? `${card.color.toUpperCase()} WILD` : 'WILD'}</span>
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
 
@@ -252,7 +281,7 @@ export const CardComponent: React.FC<CardProps> = ({
             className={`
               inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
               bg-black/80 text-white border-white/40
-              ${size === 'sm' ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}
+              ${(size === 'sm' || size === 'xs') ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}
             `}
           >
             ⊘
@@ -267,7 +296,7 @@ export const CardComponent: React.FC<CardProps> = ({
             className={`
               inline-flex items-center justify-center font-black rounded-md tracking-tighter shadow-md border
               bg-black/80 text-white border-white/40
-              ${size === 'sm' ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}
+              ${(size === 'sm' || size === 'xs') ? 'text-[8px] px-1 py-0.2' : size === 'md' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}
             `}
           >
             ⇄

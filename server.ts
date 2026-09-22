@@ -517,20 +517,18 @@ async function startServer() {
       }
     });
 
-    // 6. Start game (Host only)
+    // 6. Start game (Any seated player can start when table is ready)
     socket.on('game:start', (callback) => {
       const { room, player } = getPlayerInCurrentRoom();
       if (!room || !player) {
         if (typeof callback === 'function') callback({ success: false, error: 'Room or player not found' });
         return;
       }
-      if (room.hostId !== player.id) {
-        if (typeof callback === 'function') callback({ success: false, error: 'Only host can start game' });
-        return;
-      }
+      // If clicking player is seated, ensure they are marked ready
+      player.isReady = true;
       if (!room.canStart()) {
         if (typeof callback === 'function') {
-          callback({ success: false, error: 'Requires 2 to 5 ready players to start' });
+          callback({ success: false, error: 'Requires at least 2 ready players to start' });
         }
         return;
       }
@@ -630,10 +628,10 @@ async function startServer() {
       }
     });
 
-    // 12. Rematch
+    // 12. Rematch (Any player in room can return room to lobby / start rematch)
     socket.on('game:rematch', () => {
       const { room, player } = getPlayerInCurrentRoom();
-      if (room && player && room.hostId === player.id) {
+      if (room && player) {
         room.rematch();
       }
     });

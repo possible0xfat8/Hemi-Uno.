@@ -272,6 +272,10 @@ export class GameRoom {
       hand: [],
       isHost: shouldBecomeHost ? true : player.isHost,
       isReady: shouldBecomeHost ? true : (player.isHost || !!player.isBot),
+      score: player.score ?? 0,
+      wins: player.wins ?? 0,
+      roundsPlayed: player.roundsPlayed ?? 0,
+      lastRoundScore: 0,
     };
 
     if (shouldBecomeHost) {
@@ -377,7 +381,8 @@ export class GameRoom {
     this.drawPile = createDeck();
     this.discardPile = [];
     this.turnDirection = 1;
-    this.currentTurnIndex = 0;
+    // Randomize starting player so any seated player can start, not only the host
+    this.currentTurnIndex = Math.floor(Math.random() * this.players.length);
     this.drawPendingForPlayer = false;
     this.drawnCard = null;
     this.pendingDrawCount = 0;
@@ -484,7 +489,17 @@ export class GameRoom {
     // Play card
     curPlayer.hand.splice(cardIndex, 1);
     curPlayer.cardCount = curPlayer.hand.length;
-    this.discardPile.push(card);
+
+    // Transform Wild card directly to requested color so top discard card physically transforms to that color!
+    const playedCard: Card = (isWild && chosenColor)
+      ? {
+          ...card,
+          color: chosenColor,
+          label: card.value === 'wild_draw4' ? `+4 ${chosenColor.toUpperCase()}` : `${chosenColor.toUpperCase()} WILD`,
+        }
+      : card;
+
+    this.discardPile.push(playedCard);
     this.drawPendingForPlayer = false;
     this.drawnCard = null;
 
@@ -494,7 +509,7 @@ export class GameRoom {
       playerId: curPlayer.id,
       playerName: curPlayer.name,
       playerAvatar: curPlayer.avatar,
-      card,
+      card: playedCard,
       chosenColor,
       timestamp: Date.now(),
     });
@@ -877,6 +892,37 @@ export class GameRoom {
   private endGame(winner: Player): void {
     this.status = 'game_over';
     this.stopTurnTimer();
+
+    // Compute official UNO points from remaining opponent cards:
+    // Numbers 0-9: face value
+    // Action cards (draw2, skip, reverse): 20 pts
+    // Wild cards (wild, wild_draw4): 50 pts
+    let roundPointsWon = 0;
+    for (const p of this.players) {
+      p.roundsPlayed = (p.roundsPlayed || 0) + 1;
+      if (p.id !== winner.id && p.hand) {
+        let handVal = 0;
+        for (const c of p.hand) {
+          if (c.value === 'wild' || c.value === 'wild_draw4') {
+            handVal += 50;
+          } else if (['draw2', 'skip', 'reverse'].includes(c.value)) {
+            handVal += 20;
+          } else {
+            handVal += parseInt(c.value, 10) || 0;
+          }
+        }
+        roundPointsWon += handVal;
+        p.lastRoundScore = 0;
+      }
+    }
+
+    const winnerPl = this.players.find(p => p.id === winner.id);
+    if (winnerPl) {
+      winnerPl.wins = (winnerPl.wins || 0) + 1;
+      winnerPl.lastRoundScore = roundPointsWon;
+      winnerPl.score = (winnerPl.score || 0) + roundPointsWon;
+    }
+
     this.winner = {
       id: winner.id,
       name: winner.name,
@@ -884,7 +930,7 @@ export class GameRoom {
       address: winner.address || '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
     };
 
-    this.lastActionMessage = `🏆 ${winner.name} HAS WON THE GAME!`;
+    this.lastActionMessage = `🏆 ${winner.name} WON THE MATCH! (+${roundPointsWon} pts)`;
     this.triggerSound('victory');
     this.triggerShake(2.5);
 

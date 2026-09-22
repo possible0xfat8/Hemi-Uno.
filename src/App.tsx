@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { GameState, Card, CardColor, FloatingEmote, ChatMessage, PublicRoomSummary, GameInviteEvent } from './types';
 import { soundEngine } from './utils/audio';
@@ -1040,11 +1040,21 @@ export default function App() {
   const myDefenseCards = myPlayer?.hand?.filter((c) => c.value === 'draw2' || c.value === 'wild_draw4') || [];
   const canDefendAttack = myDefenseCards.length > 0;
 
-  // Compute opponents list
-  // If spectator, everyone seated is viewed around the table
-  const opponents = isSpectator
-    ? (gameState?.players || [])
-    : (gameState?.players.filter((p) => p.id !== myPlayerId) || []);
+  // Compute opponents list in clockwise seating order relative to the player
+  // (Matching authentic GamePigeon Crazy 8 / poker circular table formation)
+  const opponents = useMemo(() => {
+    if (!gameState?.players) return [];
+    if (isSpectator) return gameState.players;
+    const myIndex = gameState.players.findIndex((p) => p.id === myPlayerId);
+    if (myIndex === -1) return gameState.players.filter((p) => p.id !== myPlayerId);
+
+    const list: typeof gameState.players = [];
+    const total = gameState.players.length;
+    for (let i = 1; i < total; i++) {
+      list.push(gameState.players[(myIndex + i) % total]);
+    }
+    return list;
+  }, [gameState?.players, myPlayerId, isSpectator]);
 
   // Check if each card in hand is playable
   const isCardPlayable = (c: Card) => {
@@ -1303,34 +1313,78 @@ export default function App() {
                 <span>Re-syncing match state with server...</span>
               </div>
             )}
-            {/* Opponents Area around table */}
-            <div className="w-full flex items-center justify-around sm:justify-center gap-1.5 sm:gap-6 px-1 sm:px-6 pt-0.5 pb-1 sm:pb-2 overflow-x-auto no-scrollbar shrink-0">
-              {opponents.map((opp) => (
-                <OpponentSeat
-                  key={opp.id}
-                  player={opp}
-                  isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
-                  turnTimeRemaining={gameState.turnTimeRemaining}
-                  turnTimeTotal={gameState.turnTimeTotal}
-                  emotes={emotes}
-                />
-              ))}
-            </div>
+            {/* Circular Table Arena (GamePigeon Crazy 8 Table Formation) */}
+            <div className="relative w-full max-w-2xl sm:max-w-3xl md:max-w-4xl flex-1 flex flex-col items-center justify-center my-auto px-1 sm:px-4 pt-1 sm:pt-2 pb-1 select-none">
+              {/* Opponent Seats in circular / horseshoe arc along upper rim */}
+              <div className="relative w-full max-w-[340px] xs:max-w-[390px] sm:max-w-lg md:max-w-xl h-18 xs:h-20 sm:h-24 shrink-0">
+                {opponents.map((opp, idx) => {
+                  const totalOpponents = opponents.length;
+                  let seatStyle: React.CSSProperties = {};
+                  let positionClasses = '';
 
-            {/* Center Felt Table */}
-            <CenterTable
-              topDiscardCard={gameState.topDiscardCard}
-              activeColor={gameState.activeColor}
-              drawPileCount={gameState.drawPileCount}
-              turnDirection={gameState.turnDirection}
-              isMyTurn={isMyTurn}
-              canDraw={!gameState.drawPendingForPlayer && !isSpectator}
-              onDrawCard={handleDrawCard}
-              bannerAlert={gameState.bannerAlert}
-              lastActionMessage={gameState.lastActionMessage}
-              escrowPot={gameState.escrowPot}
-              pendingDrawCount={gameState.pendingDrawCount}
-            />
+                  if (totalOpponents === 1) {
+                    positionClasses = 'top-0 left-1/2 -translate-x-1/2';
+                  } else if (totalOpponents === 2) {
+                    positionClasses = idx === 0 ? 'top-1 left-3 sm:left-10' : 'top-1 right-3 sm:right-10';
+                  } else if (totalOpponents === 3) {
+                    // Classic GamePigeon 4-player Crazy 8 table formation:
+                    // West (10 o'clock), North (12 o'clock), East (2 o'clock)
+                    if (idx === 0) positionClasses = 'top-1.5 left-1 sm:left-4';
+                    else if (idx === 1) positionClasses = 'top-0 left-1/2 -translate-x-1/2';
+                    else positionClasses = 'top-1.5 right-1 sm:right-4';
+                  } else if (totalOpponents === 4) {
+                    if (idx === 0) positionClasses = 'top-3 left-0.5 sm:left-2';
+                    else if (idx === 1) positionClasses = 'top-0 left-[28%] -translate-x-1/2';
+                    else if (idx === 2) positionClasses = 'top-0 left-[72%] -translate-x-1/2';
+                    else positionClasses = 'top-3 right-0.5 sm:right-2';
+                  } else {
+                    // 5+ opponents: evenly distribute in an arc across top half of the table
+                    const angle = Math.PI - (idx / (totalOpponents - 1)) * Math.PI;
+                    const leftPercent = 50 - 44 * Math.cos(angle);
+                    const topPercent = 40 - 35 * Math.sin(angle);
+                    seatStyle = {
+                      left: `${leftPercent}%`,
+                      top: `${topPercent}%`,
+                      transform: 'translate(-50%, -50%)',
+                    };
+                    positionClasses = '';
+                  }
+
+                  return (
+                    <div
+                      key={opp.id}
+                      className={`absolute z-20 ${positionClasses}`}
+                      style={seatStyle}
+                    >
+                      <OpponentSeat
+                        player={opp}
+                        isCurrentTurn={gameState.currentTurnPlayerId === opp.id}
+                        turnTimeRemaining={gameState.turnTimeRemaining}
+                        turnTimeTotal={gameState.turnTimeTotal}
+                        emotes={emotes}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Center Felt Table (Draw deck & Discard pile completely clear and unobstructed) */}
+              <div className="z-10 w-full flex justify-center -mt-1 xs:mt-0 sm:mt-1">
+                <CenterTable
+                  topDiscardCard={gameState.topDiscardCard}
+                  activeColor={gameState.activeColor}
+                  drawPileCount={gameState.drawPileCount}
+                  turnDirection={gameState.turnDirection}
+                  isMyTurn={isMyTurn}
+                  canDraw={!gameState.drawPendingForPlayer && !isSpectator}
+                  onDrawCard={handleDrawCard}
+                  bannerAlert={gameState.bannerAlert}
+                  lastActionMessage={gameState.lastActionMessage}
+                  escrowPot={gameState.escrowPot}
+                  pendingDrawCount={gameState.pendingDrawCount}
+                />
+              </div>
+            </div>
 
             {/* If Spectator: Show Spectator Arena Bottom Bar */}
             {isSpectator ? (
@@ -1501,50 +1555,62 @@ export default function App() {
                     )}
                   </div>
 
-                  <div
-                    className={`w-full flex justify-center items-end overflow-x-auto no-scrollbar py-1 px-2 ${
-                      (myPlayer?.hand?.length || 0) > 8
-                        ? '-space-x-8 sm:-space-x-12'
-                        : (myPlayer?.hand?.length || 0) > 5
-                        ? '-space-x-6 sm:-space-x-10'
-                        : '-space-x-4 sm:-space-x-7'
-                    }`}
-                  >
-                    {myPlayer?.hand?.map((card, idx) => {
-                      const playable = isCardPlayable(card);
-                      const isDefendingCard =
-                        isMyTurn &&
-                        (gameState.pendingDrawCount || 0) > 0 &&
-                        (card.value === 'draw2' || card.value === 'wild_draw4');
-                      const total = myPlayer.hand?.length || 1;
-                      const rot = (idx - (total - 1) / 2) * 2;
+                  {/* Dynamic Overlap and Sizing so ALL cards remain visible and playable on mobile */}
+                  {(() => {
+                    const handCount = myPlayer?.hand?.length || 0;
+                    const handCardSize = handCount > 13 ? 'xs' : handCount > 8 ? 'sm' : 'adaptive';
+                    const overlapClasses =
+                      handCount > 15
+                        ? '-space-x-7 xs:-space-x-8 sm:-space-x-14'
+                        : handCount > 11
+                        ? '-space-x-6.5 xs:-space-x-7.5 sm:-space-x-12'
+                        : handCount > 7
+                        ? '-space-x-5.5 xs:-space-x-6.5 sm:-space-x-10'
+                        : handCount > 4
+                        ? '-space-x-4 xs:-space-x-5 sm:-space-x-7'
+                        : '-space-x-2.5 xs:-space-x-3.5 sm:-space-x-5';
 
-                      return (
-                        <div
-                          key={card.id}
-                          className="transition-transform duration-200"
-                          style={{
-                            transformOrigin: 'bottom center',
-                          }}
-                          onMouseEnter={() => setHoveredCard(card)}
-                          onMouseLeave={() => setHoveredCard(null)}
-                        >
-                          <CardComponent
-                            card={card}
-                            isPlayable={playable}
-                            size="adaptive"
-                            rotation={rot}
-                            onClick={() => handlePlayCard(card)}
-                            className={
-                              isDefendingCard
-                                ? 'ring-3 sm:ring-4 ring-rose-500 shadow-2xl shadow-rose-500/80 -translate-y-3 sm:-translate-y-4 animate-pulse'
-                                : ''
-                            }
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
+                    return (
+                      <div
+                        className={`w-full flex justify-center items-end overflow-x-auto no-scrollbar py-1 px-1 sm:px-2 touch-pan-x ${overlapClasses}`}
+                      >
+                        {myPlayer?.hand?.map((card, idx) => {
+                          const playable = isCardPlayable(card);
+                          const isDefendingCard =
+                            isMyTurn &&
+                            (gameState.pendingDrawCount || 0) > 0 &&
+                            (card.value === 'draw2' || card.value === 'wild_draw4');
+                          const total = myPlayer.hand?.length || 1;
+                          const rot = (idx - (total - 1) / 2) * (total > 10 ? 1.2 : 2);
+
+                          return (
+                            <div
+                              key={card.id}
+                              className="transition-all duration-150 transform hover:-translate-y-3 sm:hover:-translate-y-5 hover:z-30 hover:scale-105 active:-translate-y-2 cursor-pointer shrink-0"
+                              style={{
+                                transformOrigin: 'bottom center',
+                              }}
+                              onMouseEnter={() => setHoveredCard(card)}
+                              onMouseLeave={() => setHoveredCard(null)}
+                            >
+                              <CardComponent
+                                card={card}
+                                isPlayable={playable}
+                                size={handCardSize}
+                                rotation={rot}
+                                onClick={() => handlePlayCard(card)}
+                                className={
+                                  isDefendingCard
+                                    ? 'ring-3 sm:ring-4 ring-rose-500 shadow-2xl shadow-rose-500/80 -translate-y-2 sm:-translate-y-4 animate-pulse'
+                                    : ''
+                                }
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Bottom Quick Controls Bar */}
