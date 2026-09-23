@@ -33,6 +33,8 @@ import {
   Volume2,
   VolumeX,
   LogOut,
+  Pencil,
+  X,
 } from 'lucide-react';
 
 export interface LobbyViewProps {
@@ -113,16 +115,76 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [copiedRoomCode, setCopiedRoomCode] = useState(false);
   const [sortOption, setSortOption] = useState<'popular' | 'players' | 'fastest'>('popular');
 
+  // Change Name on Homepage State
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingNameMobile, setIsEditingNameMobile] = useState(false);
+  const [nameInput, setNameInput] = useState(
+    account?.name || (wallet.address ? formatAddress(wallet.address) : '')
+  );
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameSavedSuccess, setNameSavedSuccess] = useState(false);
+
   useEffect(() => {
     if (account?.name) {
       setPlayerName(account.name);
+      setNameInput(account.name);
     } else if (wallet.address) {
-      setPlayerName(formatAddress(wallet.address));
+      const defaultVal = formatAddress(wallet.address);
+      setPlayerName(defaultVal);
+      setNameInput(defaultVal);
     } else {
       setPlayerName('');
+      setNameInput('');
     }
     if (account?.avatar) setSelectedAvatar(account.avatar);
   }, [account?.name, account?.avatar, wallet.address]);
+
+  // Check if player is still using a default/unpersonalized identifier
+  const isDefaultName = Boolean(
+    playerName && (
+      playerName.startsWith('Player_') ||
+      playerName.startsWith('0x') ||
+      playerName.startsWith('HemiPlayer_') ||
+      playerName.includes('...')
+    )
+  );
+
+  const handleSaveName = (customName?: string): boolean => {
+    const target = (customName !== undefined ? customName : nameInput).trim();
+    if (!target) {
+      setNameError('Name cannot be empty');
+      return false;
+    }
+    if (target.length < 2) {
+      setNameError('Name must be at least 2 characters');
+      return false;
+    }
+    if (target.length > 16) {
+      setNameError('Name cannot exceed 16 characters');
+      return false;
+    }
+    setNameError(null);
+    setPlayerName(target);
+    setNameInput(target);
+    setIsEditingName(false);
+    setIsEditingNameMobile(false);
+    setNameSavedSuccess(true);
+    setTimeout(() => setNameSavedSuccess(false), 2500);
+
+    if (onUpdateProfile) {
+      onUpdateProfile(target, selectedAvatar);
+    }
+    return true;
+  };
+
+  const handleQuickJoinClick = () => {
+    if (isEditingName || isEditingNameMobile) {
+      if (nameInput.trim()) {
+        handleSaveName(nameInput);
+      }
+    }
+    if (onQuickJoin) onQuickJoin();
+  };
 
   const handleAvatarSelect = (newAvatar: string) => {
     setSelectedAvatar(newAvatar);
@@ -147,7 +209,12 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     }
     const cleanCode = joinCodeInput.trim().toUpperCase();
     if (cleanCode.length >= 4) {
-      onJoinRoom(cleanCode, playerName || formatAddress(wallet.address), selectedAvatar, wallet.address);
+      let currentName = playerName;
+      if ((isEditingName || isEditingNameMobile) && nameInput.trim()) {
+        currentName = nameInput.trim();
+        handleSaveName(currentName);
+      }
+      onJoinRoom(cleanCode, currentName || formatAddress(wallet.address), selectedAvatar, wallet.address);
     }
   };
 
@@ -156,13 +223,21 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       onConnectWallet();
       return;
     }
-    onJoinRoom(code, playerName || formatAddress(wallet.address), selectedAvatar, wallet.address);
+    let currentName = playerName;
+    if ((isEditingName || isEditingNameMobile) && nameInput.trim()) {
+      currentName = nameInput.trim();
+      handleSaveName(currentName);
+    }
+    onJoinRoom(code, currentName || formatAddress(wallet.address), selectedAvatar, wallet.address);
   };
 
   const handleCreateTableClick = () => {
     if (!wallet.address) {
       onConnectWallet();
       return;
+    }
+    if ((isEditingName || isEditingNameMobile) && nameInput.trim()) {
+      handleSaveName(nameInput.trim());
     }
     if (onOpenCreateTable) {
       onOpenCreateTable();
@@ -814,6 +889,132 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         {/* CENTER COLUMN: Hero Banner, Stats, and Open Tables       */}
         {/* ========================================================= */}
         <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-3 sm:gap-5">
+          {/* Mobile Profile & Quick Change Name Banner (Mobile Only) */}
+          {wallet.address && account && (
+            <div className="lg:hidden p-3 sm:p-4 rounded-2xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF4600]/10 rounded-full blur-2xl pointer-events-none" />
+
+              {!isEditingNameMobile ? (
+                <div className="flex items-center justify-between gap-2.5 relative z-10">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div
+                      onClick={onOpenProfile}
+                      className="w-11 h-11 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-2xl shrink-0 shadow-md shadow-[#FF4600]/20 cursor-pointer active:scale-95 transition-transform"
+                      title="Edit Profile & Avatar"
+                    >
+                      {selectedAvatar}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-black text-white truncate max-w-[130px] xs:max-w-[170px]">
+                          {playerName}
+                        </span>
+                        {isDefaultName && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold shrink-0">
+                            Default
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1.5 mt-0.5">
+                        <span>Lvl {playerLevel}</span>
+                        <span>•</span>
+                        <span className="text-emerald-400 font-medium flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Connected
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingNameMobile(true);
+                        setNameInput(playerName);
+                        setNameError(null);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF5500]/20 to-[#FF3700]/20 hover:from-[#FF5500]/30 hover:to-[#FF3700]/30 border border-[#FF4600]/40 text-[#FF4600] hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Change Name</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 relative z-10 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between text-[10px] font-mono font-bold">
+                    <span className="text-[#FF4600] flex items-center gap-1">
+                      <Pencil className="w-3 h-3" />
+                      CHANGE PLAYER NAME
+                    </span>
+                    <span className="text-slate-500">{nameInput.length}/16</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={nameInput}
+                      onChange={(e) => {
+                        setNameInput(e.target.value);
+                        setNameError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSaveName();
+                        } else if (e.key === 'Escape') {
+                          setIsEditingNameMobile(false);
+                          setNameInput(playerName);
+                          setNameError(null);
+                        }
+                      }}
+                      maxLength={16}
+                      placeholder="Enter new nickname..."
+                      className="flex-1 bg-slate-950 border border-[#FF4600] rounded-xl px-3 py-2 text-xs font-bold text-white outline-none ring-2 ring-[#FF4600]/25 placeholder-slate-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveName()}
+                      className="px-3 py-2 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] text-white font-bold text-xs transition-all shadow-md active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingNameMobile(false);
+                        setNameInput(playerName);
+                        setNameError(null);
+                      }}
+                      className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer shrink-0"
+                      title="Cancel"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {nameError ? (
+                    <div className="text-[10px] text-rose-400 font-medium">
+                      {nameError}
+                    </div>
+                  ) : isDefaultName ? (
+                    <div className="text-[10px] text-amber-400/90 font-medium">
+                      💡 Choose a custom nickname before joining matches!
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {nameSavedSuccess && (
+                <div className="mt-2 text-center text-xs font-bold text-emerald-400 flex items-center justify-center gap-1 animate-in fade-in">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Nickname updated successfully!</span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Hero Banner */}
           <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#121622] via-[#0F131C] to-[#0A0D14] border border-slate-800/90 p-4 sm:p-8 relative overflow-hidden shadow-2xl">
             <div className="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-[#FF4600]/15 blur-3xl pointer-events-none" />
@@ -832,13 +1033,38 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   Jump into the next open table — no room code needed.
                 </p>
 
-                <div className="mb-4 sm:mb-6">
+                <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                   <button
-                    onClick={onQuickJoin}
+                    onClick={handleQuickJoinClick}
                     className="px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-xl shadow-[#FF4600]/30 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
                     <span>&lt; QUICK PLAY &gt;</span>
                   </button>
+
+                  {/* Playing As info badge with quick Change button */}
+                  {wallet.address && account && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
+                      <span className="text-slate-400 font-mono text-[10px] sm:text-[11px]">As:</span>
+                      <span className="font-bold flex items-center gap-1.5 text-white">
+                        <span>{selectedAvatar}</span>
+                        <span className="text-white max-w-[110px] truncate">{playerName}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingName(true);
+                          setIsEditingNameMobile(true);
+                          setNameInput(playerName);
+                          setNameError(null);
+                        }}
+                        className="text-[10px] sm:text-[11px] font-bold text-[#FF4600] hover:text-white flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FF4600]/10 hover:bg-[#FF4600]/30 transition-colors cursor-pointer"
+                        title="Change Name"
+                      >
+                        <Pencil className="w-2.5 h-2.5" />
+                        <span>Change</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Badges row */}
@@ -1038,7 +1264,123 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   </div>
                 </div>
 
-                <h3 className="text-base sm:text-lg font-black text-white">{playerName}</h3>
+                {!isEditingName ? (
+                  <div className="flex flex-col items-center w-full">
+                    <div className="flex items-center justify-center gap-1.5 group max-w-full">
+                      <h3
+                        onClick={() => {
+                          setIsEditingName(true);
+                          setNameInput(playerName);
+                          setNameError(null);
+                        }}
+                        className="text-base sm:text-lg font-black text-white hover:text-[#FF4600] transition-colors cursor-pointer truncate max-w-[180px] sm:max-w-[210px]"
+                        title="Click to change your name"
+                      >
+                        {playerName}
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingName(true);
+                          setNameInput(playerName);
+                          setNameError(null);
+                        }}
+                        className="p-1 rounded-lg bg-slate-800/80 hover:bg-[#FF4600] text-slate-400 hover:text-white transition-all cursor-pointer shrink-0"
+                        title="Change Name"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingName(true);
+                        setNameInput(playerName);
+                        setNameError(null);
+                      }}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF4600] hover:text-[#ff6622] transition-colors bg-[#FF4600]/10 hover:bg-[#FF4600]/20 px-2.5 py-0.5 rounded-full mt-1 cursor-pointer"
+                    >
+                      <Pencil className="w-2.5 h-2.5" />
+                      <span>Change Name</span>
+                    </button>
+
+                    {isDefaultName && (
+                      <div className="mt-2 w-full px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[10px] font-medium flex items-center gap-1.5 text-left">
+                        <span className="text-sm shrink-0">💡</span>
+                        <span className="leading-tight">
+                          Using default name. Click <strong>Change Name</strong> to personalize before playing!
+                        </span>
+                      </div>
+                    )}
+
+                    {nameSavedSuccess && (
+                      <div className="mt-1.5 text-emerald-400 text-xs font-bold flex items-center justify-center gap-1 animate-in fade-in">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Name updated!</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-full mt-1 mb-2 p-2.5 rounded-2xl bg-slate-900 border border-[#FF4600]/60 shadow-inner text-left animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between text-[10px] font-mono font-bold text-slate-400 mb-1">
+                      <span className="text-[#FF4600] flex items-center gap-1">
+                        <Pencil className="w-3 h-3" />
+                        CHANGE NAME
+                      </span>
+                      <span>{nameInput.length}/16</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={nameInput}
+                        onChange={(e) => {
+                          setNameInput(e.target.value);
+                          setNameError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSaveName();
+                          } else if (e.key === 'Escape') {
+                            setIsEditingName(false);
+                            setNameInput(playerName);
+                            setNameError(null);
+                          }
+                        }}
+                        maxLength={16}
+                        placeholder="Your nickname..."
+                        className="flex-1 bg-slate-950 border border-slate-700 focus:border-[#FF4600] rounded-xl px-2.5 py-1.5 text-xs font-bold text-white outline-none ring-2 ring-[#FF4600]/20"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveName()}
+                        className="p-2 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-bold transition-all cursor-pointer shadow-sm"
+                        title="Save Name"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingName(false);
+                          setNameInput(playerName);
+                          setNameError(null);
+                        }}
+                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
+                        title="Cancel"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {nameError && (
+                      <div className="text-[10px] text-rose-400 mt-1 font-medium">
+                        {nameError}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="text-[10px] sm:text-xs font-mono text-slate-400 mt-0.5 mb-1.5 sm:mb-2">
                   Level {playerLevel} • {playerXP} XP
