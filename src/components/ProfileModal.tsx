@@ -21,9 +21,10 @@ import {
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  account: AccountProfile;
+  account: AccountProfile | null;
   onSaveProfile: (updates: Partial<AccountProfile>) => void;
   wallet: WalletState;
+  onConnectWallet?: () => void;
 }
 
 export const ProfileModal: React.FC<ProfileModalProps> = ({
@@ -32,36 +33,30 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   account,
   onSaveProfile,
   wallet,
+  onConnectWallet,
 }) => {
-  const [name, setName] = useState(account.name);
-  const [avatar, setAvatar] = useState(account.avatar);
-  const [bio, setBio] = useState(account.bio || 'UNO enthusiast & strategist');
+  const [name, setName] = useState(account?.name || '');
+  const [avatar, setAvatar] = useState(account?.avatar || '🦊');
+  const [bio, setBio] = useState(account?.bio || 'UNO enthusiast & strategist');
   const [copiedId, setCopiedId] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [profileData, setProfileData] = useState<UserProfileRecord | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && account && wallet.address) {
       setName(account.name);
       setAvatar(account.avatar);
       setBio(account.bio || 'UNO enthusiast & strategist');
       setSavedSuccess(false);
 
-      // Fetch user profile from database by connected wallet address or account id
+      // Fetch user profile from database by connected wallet address
       setLoadingStats(true);
-      const targetUrl = wallet.address
-        ? `/api/profile/by-address/${encodeURIComponent(wallet.address)}`
-        : `/api/profile/${account.id}`;
+      const cleanAddr = wallet.address.trim().toLowerCase();
+      const targetUrl = `/api/profile/by-address/${encodeURIComponent(cleanAddr)}`;
 
       fetch(targetUrl)
-        .then((res) => {
-          if (res.ok) return res.json();
-          if (wallet.address) {
-            return fetch(`/api/profile/${account.id}`).then((r) => (r.ok ? r.json() : null));
-          }
-          return null;
-        })
+        .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data) {
             setProfileData(data);
@@ -73,14 +68,50 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         .catch((err) => console.warn('Could not fetch server profile:', err))
         .finally(() => setLoadingStats(false));
     }
-  }, [isOpen, account.id, account.name, account.avatar, account.bio, wallet.address]);
+  }, [isOpen, account?.id, account?.name, account?.avatar, account?.bio, wallet.address]);
 
   if (!isOpen) return null;
 
+  if (!account || !wallet.address) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="bg-[#0E1217] border border-slate-800 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl relative text-center">
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-[#FF4600]/20 to-[#FF8000]/10 border border-[#FF4600]/30 flex items-center justify-center mx-auto mb-4 text-[#FF5500] shadow-xl shadow-[#FF4600]/10">
+            <Wallet className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-black text-white mb-2">Wallet Not Connected</h2>
+          <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+            All player profiles, custom identities, rank titles, and match histories are tied directly to your Web3 wallet address. Connect your wallet to view and customize your profile.
+          </p>
+          <button
+            onClick={() => {
+              if (onConnectWallet) onConnectWallet();
+              onClose();
+            }}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-sm uppercase tracking-wider transition-all shadow-xl shadow-[#FF4600]/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Zap className="w-4 h-4" />
+            <span>Connect Wallet</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const handleCopyId = () => {
-    navigator.clipboard.writeText(account.id);
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
+    if (account.id) {
+      navigator.clipboard.writeText(account.id);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {

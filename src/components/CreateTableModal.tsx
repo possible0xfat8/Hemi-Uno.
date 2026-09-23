@@ -8,6 +8,7 @@ interface CreateTableModalProps {
   playerName: string;
   avatar: string;
   walletAddress?: string;
+  onConnectWallet?: () => void;
 }
 
 const MODES = [
@@ -25,6 +26,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
   playerName,
   avatar,
   walletAddress,
+  onConnectWallet,
 }) => {
   const [selectedMode, setSelectedMode] = useState('Classic');
   const [selectedBuyIn, setSelectedBuyIn] = useState('Free');
@@ -32,6 +34,10 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
   if (!isOpen) return null;
 
   const handleCreate = () => {
+    if (!walletAddress) {
+      if (onConnectWallet) onConnectWallet();
+      return;
+    }
     const buyInValue = selectedBuyIn === 'Free' ? '0.000' : selectedBuyIn;
     onCreateRoom(playerName, avatar, buyInValue, walletAddress);
     onClose();
@@ -124,13 +130,25 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
         </div>
 
         {/* Action Button */}
-        <button
-          onClick={handleCreate}
-          className="w-full py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-[#FF4600]/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <span>Create and Open Table</span>
-          <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </button>
+        {!walletAddress ? (
+          <button
+            onClick={() => {
+              if (onConnectWallet) onConnectWallet();
+            }}
+            className="w-full py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-[#FF4600]/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Connect Wallet to Create Table</span>
+          </button>
+        ) : (
+          <button
+            onClick={handleCreate}
+            className="w-full py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-[#FF4600]/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>Create and Open Table</span>
+            <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </button>
+        )}
       </div>
     </div>
   );

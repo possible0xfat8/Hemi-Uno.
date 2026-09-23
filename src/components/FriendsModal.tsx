@@ -16,15 +16,18 @@ import {
   Flame,
   AlertCircle,
   Copy,
+  Zap,
 } from 'lucide-react';
 
 interface FriendsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  account: AccountProfile;
+  account: AccountProfile | null;
   activeRoomCode?: string | null;
   onJoinRoom: (roomCode: string) => void;
   onInviteFriend?: (friendId: string, roomCode: string) => void;
+  walletAddress?: string | null;
+  onConnectWallet?: () => void;
 }
 
 export const FriendsModal: React.FC<FriendsModalProps> = ({
@@ -34,6 +37,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   activeRoomCode,
   onJoinRoom,
   onInviteFriend,
+  walletAddress,
+  onConnectWallet,
 }) => {
   const [activeTab, setActiveTab] = useState<'list' | 'add' | 'requests'>('list');
   const [friends, setFriends] = useState<EnrichedFriend[]>([]);
@@ -46,6 +51,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   const [invitedFriends, setInvitedFriends] = useState<Set<string>>(new Set());
 
   const fetchFriendsData = () => {
+    if (!account?.id) return;
     setIsLoading(true);
     fetch(`/api/friends/${account.id}`)
       .then((res) => res.json())
@@ -66,13 +72,47 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && account?.id && walletAddress) {
       fetchFriendsData();
       setActionNotice(null);
     }
-  }, [isOpen, account.id]);
+  }, [isOpen, account?.id, walletAddress]);
 
   if (!isOpen) return null;
+
+  if (!account || !walletAddress) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
+        <div className="bg-[#0E1217] border border-slate-800 rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl relative text-center">
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-[#FF4600]/20 to-[#FF8000]/10 border border-[#FF4600]/30 flex items-center justify-center mx-auto mb-4 text-[#FF5500] shadow-xl shadow-[#FF4600]/10">
+            <Users className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-black text-white mb-2">Wallet Not Connected</h2>
+          <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+            Connect your Web3 wallet to manage friends, see who is online playing UNO, and send direct table invites.
+          </p>
+          <button
+            onClick={() => {
+              if (onConnectWallet) onConnectWallet();
+              onClose();
+            }}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-sm uppercase tracking-wider transition-all shadow-xl shadow-[#FF4600]/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Zap className="w-4 h-4" />
+            <span>Connect Wallet</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleSendRequest = (targetQuery: string) => {
     if (!targetQuery.trim()) return;

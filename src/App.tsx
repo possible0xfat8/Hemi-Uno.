@@ -34,6 +34,7 @@ import {
   syncAccountWithServerProfile,
   getActiveRoomCode,
   setActiveRoomCode,
+  saveLastConnectedWallet,
   AccountProfile,
 } from './utils/account';
 import {
@@ -246,7 +247,7 @@ export default function App() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'reconnecting' | 'offline'>('reconnecting');
-  const [account, setAccount] = useState<AccountProfile>(() => getOrCreateAccountProfile());
+  const [account, setAccount] = useState<AccountProfile | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [emotes, setEmotes] = useState<FloatingEmote[]>([]);
@@ -287,13 +288,16 @@ export default function App() {
   // Load database-authoritative profile for connected wallet address
   // Ensures username, avatar, bio, stats, and friends are linked to the wallet and consistent across tabs
   useEffect(() => {
-    if (!wallet.address) return;
+    if (!wallet.address) {
+      setAccount(null);
+      return;
+    }
 
     let isCancelled = false;
     const cleanAddr = wallet.address.trim().toLowerCase();
 
     // 1. Instant local wallet cache hydration to prevent default name flicker
-    const cached = getAccountProfileForWallet(cleanAddr);
+    const cached = getOrCreateAccountProfile(cleanAddr);
     if (cached) {
       setAccount(cached);
     }
@@ -307,16 +311,18 @@ export default function App() {
           if (dbUser && dbUser.id && !isCancelled) {
             console.log('[Profile] Synced authoritative database profile for wallet:', cleanAddr, dbUser.name);
             const synced = syncAccountWithServerProfile(dbUser);
-            setAccount(synced);
-            if (socket) {
-              socket.emit('profile:sync', {
-                accountId: synced.id,
-                name: synced.name,
-                avatar: synced.avatar,
-                bio: synced.bio,
-                address: cleanAddr,
-                isExplicitUpdate: false,
-              });
+            if (synced) {
+              setAccount(synced);
+              if (socket) {
+                socket.emit('profile:sync', {
+                  accountId: synced.id,
+                  name: synced.name,
+                  avatar: synced.avatar,
+                  bio: synced.bio,
+                  address: cleanAddr,
+                  isExplicitUpdate: false,
+                });
+              }
             }
             return;
           }
@@ -338,17 +344,11 @@ export default function App() {
     const handleStorageChange = (e: StorageEvent) => {
       if (!e.newValue) return;
       const cleanAddr = wallet.address?.trim().toLowerCase();
-      if (
-        e.key === 'uno_arcade_profile_v2' ||
-        (cleanAddr && e.key === `uno_arcade_wallet_profile_${cleanAddr}`)
-      ) {
+      if (cleanAddr && e.key === `uno_arcade_wallet_profile_${cleanAddr}`) {
         try {
           const parsed = JSON.parse(e.newValue);
           if (parsed && parsed.name) {
-            setAccount((prev) => ({
-              ...prev,
-              ...parsed,
-            }));
+            setAccount((prev) => (prev ? { ...prev, ...parsed } : parsed));
           }
         } catch {}
       }
@@ -372,11 +372,12 @@ export default function App() {
           const chainIdDec = parseInt(chainIdHex, 16);
           const balFormatted = await fetchEthBalance(provider, accounts[0]);
 
-          // Immediately hydrate cached profile for this wallet if available
-          const cached = getAccountProfileForWallet(cleanAddr);
+          // Immediately hydrate profile for this connected wallet
+          const cached = getOrCreateAccountProfile(cleanAddr);
           if (cached) {
             setAccount(cached);
           }
+          saveLastConnectedWallet(cleanAddr);
 
           setWallet({
             address: accounts[0],
@@ -397,12 +398,17 @@ export default function App() {
     const handleAccountsChanged = async (accounts: string[]) => {
       if (accounts.length === 0) {
         setWallet((prev) => ({ ...prev, address: null, balance: null }));
+        setAccount(null);
+        saveLastConnectedWallet(null);
+        setGameState(null);
+        setActiveRoomCode(null);
       } else {
         const cleanAddr = accounts[0].trim().toLowerCase();
-        const cached = getAccountProfileForWallet(cleanAddr);
-        if (cached) {
-          setAccount(cached);
+        const profile = getOrCreateAccountProfile(cleanAddr);
+        if (profile) {
+          setAccount(profile);
         }
+        saveLastConnectedWallet(cleanAddr);
         const balFormatted = await fetchEthBalance(provider, accounts[0]);
         setWallet((prev) => ({ ...prev, address: accounts[0], balance: balFormatted }));
       }
@@ -467,6 +473,12 @@ export default function App() {
       }
 
       const balFormatted = await fetchEthBalance(provider, accounts[0]);
+      const cleanAddr = accounts[0].trim().toLowerCase();
+      const profile = getOrCreateAccountProfile(cleanAddr);
+      if (profile) {
+        setAccount(profile);
+      }
+      saveLastConnectedWallet(cleanAddr);
 
       setWallet({
         address: accounts[0],
@@ -495,6 +507,10 @@ export default function App() {
       error: null,
       walletName: null,
     });
+    setAccount(null);
+    saveLastConnectedWallet(null);
+    setGameState(null);
+    setActiveRoomCode(null);
   };
 
   const handleSwitchNetwork = async () => {
@@ -577,6 +593,11 @@ export default function App() {
 
   // Helper to fetch friends summary
   const refreshFriendsSummary = () => {
+    if (!wallet.address || !account?.id) {
+      setFriendCount(0);
+      setOnlineFriendCount(0);
+      return;
+    }
     fetch(`/api/friends/${account.id}`)
       .then((res) => res.json())
       .then((data) => {
@@ -606,51 +627,52 @@ export default function App() {
       setSocketConnected(true);
       setConnectionStatus('connected');
 
-      // Sync user profile to server database & presence table
-      s.emit('profile:sync', {
-        id: account.id,
-        name: account.name,
-        avatar: account.avatar,
-        bio: account.bio,
-        address: wallet.address || account.address,
-      });
+      // Sync user profile and resume session ONLY if wallet is actively connected
+      if (wallet.address && account) {
+        s.emit('profile:sync', {
+          id: account.id,
+          name: account.name,
+          avatar: account.avatar,
+          bio: account.bio,
+          address: wallet.address,
+        });
 
-      // Attempt to resume session with persistent accountId & dual-key resolution
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlCode = urlParams.get('room') || urlParams.get('join');
-      const activeCode = getActiveRoomCode() || (urlCode ? urlCode.toUpperCase().trim() : null);
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlCode = urlParams.get('room') || urlParams.get('join');
+        const activeCode = getActiveRoomCode() || (urlCode ? urlCode.toUpperCase().trim() : null);
 
-      s.emit(
-        'session:resume',
-        {
-          accountId: account.id,
-          roomCode: activeCode,
-          address: wallet.address || account.address,
-        },
-        (res: any) => {
-          if (res?.success && res?.gameState) {
-            console.log('Session resumed successfully for room:', res.roomCode);
-            setGameState(res.gameState);
-            setActiveRoomCode(res.roomCode);
-            // Synchronize browser URL query param
-            const currentUrl = new URL(window.location.href);
-            if (currentUrl.searchParams.get('room') !== res.roomCode) {
-              currentUrl.searchParams.set('room', res.roomCode);
-              currentUrl.searchParams.delete('join');
-              window.history.replaceState({}, '', currentUrl.toString());
+        if (activeCode) {
+          s.emit(
+            'session:resume',
+            {
+              accountId: account.id,
+              roomCode: activeCode,
+              address: wallet.address,
+            },
+            (res: any) => {
+              if (res?.success && res?.gameState) {
+                console.log('Session resumed successfully for room:', res.roomCode);
+                setGameState(res.gameState);
+                setActiveRoomCode(res.roomCode);
+                const currentUrl = new URL(window.location.href);
+                if (currentUrl.searchParams.get('room') !== res.roomCode) {
+                  currentUrl.searchParams.set('room', res.roomCode);
+                  currentUrl.searchParams.delete('join');
+                  window.history.replaceState({}, '', currentUrl.toString());
+                }
+              } else if (res?.roomNotFound && activeCode) {
+                setActiveRoomCode(null);
+                const currentUrl = new URL(window.location.href);
+                if (currentUrl.searchParams.has('room') || currentUrl.searchParams.has('join')) {
+                  currentUrl.searchParams.delete('room');
+                  currentUrl.searchParams.delete('join');
+                  window.history.replaceState({}, '', currentUrl.pathname);
+                }
+              }
             }
-          } else if (res?.roomNotFound && activeCode) {
-            // Room no longer active on server
-            setActiveRoomCode(null);
-            const currentUrl = new URL(window.location.href);
-            if (currentUrl.searchParams.has('room') || currentUrl.searchParams.has('join')) {
-              currentUrl.searchParams.delete('room');
-              currentUrl.searchParams.delete('join');
-              window.history.replaceState({}, '', currentUrl.pathname);
-            }
-          }
+          );
         }
-      );
+      }
 
       refreshLiveRooms(s);
       refreshFriendsSummary();
@@ -669,26 +691,28 @@ export default function App() {
 
     // Authoritative profile sync response from database
     s.on('profile:synced', (serverProfile: any) => {
-      if (serverProfile && serverProfile.id) {
+      if (serverProfile && serverProfile.id && wallet.address) {
         const synced = syncAccountWithServerProfile(serverProfile);
-        setAccount(synced);
+        if (synced) {
+          setAccount(synced);
+        }
       }
     });
 
     // Real-time broadcast if profile (name/avatar/bio) was updated on another tab or via database
     s.on('profile:updated', (serverProfile: any) => {
-      if (serverProfile && serverProfile.id) {
-        const myAddr = wallet.address || account.address;
+      if (serverProfile && serverProfile.id && wallet.address) {
         const matchesAddress =
-          myAddr &&
           serverProfile.address &&
-          myAddr.toLowerCase() === serverProfile.address.toLowerCase();
+          wallet.address.toLowerCase() === serverProfile.address.toLowerCase();
 
-        if (serverProfile.id === account.id || matchesAddress) {
+        if (matchesAddress) {
           console.log('[Profile] Live update received from database/tab:', serverProfile.name);
           const synced = syncAccountWithServerProfile(serverProfile);
-          setAccount(synced);
-          refreshFriendsSummary();
+          if (synced) {
+            setAccount(synced);
+            refreshFriendsSummary();
+          }
         }
       }
     });
@@ -773,7 +797,7 @@ export default function App() {
       clearInterval(interval);
       s.disconnect();
     };
-  }, [account.id]);
+  }, [account?.id, wallet.address]);
 
   // Fetch private chat history whenever entering a new room code
   useEffect(() => {
@@ -790,6 +814,25 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('join') || params.get('room');
     if (code && socket && !gameState) {
+      if (!wallet.address || !account) {
+        // Disconnected visitor viewing room link — spectate instead of claiming a player seat
+        socket.emit(
+          'room:spectate',
+          {
+            roomCode: code.toUpperCase(),
+            accountId: `spectator_${socket.id}`,
+            spectatorName: 'Spectator',
+            avatar: '👀',
+          },
+          (res: any) => {
+            if (res?.success && res?.gameState) {
+              setGameState(res.gameState);
+              setActiveRoomCode(res.roomCode);
+            }
+          }
+        );
+        return;
+      }
       socket.emit(
         'room:join',
         {
@@ -797,7 +840,7 @@ export default function App() {
           accountId: account.id,
           playerName: account.name,
           avatar: account.avatar,
-          address: wallet.address || account.address,
+          address: wallet.address,
         },
         (res: any) => {
           if (res?.success && res?.gameState) {
@@ -807,7 +850,7 @@ export default function App() {
         }
       );
     }
-  }, [socket, gameState, account.id, account.name, account.avatar, wallet.address, account.address]);
+  }, [socket, gameState, account?.id, account?.name, account?.avatar, wallet.address]);
 
   // When opening chat, reset unread counter
   const handleToggleChat = () => {
@@ -876,7 +919,7 @@ export default function App() {
       const isPlayerPlaying =
         gameState &&
         gameState.status === 'playing' &&
-        gameState.players.some((p) => p.id === account.id);
+        gameState.players.some((p) => account && p.id === account.id);
       if (isPlayerPlaying) {
         e.preventDefault();
         e.returnValue = 'Match in progress! You cannot quit until the game ends.';
@@ -887,18 +930,23 @@ export default function App() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [gameState?.status, gameState?.players, account.id]);
+  }, [gameState?.status, gameState?.players, account?.id]);
 
   // Explicit resume session action from UI
   const handleResumeSession = (roomCode?: string | null) => {
     if (!socket) return;
+    if (!wallet.address || !account) {
+      setErrorMessage('Please connect your Web3 wallet first to resume your session.');
+      handleConnectWallet();
+      return;
+    }
     const targetCode = roomCode || getActiveRoomCode();
     socket.emit(
       'session:resume',
       {
         accountId: account.id,
         roomCode: targetCode,
-        address: wallet.address || account.address,
+        address: wallet.address,
       },
       (res: any) => {
         if (res?.success && res?.gameState) {
@@ -919,8 +967,8 @@ export default function App() {
   // Lobby actions
   const handleCreateRoom = (playerName: string, avatar: string, buyIn: string, address?: string) => {
     if (!socket) return;
-    const playerAddress = address || wallet.address || account.address || undefined;
-    if (!playerAddress || !playerAddress.startsWith('0x')) {
+    const playerAddress = address || wallet.address || undefined;
+    if (!playerAddress || !playerAddress.startsWith('0x') || !account) {
       setErrorMessage('Please connect your Web3 wallet first to create a table.');
       handleConnectWallet();
       return;
@@ -955,8 +1003,8 @@ export default function App() {
 
   const handleJoinRoom = (roomCode: string, playerName: string, avatar: string, address?: string) => {
     if (!socket) return;
-    const playerAddress = address || wallet.address || account.address || undefined;
-    if (!playerAddress || !playerAddress.startsWith('0x')) {
+    const playerAddress = address || wallet.address || undefined;
+    if (!playerAddress || !playerAddress.startsWith('0x') || !account) {
       setErrorMessage('Please connect your Web3 wallet first to join a table.');
       handleConnectWallet();
       return;
@@ -992,8 +1040,8 @@ export default function App() {
   // 1-Click Quick Match - joins open waiting room or creates one automatically
   const handleQuickJoin = () => {
     if (!socket) return;
-    const playerAddress = wallet.address || account.address || undefined;
-    if (!playerAddress || !playerAddress.startsWith('0x')) {
+    const playerAddress = wallet.address || undefined;
+    if (!playerAddress || !playerAddress.startsWith('0x') || !account) {
       setErrorMessage('Please connect your Web3 wallet first to use Quick Play.');
       handleConnectWallet();
       return;
@@ -1027,7 +1075,7 @@ export default function App() {
 
   // Invite friend to room
   const handleInviteFriend = (friendId: string, roomCode: string) => {
-    if (!socket) return;
+    if (!socket || !account) return;
     socket.emit('invite:send', {
       friendId,
       roomCode,
@@ -1038,40 +1086,43 @@ export default function App() {
 
   // Update profile and sync to database & socket
   const handleSaveProfile = async (updates: Partial<AccountProfile>) => {
-    const updated = saveAccountProfile(updates);
-    setAccount(updated);
+    if (!wallet.address) return;
+    const updated = saveAccountProfile({ ...updates, address: wallet.address });
+    if (updated) {
+      setAccount(updated);
 
-    const activeAddress = wallet.address || updated.address;
+      const activeAddress = wallet.address;
 
-    // Send explicit update to server via WebSocket and REST API
-    if (socket) {
-      socket.emit('profile:sync', {
-        accountId: updated.id,
-        id: updated.id,
-        name: updated.name,
-        avatar: updated.avatar,
-        bio: updated.bio,
-        address: activeAddress,
-        isExplicitUpdate: true,
-      });
-    }
-
-    try {
-      await fetch('/api/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: updated.id,
+      // Send explicit update to server via WebSocket and REST API
+      if (socket) {
+        socket.emit('profile:sync', {
           accountId: updated.id,
+          id: updated.id,
           name: updated.name,
           avatar: updated.avatar,
           bio: updated.bio,
           address: activeAddress,
-        }),
-      });
-      refreshFriendsSummary();
-    } catch (err) {
-      console.warn('Failed to post profile update to database REST API:', err);
+          isExplicitUpdate: true,
+        });
+      }
+
+      try {
+        await fetch('/api/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: updated.id,
+            accountId: updated.id,
+            name: updated.name,
+            avatar: updated.avatar,
+            bio: updated.bio,
+            address: activeAddress,
+          }),
+        });
+        refreshFriendsSummary();
+      } catch (err) {
+        console.warn('Failed to post profile update to database REST API:', err);
+      }
     }
   };
 
@@ -1082,9 +1133,9 @@ export default function App() {
       'room:spectate',
       {
         roomCode: roomCode.toUpperCase(),
-        accountId: account.id,
-        spectatorName: spectatorName || account.name,
-        avatar: avatar || account.avatar,
+        accountId: account?.id || `spectator_${socket.id}`,
+        spectatorName: spectatorName || account?.name || 'Spectator',
+        avatar: avatar || account?.avatar || '👀',
       },
       (res: any) => {
         if (!res.success) {
@@ -1205,7 +1256,7 @@ export default function App() {
   };
 
   const handleLeaveRoom = () => {
-    const isPlayerPlaying = gameState && gameState.status === 'playing' && gameState.players.some((p) => p.id === account.id);
+    const isPlayerPlaying = gameState && gameState.status === 'playing' && gameState.players.some((p) => account && p.id === account.id);
     if (isPlayerPlaying) {
       setErrorMessage('You cannot quit while the game is in progress! You must complete the match or wait until it ends.');
       return;
@@ -1223,11 +1274,11 @@ export default function App() {
     refreshLiveRooms();
   };
 
-  const myPlayerId = account.id;
-  const isSpectator = !!gameState?.isSpectator;
-  const myPlayer = gameState?.players.find((p) => p.id === myPlayerId);
-  const isMyTurn = gameState?.currentTurnPlayerId === myPlayerId;
-  const isHost = gameState?.hostId === myPlayerId;
+  const myPlayerId = account?.id || '';
+  const isSpectator = !!gameState?.isSpectator || !account;
+  const myPlayer = account ? gameState?.players.find((p) => p.id === myPlayerId) : undefined;
+  const isMyTurn = !!account && gameState?.currentTurnPlayerId === myPlayerId;
+  const isHost = !!account && gameState?.hostId === myPlayerId;
   const topCard = gameState?.topDiscardCard || null;
 
   // Compute defense ability when under attack (+2, +4 stack)
@@ -1332,27 +1383,37 @@ export default function App() {
             compact={isMobile || (!!gameState && gameState.status !== 'lobby')}
           />
 
-          {/* Friends — always visible, compact on mobile */}
+          {/* Friends — requires connected wallet */}
           <button
-            onClick={() => setIsFriendsOpen(true)}
+            onClick={() => {
+              if (!wallet.address) {
+                handleConnectWallet();
+                return;
+              }
+              setIsFriendsOpen(true);
+            }}
             className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-200 hover:text-white transition-all cursor-pointer shadow-sm shrink-0"
             title="Friends & Social"
           >
             <Users className="w-3.5 h-3.5 text-slate-400" />
             <span className="hidden sm:inline text-xs">Friends</span>
-            <span className="px-1 py-0.5 rounded-full bg-[#FF4600] text-white text-[9px] font-black leading-none">
-              {friendCount || 12}
-            </span>
+            {wallet.address && friendCount > 0 ? (
+              <span className="px-1 py-0.5 rounded-full bg-[#FF4600] text-white text-[9px] font-black leading-none">
+                {friendCount}
+              </span>
+            ) : null}
           </button>
 
-          {/* User Avatar — ALWAYS VISIBLE */}
-          <button
-            onClick={() => setIsProfileOpen(true)}
-            className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-slate-900 border border-slate-700 hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-all cursor-pointer shadow-md shrink-0"
-            title="Profile & Career Stats"
-          >
-            {account.avatar}
-          </button>
+          {/* User Avatar — ONLY VISIBLE WHEN WALLET IS CONNECTED */}
+          {wallet.address && account && (
+            <button
+              onClick={() => setIsProfileOpen(true)}
+              className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-slate-900 border border-slate-700 hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-all cursor-pointer shadow-md shrink-0"
+              title="Profile & Career Stats"
+            >
+              {account.avatar}
+            </button>
+          )}
 
           {/* Notification Bell — desktop only */}
           <button
@@ -1479,8 +1540,20 @@ export default function App() {
             onCreateRoom={handleCreateRoom}
             onJoinRoom={handleJoinRoom}
             onQuickJoin={handleQuickJoin}
-            onOpenProfile={() => setIsProfileOpen(true)}
-            onOpenFriends={() => setIsFriendsOpen(true)}
+            onOpenProfile={() => {
+              if (!wallet.address) {
+                handleConnectWallet();
+                return;
+              }
+              setIsProfileOpen(true);
+            }}
+            onOpenFriends={() => {
+              if (!wallet.address) {
+                handleConnectWallet();
+                return;
+              }
+              setIsFriendsOpen(true);
+            }}
             friendCount={friendCount}
             onlineFriendCount={onlineFriendCount}
             onSpectateRoom={handleSpectateRoom}
@@ -2075,7 +2148,7 @@ export default function App() {
       <LeaderboardModal
         isOpen={isLeaderboardOpen}
         onClose={() => setIsLeaderboardOpen(false)}
-        currentUserId={account.id}
+        currentUserId={account?.id}
       />
 
       {/* Create Custom Table Modal */}
@@ -2083,9 +2156,10 @@ export default function App() {
         isOpen={isCreateTableOpen}
         onClose={() => setIsCreateTableOpen(false)}
         onCreateRoom={handleCreateRoom}
-        playerName={account.name}
-        avatar={account.avatar}
+        playerName={account?.name || ''}
+        avatar={account?.avatar || '🦊'}
         walletAddress={wallet.address || undefined}
+        onConnectWallet={handleConnectWallet}
       />
 
       {/* User Profile & Database Career Stats Modal */}
@@ -2098,6 +2172,7 @@ export default function App() {
         account={account}
         onSaveProfile={handleSaveProfile}
         wallet={wallet}
+        onConnectWallet={handleConnectWallet}
       />
 
       {/* Friends & Social Modal */}
@@ -2109,8 +2184,10 @@ export default function App() {
         }}
         account={account}
         activeRoomCode={gameState?.roomCode || null}
-        onJoinRoom={(code) => handleJoinRoom(code, account.name, account.avatar, wallet.address || undefined)}
+        onJoinRoom={(code) => handleJoinRoom(code, account?.name || '', account?.avatar || '🦊', wallet.address || undefined)}
         onInviteFriend={handleInviteFriend}
+        walletAddress={wallet.address}
+        onConnectWallet={handleConnectWallet}
       />
 
       {/* Incoming Friend Game Invite Toast */}
@@ -2118,7 +2195,11 @@ export default function App() {
         invite={currentInvite}
         onAccept={(roomCode) => {
           setCurrentInvite(null);
-          handleJoinRoom(roomCode, account.name, account.avatar, wallet.address || undefined);
+          if (!wallet.address) {
+            handleConnectWallet();
+            return;
+          }
+          handleJoinRoom(roomCode, account?.name || '', account?.avatar || '🦊', wallet.address || undefined);
         }}
         onDismiss={() => setCurrentInvite(null)}
       />

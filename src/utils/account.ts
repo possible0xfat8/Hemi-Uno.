@@ -45,7 +45,7 @@ function generateAccountId(): string {
 }
 
 export function getAccountProfileForWallet(address?: string | null): AccountProfile | null {
-  if (typeof window === 'undefined' || !address) return null;
+  if (typeof window === 'undefined' || !address || !address.trim().startsWith('0x')) return null;
   try {
     const clean = address.trim().toLowerCase();
     const raw = localStorage.getItem(`${STORAGE_KEY_WALLET_PREFIX}${clean}`);
@@ -58,6 +58,7 @@ export function getAccountProfileForWallet(address?: string | null): AccountProf
           avatar: parsed.avatar || '🦊',
           bio: parsed.bio || 'Hemi Testnet Card Champion',
           address: clean,
+          stats: parsed.stats,
         };
       }
     }
@@ -67,80 +68,58 @@ export function getAccountProfileForWallet(address?: string | null): AccountProf
   return null;
 }
 
-export function getOrCreateAccountProfile(preferredAddress?: string | null): AccountProfile {
-  if (typeof window === 'undefined') {
-    return {
-      id: 'acc_server_placeholder',
-      name: 'Player',
-      avatar: '🦊',
-      bio: 'Ready to play UNO on Hemi!',
-    };
+export function getOrCreateAccountProfile(walletAddress?: string | null): AccountProfile | null {
+  if (typeof window === 'undefined' || !walletAddress || !walletAddress.trim().startsWith('0x')) {
+    return null;
   }
 
-  // 1. If preferredAddress is given, try wallet cache first
-  if (preferredAddress) {
-    const fromWallet = getAccountProfileForWallet(preferredAddress);
-    if (fromWallet) return fromWallet;
-  }
+  const clean = walletAddress.trim().toLowerCase();
 
-  // 2. Check if last connected wallet exists in storage
-  const lastWallet = getLastConnectedWallet();
-  if (lastWallet) {
-    const fromLast = getAccountProfileForWallet(lastWallet);
-    if (fromLast) return fromLast;
-  }
+  // Try wallet cache first
+  const fromWallet = getAccountProfileForWallet(clean);
+  if (fromWallet) return fromWallet;
 
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_PROFILE);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed.id === 'string' && parsed.id.trim()) {
-        return {
-          id: parsed.id,
-          name: parsed.name || 'Player',
-          avatar: parsed.avatar || '🦊',
-          bio: parsed.bio || 'UNO enthusiast & strategist',
-          address: parsed.address,
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('Failed to parse account profile from localStorage:', err);
-  }
-
-  // Fallback initial account
+  // Create initial profile strictly bound to this wallet address
+  const shortName = `${clean.slice(0, 6)}...${clean.slice(-4)}`;
   const newProfile: AccountProfile = {
-    id: generateAccountId(),
-    name: 'Player',
+    id: `wallet_${clean}`,
+    name: shortName,
     avatar: DEFAULT_AVATARS[0],
     bio: 'Ready to play UNO on Hemi!',
+    address: clean,
   };
 
   try {
-    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(newProfile));
+    localStorage.setItem(`${STORAGE_KEY_WALLET_PREFIX}${clean}`, JSON.stringify(newProfile));
   } catch (err) {
-    console.warn('Failed to save fresh account profile:', err);
+    console.warn('Failed to save fresh wallet profile:', err);
   }
 
   return newProfile;
 }
 
-export function saveAccountProfile(updates: Partial<AccountProfile>): AccountProfile {
-  const current = getOrCreateAccountProfile(updates.address);
+export function saveAccountProfile(updates: Partial<AccountProfile>): AccountProfile | null {
+  const targetAddr = updates.address?.trim().toLowerCase();
+  if (!targetAddr || !targetAddr.startsWith('0x')) {
+    console.warn('Cannot save profile without a connected wallet address');
+    return null;
+  }
+
+  const current = getOrCreateAccountProfile(targetAddr);
+  if (!current) return null;
+
   const merged: AccountProfile = {
     ...current,
     ...updates,
-    id: updates.id || current.id,
+    id: `wallet_${targetAddr}`,
+    address: targetAddr,
   };
 
   try {
-    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(merged));
-    const targetAddr = merged.address || updates.address;
-    if (targetAddr) {
-      const cleanAddr = targetAddr.trim().toLowerCase();
-      localStorage.setItem('uno_arcade_last_wallet_addr', cleanAddr);
-      localStorage.setItem(`${STORAGE_KEY_WALLET_PREFIX}${cleanAddr}`, JSON.stringify(merged));
-    }
+    localStorage.setItem(`${STORAGE_KEY_WALLET_PREFIX}${targetAddr}`, JSON.stringify(merged));
+    localStorage.setItem('uno_arcade_last_wallet_addr', targetAddr);
+    // Remove obsolete unauthenticated profile storage if present
+    localStorage.removeItem(STORAGE_KEY_PROFILE);
   } catch (err) {
     console.warn('Failed to save account updates:', err);
   }
@@ -154,22 +133,29 @@ export function syncAccountWithServerProfile(serverUser: {
   avatar: string;
   bio?: string;
   address?: string;
-}): AccountProfile {
+  stats?: any;
+}): AccountProfile | null {
+  const cleanAddr = serverUser.address && serverUser.address.trim().startsWith('0x')
+    ? serverUser.address.trim().toLowerCase()
+    : undefined;
+
+  if (!cleanAddr) {
+    return null;
+  }
+
   const profile: AccountProfile = {
-    id: serverUser.id,
-    name: serverUser.name || 'Player',
+    id: `wallet_${cleanAddr}`,
+    name: serverUser.name || `${cleanAddr.slice(0, 6)}...${cleanAddr.slice(-4)}`,
     avatar: serverUser.avatar || '🦊',
     bio: serverUser.bio || 'Hemi Testnet Card Champion',
-    address: serverUser.address ? serverUser.address.trim().toLowerCase() : undefined,
+    address: cleanAddr,
+    stats: serverUser.stats,
   };
 
   try {
-    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(profile));
-    if (profile.address) {
-      const cleanAddr = profile.address;
-      localStorage.setItem('uno_arcade_last_wallet_addr', cleanAddr);
-      localStorage.setItem(`${STORAGE_KEY_WALLET_PREFIX}${cleanAddr}`, JSON.stringify(profile));
-    }
+    localStorage.setItem(`${STORAGE_KEY_WALLET_PREFIX}${cleanAddr}`, JSON.stringify(profile));
+    localStorage.setItem('uno_arcade_last_wallet_addr', cleanAddr);
+    localStorage.removeItem(STORAGE_KEY_PROFILE);
   } catch (err) {
     console.warn('Failed to save synced account profile:', err);
   }

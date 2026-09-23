@@ -39,7 +39,7 @@ export interface LobbyViewProps {
   gameState: GameState | null;
   myPlayerId: string;
   wallet: WalletState;
-  account: AccountProfile;
+  account: AccountProfile | null;
   onUpdateProfile?: (name: string, avatar: string) => void;
   connectionStatus?: 'connected' | 'disconnected' | 'reconnecting' | 'offline';
   onConnectWallet: () => Promise<void>;
@@ -104,7 +104,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   isMusicOn = true,
   onToggleMusic,
 }) => {
-  const [playerName, setPlayerName] = useState(account?.name || '0xFat8');
+  const [playerName, setPlayerName] = useState(
+    account?.name || (wallet.address ? formatAddress(wallet.address) : '')
+  );
   const [selectedAvatar, setSelectedAvatar] = useState(account?.avatar || '🦊');
   const [joinCodeInput, setJoinCodeInput] = useState('');
   const [copiedAddress, setCopiedAddress] = useState(false);
@@ -112,13 +114,19 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [sortOption, setSortOption] = useState<'popular' | 'players' | 'fastest'>('popular');
 
   useEffect(() => {
-    if (account?.name) setPlayerName(account.name);
+    if (account?.name) {
+      setPlayerName(account.name);
+    } else if (wallet.address) {
+      setPlayerName(formatAddress(wallet.address));
+    } else {
+      setPlayerName('');
+    }
     if (account?.avatar) setSelectedAvatar(account.avatar);
-  }, [account?.name, account?.avatar]);
+  }, [account?.name, account?.avatar, wallet.address]);
 
   const handleAvatarSelect = (newAvatar: string) => {
     setSelectedAvatar(newAvatar);
-    if (onUpdateProfile) {
+    if (onUpdateProfile && playerName) {
       onUpdateProfile(playerName, newAvatar);
     }
   };
@@ -133,9 +141,31 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
   const handleJoinByCodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!wallet.address) {
+      onConnectWallet();
+      return;
+    }
     const cleanCode = joinCodeInput.trim().toUpperCase();
     if (cleanCode.length >= 4) {
-      onJoinRoom(cleanCode, playerName, selectedAvatar, wallet.address || undefined);
+      onJoinRoom(cleanCode, playerName || formatAddress(wallet.address), selectedAvatar, wallet.address);
+    }
+  };
+
+  const handleJoinTable = (code: string) => {
+    if (!wallet.address) {
+      onConnectWallet();
+      return;
+    }
+    onJoinRoom(code, playerName || formatAddress(wallet.address), selectedAvatar, wallet.address);
+  };
+
+  const handleCreateTableClick = () => {
+    if (!wallet.address) {
+      onConnectWallet();
+      return;
+    }
+    if (onOpenCreateTable) {
+      onOpenCreateTable();
     }
   };
 
@@ -210,9 +240,16 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   // VIEW: WAITING ROOM LOBBY (when in a game)
   // ==========================================
   if (gameState && gameState.status === 'lobby') {
-    const isHost = gameState.hostId === myPlayerId;
-    const isSpectator = !gameState.players.some((p) => p.id === myPlayerId);
-    const myPlayer = gameState.players.find((p) => p.id === myPlayerId);
+    const isWalletConnected = !!wallet.address;
+    const isHost = isWalletConnected && gameState.hostId === myPlayerId;
+    const myPlayer = isWalletConnected
+      ? gameState.players.find(
+          (p) =>
+            p.id === myPlayerId ||
+            (p.address && wallet.address && p.address.toLowerCase() === wallet.address.toLowerCase())
+        )
+      : undefined;
+    const isSpectator = !myPlayer;
     const playerCount = gameState.players.length;
     const isQuickMatch = !!gameState.isQuickMatch;
     const canStart =
@@ -228,6 +265,28 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
     return (
       <div className="w-full max-w-2xl mx-auto p-4 sm:p-6 bg-[#0E1217]/95 border border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl backdrop-blur-md animate-in fade-in duration-200">
+        {/* Wallet Not Connected Notice in Waiting Room */}
+        {!isWalletConnected && (
+          <div className="mb-4 sm:mb-5 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </div>
+              <div>
+                <div className="text-[11px] sm:text-xs font-black text-white">Wallet Not Connected</div>
+                <div className="text-[10px] sm:text-[11px] text-amber-200/80">
+                  Connect your Web3 wallet to claim a player seat or start matches.
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={onConnectWallet}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white text-[10px] sm:text-xs font-bold shrink-0 transition-all cursor-pointer shadow-md"
+            >
+              Connect
+            </button>
+          </div>
+        )}
         {/* Spectator Notice */}
         {isSpectator && (
           <div className="mb-4 sm:mb-5 p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#FF4600]/10 border border-[#FF4600]/40 flex items-center justify-between gap-2 sm:gap-3">
@@ -442,7 +501,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
           <div className="grid grid-cols-1 gap-2 sm:gap-2.5">
             {gameState.players.map((p) => {
-              const isMe = p.id === myPlayerId;
+              const isMe =
+                isWalletConnected &&
+                (p.id === myPlayerId ||
+                  (!!p.address && !!wallet.address && p.address.toLowerCase() === wallet.address.toLowerCase()));
               return (
                 <div
                   key={p.id}
@@ -927,7 +989,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     </div>
 
                     <button
-                      onClick={() => onJoinRoom(table.code, playerName, selectedAvatar, wallet.address || undefined)}
+                      onClick={() => handleJoinTable(table.code)}
                       className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all shadow-md shadow-[#FF4600]/20 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
                     >
                       <span>Join</span>
@@ -944,34 +1006,52 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         {/* RIGHT COLUMN: Profile Card, Create, Join Code, Social     */}
         {/* ========================================================= */}
         <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3 sm:gap-4">
-          {/* User Profile Card */}
-          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden">
-            <div className="flex flex-col items-center text-center">
-              {/* Avatar */}
-              <div className="relative mb-2 sm:mb-3">
-                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-[#FF4600]/20">
-                  {selectedAvatar}
+          {/* User Profile Card / Connect Wallet Card */}
+          {!wallet.address || !account ? (
+            <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden text-center">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#FF4600]/20 to-[#FF8000]/10 border border-[#FF4600]/30 flex items-center justify-center mx-auto mb-3 text-[#FF5500] shadow-lg shadow-[#FF4600]/10">
+                <Shield className="w-7 h-7 sm:w-8 sm:h-8" />
+              </div>
+              <h3 className="text-sm sm:text-base font-black text-white mb-1">Web3 Profile</h3>
+              <p className="text-[11px] sm:text-xs text-slate-400 mb-4 leading-relaxed">
+                Connect your wallet to unlock your player profile, custom avatar, match history, and join game tables.
+              </p>
+              <button
+                type="button"
+                onClick={onConnectWallet}
+                className="w-full py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-lg shadow-[#FF4600]/25 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span>Connect Wallet</span>
+              </button>
+            </div>
+          ) : (
+            <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden">
+              <div className="flex flex-col items-center text-center">
+                {/* Avatar */}
+                <div className="relative mb-2 sm:mb-3">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-[#FF4600]/20">
+                    {selectedAvatar}
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-md">
+                    👑
+                  </div>
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-md">
-                  👑
+
+                <h3 className="text-base sm:text-lg font-black text-white">{playerName}</h3>
+
+                <div className="text-[10px] sm:text-xs font-mono text-slate-400 mt-0.5 mb-1.5 sm:mb-2">
+                  Level {playerLevel} • {playerXP} XP
                 </div>
-              </div>
 
-              <h3 className="text-base sm:text-lg font-black text-white">{playerName}</h3>
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-emerald-400 font-medium mb-2 sm:mb-3">
+                  <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Wallet Connected</span>
+                </div>
 
-              <div className="text-[10px] sm:text-xs font-mono text-slate-400 mt-0.5 mb-1.5 sm:mb-2">
-                Level {playerLevel} • {playerXP} XP
-              </div>
-
-              <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-emerald-400 font-medium mb-2 sm:mb-3">
-                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Wallet Connected</span>
-              </div>
-
-              {wallet.address && (
                 <button
                   onClick={handleCopyWalletAddress}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-[10px] sm:text-xs font-mono transition-all mb-3 sm:mb-4"
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-[10px] sm:text-xs font-mono transition-all mb-3 sm:mb-4 cursor-pointer"
                   title="Copy address"
                 >
                   <span>{formatAddress(wallet.address)}</span>
@@ -981,47 +1061,47 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     <Copy className="w-3 h-3 text-slate-400" />
                   )}
                 </button>
-              )}
 
-              {/* Avatar Selector Row */}
-              <div className="w-full pt-2.5 sm:pt-3 border-t border-slate-800/80">
-                <div className="text-[9px] sm:text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 text-left">
-                  Choose Avatar
-                </div>
-                <div className="flex items-center justify-between gap-1">
-                  {AVATARS.slice(0, 5).map((emoji) => {
-                    const active = selectedAvatar === emoji;
-                    return (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => handleAvatarSelect(emoji)}
-                        className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center text-base sm:text-lg transition-all ${
-                          active
-                            ? 'bg-[#FF4600]/20 border-2 border-[#FF4600] scale-105'
-                            : 'bg-slate-900 border border-slate-800 hover:border-slate-700'
-                        }`}
-                      >
-                        {emoji}
-                      </button>
-                    );
-                  })}
-                  <button
-                    type="button"
-                    onClick={onOpenProfile}
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all"
-                    title="More Avatars & Profile Settings"
-                  >
-                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </button>
+                {/* Avatar Selector Row */}
+                <div className="w-full pt-2.5 sm:pt-3 border-t border-slate-800/80">
+                  <div className="text-[9px] sm:text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 text-left">
+                    Choose Avatar
+                  </div>
+                  <div className="flex items-center justify-between gap-1">
+                    {AVATARS.slice(0, 5).map((emoji) => {
+                      const active = selectedAvatar === emoji;
+                      return (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => handleAvatarSelect(emoji)}
+                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center text-base sm:text-lg transition-all cursor-pointer ${
+                            active
+                              ? 'bg-[#FF4600]/20 border-2 border-[#FF4600] scale-105'
+                              : 'bg-slate-900 border border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={onOpenProfile}
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
+                      title="More Avatars & Profile Settings"
+                    >
+                      <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Create Table Card */}
           <div
-            onClick={onOpenCreateTable}
+            onClick={handleCreateTableClick}
             className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] text-white shadow-xl shadow-[#FF4600]/25 transition-all hover:brightness-105 active:scale-98 cursor-pointer flex items-center justify-between"
           >
             <div className="flex items-start gap-3">
