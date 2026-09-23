@@ -19,13 +19,18 @@ import { GameInviteToast } from './components/GameInviteToast';
 import { HemiUnoLogo } from './components/HemiUnoLogo';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { CreateTableModal } from './components/CreateTableModal';
+import { ConnectWalletModal } from './components/ConnectWalletModal';
 import {
   WalletState,
   getInjectedProvider,
+  getActiveProvider,
   switchOrAddHemiNetwork,
   fetchEthBalance,
   isHemiChain,
   HEMI_SEPOLIA_CONFIG,
+  DiscoveredWallet,
+  connectWalletProvider,
+  clearActiveProvider,
 } from './utils/wallet';
 import {
   getOrCreateAccountProfile,
@@ -284,6 +289,9 @@ export default function App() {
     error: null,
     walletName: null,
   });
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [connectingWalletId, setConnectingWalletId] = useState<string | null>(null);
+  const [walletModalError, setWalletModalError] = useState<string | null>(null);
 
   // Load database-authoritative profile for connected wallet address
   // Ensures username, avatar, bio, stats, and friends are linked to the wallet and consistent across tabs
@@ -440,40 +448,25 @@ export default function App() {
   }, []);
 
   const handleConnectWallet = async () => {
-    const provider = getInjectedProvider();
-    if (!provider || !provider.request) {
-      setWallet((prev) => ({
-        ...prev,
-        isConnecting: false,
-        error: 'No Web3 wallet extension found. Please install MetaMask, Rabby, or OKX.',
-      }));
+    setWalletModalError(null);
+    setIsWalletModalOpen(true);
+  };
+
+  const handleSelectWallet = async (selected: DiscoveredWallet) => {
+    if (!selected.provider) {
+      if (selected.installUrl) {
+        window.open(selected.installUrl, '_blank', 'noopener,noreferrer');
+      }
       return;
     }
 
+    setConnectingWalletId(selected.id);
+    setWalletModalError(null);
     setWallet((prev) => ({ ...prev, isConnecting: true, error: null }));
+
     try {
-      const accounts: string[] = await provider.request({ method: 'eth_requestAccounts' });
-      if (!accounts || accounts.length === 0) {
-        throw new Error('No account authorized');
-      }
-
-      // Check current chain ID
-      const chainIdHex: string = await provider.request({ method: 'eth_chainId' });
-      let chainIdDec = parseInt(chainIdHex, 16);
-
-      // If not on Hemi (Sepolia 743111 or Mainnet 43111), prompt to switch to Hemi Sepolia
-      if (!isHemiChain(chainIdDec)) {
-        try {
-          await switchOrAddHemiNetwork(provider, HEMI_SEPOLIA_CONFIG);
-          const updatedChainHex: string = await provider.request({ method: 'eth_chainId' });
-          chainIdDec = parseInt(updatedChainHex, 16);
-        } catch (switchErr) {
-          console.warn('Network switch deferred by user:', switchErr);
-        }
-      }
-
-      const balFormatted = await fetchEthBalance(provider, accounts[0]);
-      const cleanAddr = accounts[0].trim().toLowerCase();
+      const res = await connectWalletProvider(selected.provider, selected.name, selected.id);
+      const cleanAddr = res.address.trim().toLowerCase();
       const profile = getOrCreateAccountProfile(cleanAddr);
       if (profile) {
         setAccount(profile);
@@ -481,24 +474,63 @@ export default function App() {
       saveLastConnectedWallet(cleanAddr);
 
       setWallet({
-        address: accounts[0],
-        chainId: chainIdDec,
-        balance: balFormatted,
+        address: res.address,
+        chainId: res.chainId,
+        balance: res.balance,
         isConnecting: false,
         error: null,
-        walletName: 'Web3 Wallet',
+        walletName: selected.name,
       });
+
+      // Bind accounts/chain change listeners to this specific provider
+      if (selected.provider.on) {
+        selected.provider.on('accountsChanged', (accounts: string[]) => {
+          if (!accounts || accounts.length === 0) {
+            handleDisconnectWallet();
+          } else {
+            const clean = accounts[0].trim().toLowerCase();
+            const p = getOrCreateAccountProfile(clean);
+            if (p) setAccount(p);
+            saveLastConnectedWallet(clean);
+            fetchEthBalance(selected.provider, accounts[0]).then((bal) => {
+              setWallet((prev) => ({ ...prev, address: accounts[0], balance: bal }));
+            });
+          }
+        });
+        selected.provider.on('chainChanged', (chainIdHex: string) => {
+          const chainIdDec = parseInt(chainIdHex, 16);
+          setWallet((prev) => {
+            if (prev.address) {
+              fetchEthBalance(selected.provider, prev.address).then((bal) => {
+                setWallet((p) => ({ ...p, balance: bal }));
+              });
+            }
+            return { ...prev, chainId: chainIdDec };
+          });
+        });
+      }
+
       soundEngine.play('card_deal');
+      setIsWalletModalOpen(false);
     } catch (err: any) {
+      console.warn('Wallet connection error:', err);
+      const msg =
+        err?.code === 4001 || String(err?.message || '').toLowerCase().includes('reject')
+          ? 'Connection rejected in your wallet. Please approve to connect.'
+          : err?.message || 'Failed to connect wallet';
+      setWalletModalError(msg);
       setWallet((prev) => ({
         ...prev,
         isConnecting: false,
-        error: err.message || 'Failed to connect wallet',
+        error: msg,
       }));
+    } finally {
+      setConnectingWalletId(null);
     }
   };
 
   const handleDisconnectWallet = () => {
+    clearActiveProvider();
     setWallet({
       address: null,
       chainId: null,
@@ -2213,6 +2245,20 @@ export default function App() {
           onLeaveRoom={handleLeaveRoom}
         />
       )}
+
+      {/* Connect Web3 Wallet Discovery Modal */}
+      <ConnectWalletModal
+        isOpen={isWalletModalOpen}
+        onClose={() => {
+          setIsWalletModalOpen(false);
+          setConnectingWalletId(null);
+          setWalletModalError(null);
+        }}
+        onSelectWallet={handleSelectWallet}
+        connectingWalletId={connectingWalletId}
+        error={walletModalError}
+        onClearError={() => setWalletModalError(null)}
+      />
     </div>
   );
 }
