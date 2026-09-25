@@ -49,7 +49,8 @@ export class RoomManager {
             winner.id,
             players.filter(p => !p.isBot).map(p => p.id),
             pot,
-            cardsPlayedMap
+            cardsPlayedMap,
+            room.roomCode
           );
         }
       );
@@ -166,7 +167,8 @@ export class RoomManager {
           winner.id,
           players.filter(p => !p.isBot).map(p => p.id),
           pot,
-          cardsPlayedMap
+          cardsPlayedMap,
+          room.roomCode
         );
       }
     );

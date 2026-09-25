@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { GameState, Card, CardColor, FloatingEmote, ChatMessage, PublicRoomSummary, GameInviteEvent } from './types';
+import { GameState, Card, CardColor, FloatingEmote, ChatMessage, PublicRoomSummary, GameInviteEvent, EnrichedFriend } from './types';
 import { soundEngine } from './utils/audio';
 import { CardComponent } from './components/CardComponent';
 import { OpponentSeat } from './components/OpponentSeat';
@@ -585,7 +585,8 @@ export default function App() {
   // New UI Navigation & Dialog States
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [isCreateTableOpen, setIsCreateTableOpen] = useState(false);
-  const [liveStats, setLiveStats] = useState({ openTables: 12, playersOnline: 342, gamesPlayed: 8421 });
+  const [liveStats, setLiveStats] = useState({ openTables: 0, playersOnline: 0, gamesPlayed: 0 });
+  const [friendsList, setFriendsList] = useState<EnrichedFriend[]>([]);
 
   const refreshLiveStats = () => {
     fetch('/api/stats')
@@ -593,9 +594,9 @@ export default function App() {
       .then((data) => {
         if (data) {
           setLiveStats({
-            openTables: data.openTables || 12,
-            playersOnline: data.playersOnline || 342,
-            gamesPlayed: data.gamesPlayed || 8421,
+            openTables: typeof data.openTables === 'number' ? data.openTables : 0,
+            playersOnline: typeof data.playersOnline === 'number' ? data.playersOnline : 0,
+            gamesPlayed: typeof data.gamesPlayed === 'number' ? data.gamesPlayed : 0,
           });
         }
       })
@@ -628,15 +629,17 @@ export default function App() {
     if (!wallet.address || !account?.id) {
       setFriendCount(0);
       setOnlineFriendCount(0);
+      setFriendsList([]);
       return;
     }
     fetch(`/api/friends/${account.id}`)
       .then((res) => res.json())
       .then((data) => {
         if (data?.friends) {
+          setFriendsList(data.friends);
           setFriendCount(data.friends.length);
           const onlineCount = data.friends.filter(
-            (f: any) => f.presence === 'online' || f.presence === 'in_game'
+            (f: any) => f.status === 'online' || f.status === 'in_game'
           ).length;
           setOnlineFriendCount(onlineCount);
         }
@@ -1588,6 +1591,7 @@ export default function App() {
             }}
             friendCount={friendCount}
             onlineFriendCount={onlineFriendCount}
+            friendsList={friendsList}
             onSpectateRoom={handleSpectateRoom}
             onToggleReady={handleToggleReady}
             onAddBot={handleAddBot}

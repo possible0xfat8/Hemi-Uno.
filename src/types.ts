@@ -182,11 +182,13 @@ export interface UserProfileRecord {
 
 export interface EnrichedFriend {
   id: string;
+  tag?: string;
   name: string;
   avatar: string;
   bio?: string;
   address?: string;
   presence: 'online' | 'in_game' | 'offline';
+  status?: 'online' | 'in_game' | 'offline';
   currentRoomCode?: string | null;
   lastSeen: number;
   stats: UserGameStats;

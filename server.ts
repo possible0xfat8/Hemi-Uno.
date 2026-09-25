@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
@@ -5,6 +6,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { RoomManager } from './server/roomManager.js';
 import { serverDb } from './server/database.js';
+import { fetchLeaderboardFromSupabase } from './server/supabase.js';
 import { CardColor } from './src/types.js';
 
 async function startServer() {
@@ -52,18 +54,22 @@ async function startServer() {
     const publicRooms = roomManager.getPublicRooms();
     const openTables = publicRooms.length;
     // Calculate players currently online from server database and active rooms
-    const connectedSockets = io.engine.clientsCount || 1;
+    const connectedSockets = io.engine.clientsCount || 0;
     const dbUsers = serverDb.getAllUsers();
-    const activeInRooms = publicRooms.reduce((acc, r) => acc + r.playerCount, 0);
-    const playersOnline = Math.max(activeInRooms + connectedSockets, 12);
+    const now = Date.now();
+    const onlineDbUsers = dbUsers.filter(u => 
+      (u.status === 'online' || u.status === 'in_game') && (now - u.lastSeen < 5 * 60 * 1000)
+    ).length;
+    const playersOnline = Math.max(onlineDbUsers, connectedSockets);
     
-    // Calculate total games played
-    let gamesPlayed = 8421;
+    // Calculate total games played from authentic player stats
+    let totalMatchesSum = 0;
     for (const u of dbUsers) {
       if (u.stats?.matchesPlayed) {
-        gamesPlayed += u.stats.matchesPlayed;
+        totalMatchesSum += u.stats.matchesPlayed;
       }
     }
+    const gamesPlayed = Math.max(Math.floor(totalMatchesSum / 2), 0);
 
     res.json({
       openTables,
@@ -166,7 +172,15 @@ async function startServer() {
     res.json({ players: suggested });
   });
 
-  app.get('/api/leaderboard', (req, res) => {
+  app.get('/api/leaderboard', async (req, res) => {
+    try {
+      const remote = await fetchLeaderboardFromSupabase(15);
+      if (remote && remote.length > 0) {
+        return res.json({ leaderboard: remote });
+      }
+    } catch {
+      // Fall back to serverDb if network error
+    }
     const leaderboard = serverDb.getLeaderboard(15);
     res.json({ leaderboard });
   });

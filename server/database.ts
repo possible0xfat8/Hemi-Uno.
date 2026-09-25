@@ -1,5 +1,17 @@
 import fs from 'fs';
 import path from 'path';
+import {
+  isSupabaseConfigured,
+  loadInitialDataFromSupabase,
+  syncProfileToSupabase,
+  syncPresenceToSupabase,
+  syncFriendRelationshipToSupabase,
+  removeFriendRelationshipFromSupabase,
+  syncFriendRequestToSupabase,
+  syncRecentOpponentsToSupabase,
+  syncRecentRoomToSupabase,
+  syncMatchHistoryToSupabase,
+} from './supabase.js';
 
 export interface UserStats {
   matchesPlayed: number;
@@ -34,6 +46,7 @@ export interface EnrichedFriend {
   avatar: string;
   bio: string;
   status: 'online' | 'in_game' | 'offline';
+  presence: 'online' | 'in_game' | 'offline';
   currentRoomCode?: string | null;
   address?: string;
   stats: UserStats;
@@ -121,8 +134,63 @@ export class ServerDatabase {
       } else {
         this.saveSync();
       }
+      this.initSupabaseSync();
     } catch (err) {
       console.error('[Database] Failed to initialize persistent database:', err);
+    }
+  }
+
+  private async initSupabaseSync(): Promise<void> {
+    if (!isSupabaseConfigured()) return;
+
+    try {
+      const remoteData = await loadInitialDataFromSupabase();
+      if (!remoteData) return;
+
+      let remoteLoaded = 0;
+      for (const [id, remoteUser] of Object.entries(remoteData.users)) {
+        const localUser = this.data.users[id];
+        if (!localUser) {
+          this.data.users[id] = remoteUser;
+          remoteLoaded++;
+        } else {
+          if (remoteUser.updatedAt > localUser.updatedAt) {
+            this.data.users[id] = {
+              ...localUser,
+              ...remoteUser,
+              stats: {
+                matchesPlayed: Math.max(localUser.stats.matchesPlayed || 0, remoteUser.stats?.matchesPlayed || 0),
+                wins: Math.max(localUser.stats.wins || 0, remoteUser.stats?.wins || 0),
+                cardsPlayed: Math.max(localUser.stats.cardsPlayed || 0, remoteUser.stats?.cardsPlayed || 0),
+                totalWinnings: parseFloat(remoteUser.stats?.totalWinnings || '0') > parseFloat(localUser.stats?.totalWinnings || '0')
+                  ? remoteUser.stats.totalWinnings
+                  : localUser.stats.totalWinnings,
+              },
+              friends: Array.from(new Set([...(localUser.friends || []), ...(remoteUser.friends || [])])),
+              friendRequestsSent: Array.from(new Set([...(localUser.friendRequestsSent || []), ...(remoteUser.friendRequestsSent || [])])),
+              friendRequestsReceived: Array.from(new Set([...(localUser.friendRequestsReceived || []), ...(remoteUser.friendRequestsReceived || [])])),
+            };
+          }
+        }
+      }
+
+      for (const [code, room] of Object.entries(remoteData.recentRooms)) {
+        if (!this.data.recentRooms[code]) {
+          this.data.recentRooms[code] = room;
+        }
+      }
+
+      this.saveSync();
+      console.log(`[Supabase] Synchronized with remote database. Synced ${remoteLoaded} new records.`);
+
+      // Push local records that are missing in Supabase
+      for (const localUser of Object.values(this.data.users)) {
+        if (!remoteData.users[localUser.id]) {
+          syncProfileToSupabase(localUser);
+        }
+      }
+    } catch (err) {
+      console.warn('[Supabase] Initial sync failed:', err);
     }
   }
 
@@ -192,6 +260,7 @@ export class ServerDatabase {
         this.data.users[canonicalId] = existing;
         this.save();
       }
+      syncProfileToSupabase(existing);
       return existing;
     }
 
@@ -230,6 +299,7 @@ export class ServerDatabase {
 
     this.data.users[canonicalId] = newUser;
     this.save();
+    syncProfileToSupabase(newUser);
     return newUser;
   }
 
@@ -280,6 +350,7 @@ export class ServerDatabase {
 
     this.data.users[id] = newUser;
     this.save();
+    syncProfileToSupabase(newUser);
     return newUser;
   }
 
@@ -367,6 +438,7 @@ export class ServerDatabase {
     user.updatedAt = Date.now();
     user.lastSeen = Date.now();
     this.save();
+    syncProfileToSupabase(user);
     return user;
   }
 
@@ -377,6 +449,7 @@ export class ServerDatabase {
     user.currentRoomCode = roomCode !== undefined ? roomCode : user.currentRoomCode;
     user.lastSeen = Date.now();
     this.save();
+    syncPresenceToSupabase(id, status, user.currentRoomCode);
   }
 
   public getEnrichedFriends(userId: string): EnrichedFriend[] {
@@ -398,6 +471,7 @@ export class ServerDatabase {
           avatar: f.avatar,
           bio: f.bio,
           status: currentStatus,
+          presence: currentStatus,
           currentRoomCode: isRecentlyActive ? f.currentRoomCode : null,
           address: f.address,
           stats: f.stats,
@@ -443,6 +517,7 @@ export class ServerDatabase {
     }
 
     this.save();
+    syncFriendRequestToSupabase(fromUserId, targetUser.id, 'pending');
     return { success: true, friend: targetUser };
   }
 
@@ -467,6 +542,8 @@ export class ServerDatabase {
     }
 
     this.save();
+    syncFriendRequestToSupabase(requesterId, userId, 'accepted');
+    syncFriendRelationshipToSupabase(userId, requesterId);
     return { success: true, friend: requester };
   }
 
@@ -482,6 +559,7 @@ export class ServerDatabase {
     }
 
     this.save();
+    syncFriendRequestToSupabase(requesterId, userId, 'declined');
     return { success: true };
   }
 
@@ -497,6 +575,7 @@ export class ServerDatabase {
     }
 
     this.save();
+    removeFriendRelationshipFromSupabase(userId, friendId);
     return { success: true };
   }
 
@@ -504,7 +583,8 @@ export class ServerDatabase {
     winnerId: string,
     playerIds: string[],
     potAmount: string,
-    cardsPlayedMap: Record<string, number>
+    cardsPlayedMap: Record<string, number>,
+    roomCode?: string
   ): void {
     const potNum = parseFloat(potAmount) || 0;
 
@@ -541,6 +621,20 @@ export class ServerDatabase {
     }
 
     this.save();
+
+    // Replicate asynchronously to Supabase
+    const effectiveRoomCode = roomCode || `uno_${Date.now()}`;
+    syncMatchHistoryToSupabase(effectiveRoomCode, winnerId, playerIds, potAmount, cardsPlayedMap);
+    for (const pid of playerIds) {
+      const u = this.data.users[pid];
+      if (u) {
+        syncProfileToSupabase(u);
+        const oppIds = playerIds.filter(id => id !== pid);
+        if (oppIds.length > 0) {
+          syncRecentOpponentsToSupabase(pid, oppIds);
+        }
+      }
+    }
   }
 
   public getSuggestedPlayers(excludeUserId: string): UserProfileRecord[] {
@@ -566,7 +660,7 @@ export class ServerDatabase {
   }
 
   public saveRecentRoom(roomCode: string, info: { hostName: string; hostAvatar: string; buyIn: string; status: 'lobby' | 'playing' | 'game_over' }): void {
-    this.data.recentRooms[roomCode] = {
+    const roomRecord = {
       roomCode,
       hostName: info.hostName,
       hostAvatar: info.hostAvatar,
@@ -574,7 +668,9 @@ export class ServerDatabase {
       createdAt: Date.now(),
       status: info.status,
     };
+    this.data.recentRooms[roomCode] = roomRecord;
     this.save();
+    syncRecentRoomToSupabase(roomCode, roomRecord);
   }
 }
 

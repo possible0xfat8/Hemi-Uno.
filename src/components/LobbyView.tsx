@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameState, PublicRoomSummary } from '../types';
+import { GameState, PublicRoomSummary, EnrichedFriend } from '../types';
 import { WalletState, formatAddress } from '../utils/wallet';
 import { AccountProfile } from '../utils/account';
 import { HemiUnoLogo } from './HemiUnoLogo';
@@ -52,6 +52,7 @@ export interface LobbyViewProps {
   onOpenFriends: () => void;
   friendCount?: number;
   onlineFriendCount?: number;
+  friendsList?: EnrichedFriend[];
   onSpectateRoom: (roomCode: string, spectatorName: string, avatar: string) => void;
   onToggleReady: () => void;
   onAddBot: () => void;
@@ -88,6 +89,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   onOpenFriends,
   friendCount = 0,
   onlineFriendCount = 0,
+  friendsList = [],
   onSpectateRoom,
   onToggleReady,
   onAddBot,
@@ -102,7 +104,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   onOpenLeaderboard,
   onOpenRules,
   onOpenCreateTable,
-  liveStats = { openTables: 12, playersOnline: 342, gamesPlayed: 8421 },
+  liveStats = { openTables: 0, playersOnline: 0, gamesPlayed: 0 },
   isMusicOn = true,
   onToggleMusic,
 }) => {
@@ -250,66 +252,20 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const playerLevel = Math.floor(matchesCount / 3) + 1;
   const playerXP = winsCount * 10 + matchesCount * 2;
 
-  // Real or default online friends display
-  const defaultOnlineFriends = [
-    { name: 'Press.g', avatar: '🦁' },
-    { name: 'Matt.g', avatar: '🤖' },
-    { name: 'Axuer', avatar: '🐻' },
-    { name: 'Zyro', avatar: '🐱' },
-    { name: 'Tobz', avatar: '🦊' },
-  ];
+  // Real online friends from database
+  const onlineFriends = friendsList.filter(
+    (f) => f.status === 'online' || f.status === 'in_game'
+  );
 
-  // Default tables if live rooms are empty
-  const defaultTables = [
-    {
-      code: 'CLSC',
-      mode: 'Classic',
-      desc: 'The original. 2-4 players.',
-      players: '3/4',
-      buyIn: 'Free',
-      hostName: 'LumiBear',
-      hostAvatar: '🐻',
-    },
-    {
-      code: 'STCK',
-      mode: 'Stacked Draw',
-      desc: 'Stack it. Survive it.',
-      players: '2/4',
-      buyIn: 'Free',
-      hostName: 'NeoDash',
-      hostAvatar: '🤖',
-    },
-    {
-      code: 'TEAM',
-      mode: '2v2 Team',
-      desc: 'Team up. Take over.',
-      players: '3/4',
-      buyIn: 'Free',
-      hostName: 'Zyro',
-      hostAvatar: '🦊',
-    },
-    {
-      code: 'FAST',
-      mode: 'Speed Uno',
-      desc: 'Fast rounds, less waiting.',
-      players: '2/4',
-      buyIn: 'Free',
-      hostName: 'Tobz',
-      hostAvatar: '🐱',
-    },
-  ];
-
-  const displayTables = liveRooms.length > 0
-    ? liveRooms.map(r => ({
-        code: r.roomCode,
-        mode: r.mode || 'Classic',
-        desc: r.description || 'The original. 2-4 players.',
-        players: `${r.playerCount}/${r.maxPlayers || 4}`,
-        buyIn: r.escrowPot?.buyInAmount && parseFloat(r.escrowPot.buyInAmount) > 0 ? `${r.escrowPot.buyInAmount} ETH` : 'Free',
-        hostName: r.hostName || r.players[0]?.name || 'Host',
-        hostAvatar: r.hostAvatar || r.players[0]?.avatar || '🦊',
-      }))
-    : defaultTables;
+  const displayTables = liveRooms.map(r => ({
+    code: r.roomCode,
+    mode: r.mode || 'Classic',
+    desc: r.description || 'The original. 2-5 players.',
+    players: `${r.playerCount}/${r.maxPlayers || 5}`,
+    buyIn: r.escrowPot?.buyInAmount && parseFloat(r.escrowPot.buyInAmount) > 0 ? `${r.escrowPot.buyInAmount} ETH` : 'Free',
+    hostName: r.hostName || r.players[0]?.name || 'Host',
+    hostAvatar: r.hostAvatar || r.players[0]?.avatar || '🦊',
+  }));
 
   // ==========================================
   // VIEW: WAITING ROOM LOBBY (when in a game)
@@ -851,11 +807,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 onSpectateRoom(displayTables[0].code, playerName, selectedAvatar);
               }
             }}
-            className="mt-2 p-3.5 rounded-2xl bg-[#111620] border border-slate-800 hover:border-[#FF4600]/40 transition-all cursor-pointer group"
+            className={`mt-2 p-3.5 rounded-2xl bg-[#111620] border transition-all ${
+              displayTables.length > 0 ? 'border-slate-800 hover:border-[#FF4600]/40 cursor-pointer' : 'border-slate-900 opacity-60 cursor-default'
+            } group`}
           >
             <div className="flex items-center justify-between mb-1.5">
               <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-red-400">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className={`w-2 h-2 rounded-full ${displayTables.length > 0 ? 'bg-red-500 animate-pulse' : 'bg-slate-600'}`} />
                 LIVE
               </span>
               <Eye className="w-4 h-4 text-slate-400 group-hover:text-[#FF4600] transition-colors" />
@@ -864,7 +822,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               Spectate Games
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              Watch real-time matches
+              {displayTables.length > 0 ? `${displayTables.length} active match${displayTables.length > 1 ? 'es' : ''}` : 'No active matches'}
             </div>
           </div>
 
@@ -1101,7 +1059,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     OPEN TABLES
                   </div>
                   <div className="text-base sm:text-xl font-black text-white font-mono">
-                    {liveStats.openTables || displayTables.length}
+                    {liveStats.openTables ?? displayTables.length}
                   </div>
                 </div>
               </div>
@@ -1176,54 +1134,80 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
             {/* Table List */}
             <div className="space-y-2 sm:space-y-2.5">
-              {displayTables.map((table) => (
-                <div
-                  key={table.code}
-                  className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-all group"
-                >
-                  {/* Top: Mode info */}
-                  <div className="flex items-center gap-3 mb-2 sm:mb-0">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-base sm:text-lg shrink-0">
-                      {table.mode === 'Stacked Draw' ? '⚡' : table.mode === '2v2 Team' ? '👥' : table.mode === 'Quick Match' ? '⏱️' : '🎴'}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-black text-white">{table.mode}</span>
-                        <span className="text-[9px] sm:text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                          • Public
-                        </span>
-                      </div>
-                      <div className="text-[10px] sm:text-xs text-slate-400 truncate">{table.desc}</div>
-                    </div>
+              {displayTables.length === 0 ? (
+                <div className="py-8 sm:py-10 text-center flex flex-col items-center justify-center gap-2.5 bg-slate-900/40 rounded-2xl border border-slate-800/60 p-4">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
+                    <Gamepad2 className="w-6 h-6 text-slate-500" />
                   </div>
-
-                  {/* Bottom: Badges + Join */}
-                  <div className="flex items-center justify-between gap-2 mt-2 sm:mt-0 sm:pl-12">
-                    <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs font-mono text-slate-400 flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <Users className="w-3 h-3 text-slate-500" />
-                        <span>{table.players}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-500">💼</span>
-                        <span>{table.buyIn}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-slate-300">
-                        <span className="text-sm">{table.hostAvatar}</span>
-                        <span className="truncate max-w-[60px] sm:max-w-[80px]">{table.hostName}</span>
-                      </div>
-                    </div>
-
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-slate-200">No public tables open right now</p>
+                    <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">Click Quick Play to start matching or create your own custom table!</p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
                     <button
-                      onClick={() => handleJoinTable(table.code)}
-                      className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all shadow-md shadow-[#FF4600]/20 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
+                      onClick={handleQuickJoinClick}
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-bold text-xs transition-all active:scale-95 shadow-md shadow-[#FF4600]/20 cursor-pointer"
                     >
-                      <span>Join</span>
-                      <ChevronRight className="w-3 h-3" />
+                      Quick Play
+                    </button>
+                    <button
+                      onClick={handleCreateTableClick}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-all active:scale-95 cursor-pointer border border-slate-700"
+                    >
+                      + Create Table
                     </button>
                   </div>
                 </div>
-              ))}
+              ) : (
+                displayTables.map((table) => (
+                  <div
+                    key={table.code}
+                    className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-all group"
+                  >
+                    {/* Top: Mode info */}
+                    <div className="flex items-center gap-3 mb-2 sm:mb-0">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-base sm:text-lg shrink-0">
+                        {table.mode === 'Stacked Draw' ? '⚡' : table.mode === '2v2 Team' ? '👥' : table.mode === 'Quick Match' ? '⏱️' : '🎴'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs sm:text-sm font-black text-white">{table.mode}</span>
+                          <span className="text-[9px] sm:text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                            • Public
+                          </span>
+                        </div>
+                        <div className="text-[10px] sm:text-xs text-slate-400 truncate">{table.desc}</div>
+                      </div>
+                    </div>
+
+                    {/* Bottom: Badges + Join */}
+                    <div className="flex items-center justify-between gap-2 mt-2 sm:mt-0 sm:pl-12">
+                      <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs font-mono text-slate-400 flex-wrap">
+                        <div className="flex items-center gap-1">
+                          <Users className="w-3 h-3 text-slate-500" />
+                          <span>{table.players}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-500">💼</span>
+                          <span>{table.buyIn}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-300">
+                          <span className="text-sm">{table.hostAvatar}</span>
+                          <span className="truncate max-w-[60px] sm:max-w-[80px]">{table.hostName}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleJoinTable(table.code)}
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all shadow-md shadow-[#FF4600]/20 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
+                      >
+                        <span>Join</span>
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -1499,23 +1483,27 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 onSpectateRoom(displayTables[0].code, playerName, selectedAvatar);
               }
             }}
-            className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl hover:border-slate-700 transition-all cursor-pointer group"
+            className={`p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[#0E1218] border transition-all ${
+              displayTables.length > 0 ? 'border-slate-800/90 shadow-xl hover:border-slate-700 cursor-pointer' : 'border-slate-800/50 opacity-70 cursor-default'
+            } group`}
           >
             <div className="flex items-center justify-between mb-1">
               <span className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono font-bold text-red-400">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className={`w-2 h-2 rounded-full ${displayTables.length > 0 ? 'bg-red-500 animate-pulse' : 'bg-slate-600'}`} />
                 LIVE
               </span>
-              <button className="px-2 py-0.5 sm:py-1 rounded-lg bg-slate-900 border border-slate-800 group-hover:border-[#FF4600]/40 text-[10px] sm:text-xs font-bold text-slate-300 group-hover:text-white flex items-center gap-1 transition-all">
-                <Eye className="w-3 h-3 text-[#FF4600]" />
-                <span>Spectate</span>
-              </button>
+              {displayTables.length > 0 && (
+                <button className="px-2 py-0.5 sm:py-1 rounded-lg bg-slate-900 border border-slate-800 group-hover:border-[#FF4600]/40 text-[10px] sm:text-xs font-bold text-slate-300 group-hover:text-white flex items-center gap-1 transition-all">
+                  <Eye className="w-3 h-3 text-[#FF4600]" />
+                  <span>Spectate</span>
+                </button>
+              )}
             </div>
             <div className="text-xs sm:text-sm font-black text-white group-hover:text-[#FF4600] transition-colors">
               Spectate Games
             </div>
             <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
-              Watch ongoing matches in real time.
+              {displayTables.length > 0 ? `Watch ${displayTables.length} ongoing match${displayTables.length > 1 ? 'es' : ''} in real time.` : 'No active matches currently.'}
             </p>
           </div>
 
@@ -1531,24 +1519,43 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center justify-between gap-1">
-              {defaultOnlineFriends.map((f, idx) => (
-                <div
-                  key={idx}
-                  onClick={onOpenFriends}
-                  className="flex flex-col items-center gap-0.5 sm:gap-1 cursor-pointer group"
-                >
-                  <div className="relative">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 border border-slate-800 group-hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-colors">
-                      {f.avatar}
+            <div className="pt-1">
+              {onlineFriends.length > 0 ? (
+                <div className="flex items-center justify-start gap-2 overflow-x-auto no-scrollbar py-1">
+                  {onlineFriends.slice(0, 5).map((f) => (
+                    <div
+                      key={f.id}
+                      onClick={onOpenFriends}
+                      className="flex flex-col items-center gap-0.5 sm:gap-1 cursor-pointer group shrink-0"
+                      title={`${f.name} (${f.status})`}
+                    >
+                      <div className="relative">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 border border-slate-800 group-hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-colors">
+                          {f.avatar}
+                        </div>
+                        <span className={`absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border-2 border-[#0E1218] ${f.status === 'in_game' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                      </div>
+                      <span className="text-[9px] sm:text-[10px] text-slate-300 font-medium truncate max-w-[48px]">
+                        {f.name}
+                      </span>
                     </div>
-                    <span className="absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 border-2 border-[#0E1218]" />
-                  </div>
-                  <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate max-w-[40px] sm:max-w-[48px]">
-                    {f.name}
-                  </span>
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="py-2.5 text-center">
+                  <p className="text-[11px] text-slate-400">
+                    {!wallet.address ? 'Connect wallet to see online friends' : 'No friends online right now'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onOpenFriends}
+                    className="mt-1.5 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] text-[#FF4600] hover:text-white font-bold transition-all inline-flex items-center gap-1 cursor-pointer"
+                  >
+                    <UserPlus className="w-3 h-3" />
+                    <span>Find & Add Friends</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
