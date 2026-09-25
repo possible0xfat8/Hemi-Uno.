@@ -2,6 +2,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import { GameRoom } from './gameEngine.js';
 import { CardColor, CardsDrawnEvent, CardPlayedEvent, ChatMessage, PublicRoomSummary, Player } from '../src/types.js';
 import { serverDb } from './database.js';
+import { settleMatchOnChain, getEscrowAddress } from './escrowService.js';
 
 export class RoomManager {
   private io: SocketIOServer;
@@ -45,13 +46,7 @@ export class RoomManager {
         (data: CardPlayedEvent) => this.io.to(room.roomId).emit('game:card_played', data),
         (msg: ChatMessage) => this.io.to(room.roomId).emit('chat:message', msg),
         (winner: Player, players: Player[], pot: string, cardsPlayedMap: Record<string, number>) => {
-          serverDb.recordGameFinished(
-            winner.id,
-            players.filter(p => !p.isBot).map(p => p.id),
-            pot,
-            cardsPlayedMap,
-            room.roomCode
-          );
+          this.handleGameOverSettlement(room, winner, players, pot, cardsPlayedMap);
         }
       );
 
@@ -73,6 +68,67 @@ export class RoomManager {
 
       this.rooms.set(roomId, room);
       this.codeToRoomId.set(t.code, roomId);
+    }
+  }
+
+  private handleGameOverSettlement(
+    room: GameRoom,
+    winner: Player,
+    players: Player[],
+    pot: string,
+    cardsPlayedMap: Record<string, number>
+  ): void {
+    serverDb.recordGameFinished(
+      winner.id,
+      players.filter(p => !p.isBot).map(p => p.id),
+      pot,
+      cardsPlayedMap,
+      room.roomCode
+    );
+
+    // If winner has an on-chain address, settle on Hemi Sepolia
+    if (winner && winner.address && winner.address.startsWith('0x')) {
+      const potNum = parseFloat(pot) || 0;
+      settleMatchOnChain(room.roomCode, winner.address, potNum)
+        .then(settleRes => {
+          if (settleRes.success) {
+            if (settleRes.txHash) {
+              room.settlementSignature = {
+                roomId: room.roomId,
+                winnerAddress: winner.address!,
+                potAmount: pot,
+                nonce: Date.now(),
+                timestamp: Date.now(),
+                signature: settleRes.txHash,
+                contractAddress: getEscrowAddress() || '0xbD42f75Fee8aD5Dd260DAbbC0520b5A0Efa1F060',
+                network: 'Hemi Sepolia (Chain ID 743111)',
+              };
+              this.broadcastRoomState(room);
+            }
+
+            // Emit live settlement event to room
+            this.io.to(room.roomId).emit('game:settlement', {
+              roomCode: room.roomCode,
+              winnerAddress: winner.address,
+              txHash: settleRes.txHash,
+              payout: settleRes.winnerPayout,
+              fee: settleRes.boardFee,
+            });
+
+            // Store notification in winner's profile
+            serverDb.addNotification(winner.id, {
+              type: 'match_won',
+              title: `🏆 Pot Won: ${pot} $CRAZY8!`,
+              message: `Victory in Room #${room.roomCode}! 95% payout (${settleRes.winnerPayout || pot} CRAZY8) credited to your Hemi wallet.`,
+              txHash: settleRes.txHash,
+              amount: pot,
+              roomCode: room.roomCode,
+            });
+          }
+        })
+        .catch(err => {
+          console.warn(`[RoomManager] Settlement error for ${room.roomCode}:`, err);
+        });
     }
   }
 
@@ -128,7 +184,7 @@ export class RoomManager {
     hostSocketId: string,
     playerName: string,
     avatar: string,
-    buyIn: string = '0.005',
+    buyIn: string = '100',
     address?: string
   ): GameRoom {
     this.clearDisconnectTimer(accountId);
@@ -153,7 +209,7 @@ export class RoomManager {
     const roomCode = this.generateRoomCode();
 
     const room = new GameRoom(roomId, roomCode, canonicalAccountId);
-    room.buyInAmount = buyIn || '0.005';
+    room.buyInAmount = buyIn || '100';
 
     room.setCallbacks(
       () => this.broadcastRoomState(room),
@@ -163,13 +219,7 @@ export class RoomManager {
       (data: CardPlayedEvent) => this.io.to(room.roomId).emit('game:card_played', data),
       (msg: ChatMessage) => this.io.to(room.roomId).emit('chat:message', msg),
       (winner: Player, players: Player[], pot: string, cardsPlayedMap: Record<string, number>) => {
-        serverDb.recordGameFinished(
-          winner.id,
-          players.filter(p => !p.isBot).map(p => p.id),
-          pot,
-          cardsPlayedMap,
-          room.roomCode
-        );
+        this.handleGameOverSettlement(room, winner, players, pot, cardsPlayedMap);
       }
     );
 

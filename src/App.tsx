@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { GameState, Card, CardColor, FloatingEmote, ChatMessage, PublicRoomSummary, GameInviteEvent, EnrichedFriend } from './types';
+import { GameState, Card, CardColor, FloatingEmote, ChatMessage, PublicRoomSummary, GameInviteEvent, EnrichedFriend, UserNotification } from './types';
 import { soundEngine } from './utils/audio';
 import { CardComponent } from './components/CardComponent';
 import { OpponentSeat } from './components/OpponentSeat';
@@ -21,6 +21,7 @@ import { LeaderboardModal } from './components/LeaderboardModal';
 import { CreateTableModal } from './components/CreateTableModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
 import { AirdropModal } from './components/AirdropModal';
+import { NotificationsModal } from './components/NotificationsModal';
 import { fetchTokenBalance, formatTokenAmount, CRAZY8_TOKEN_SYMBOL } from './utils/token';
 import {
   WalletState,
@@ -305,6 +306,54 @@ export default function App() {
   const [hasClaimedAirdrop, setHasClaimedAirdrop] = useState<boolean>(false);
   const [tokenLoading, setTokenLoading] = useState<boolean>(false);
 
+  // User Notifications state
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
+
+  const fetchNotifications = async (userId: string) => {
+    if (!userId) return;
+    try {
+      const res = await fetch(`/api/notifications/${userId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.notifications) {
+          setNotifications(data.notifications);
+        }
+      }
+    } catch (err) {
+      console.warn('[Notifications] Failed to fetch:', err);
+    }
+  };
+
+  const handleMarkNotificationRead = async (notificationId?: string) => {
+    if (!account?.id) return;
+    try {
+      await fetch(`/api/notifications/${account.id}/read`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId }),
+      });
+      setNotifications((prev) =>
+        prev.map((n) => (!notificationId || n.id === notificationId ? { ...n, read: true } : n))
+      );
+    } catch (err) {
+      console.warn('[Notifications] Error marking read:', err);
+    }
+  };
+
+  const handleClearNotifications = async () => {
+    if (!account?.id) return;
+    try {
+      await fetch(`/api/notifications/${account.id}/clear`, { method: 'POST' });
+      setNotifications([]);
+    } catch (err) {
+      console.warn('[Notifications] Error clearing:', err);
+    }
+  };
+
+  const unreadNotifCount = notifications.filter((n) => !n.read).length;
+
+
   // Fetch token balance & airdrop eligibility whenever connected wallet changes
   const refreshTokenBalance = async (address: string | null) => {
     if (!address) {
@@ -332,6 +381,14 @@ export default function App() {
   useEffect(() => {
     refreshTokenBalance(wallet.address);
   }, [wallet.address]);
+
+  useEffect(() => {
+    if (account?.id) {
+      fetchNotifications(account.id);
+    } else {
+      setNotifications([]);
+    }
+  }, [account?.id]);
 
   // Load database-authoritative profile for connected wallet address
   // Ensures username, avatar, bio, stats, and friends are linked to the wallet and consistent across tabs
@@ -790,6 +847,22 @@ export default function App() {
           }
         }
       }
+    });
+
+    // Real-time $CRAZY8 airdrop confirmation listener
+    s.on('token:airdropped', (data: any) => {
+      if (wallet.address && data.address?.toLowerCase() === wallet.address.toLowerCase()) {
+        setTokenBalance(data.balance);
+        setIsAirdropEligible(false);
+        setHasClaimedAirdrop(true);
+        if (account?.id) fetchNotifications(account.id);
+      }
+    });
+
+    // Real-time on-chain escrow match settlement confirmation
+    s.on('game:settlement', (data: any) => {
+      if (account?.id) fetchNotifications(account.id);
+      if (wallet.address) refreshTokenBalance(wallet.address);
     });
 
     s.on('disconnect', () => {
@@ -1515,16 +1588,20 @@ export default function App() {
             </button>
           )}
 
-          {/* Notification Bell — desktop only */}
+          {/* Notification Bell */}
           <button
-            onClick={() => setIsFriendsOpen(true)}
-            className="hidden md:flex w-8 h-8 rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer relative shadow-sm shrink-0"
-            title="Notifications"
+            onClick={() => setIsNotificationsOpen(true)}
+            className="flex w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer relative shadow-sm shrink-0"
+            title="Notifications & Pot Payouts"
           >
-            <Bell className="w-4 h-4" />
-            {onlineFriendCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#FF4600]" />
-            )}
+            <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            {unreadNotifCount > 0 ? (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#FF4600] text-white text-[9px] font-black flex items-center justify-center shadow-sm">
+                {unreadNotifCount}
+              </span>
+            ) : onlineFriendCount > 0 ? (
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            ) : null}
           </button>
 
           {/* Room code badge — desktop only, during game */}
@@ -2339,6 +2416,16 @@ export default function App() {
           setIsAirdropEligible(false);
           setHasClaimedAirdrop(true);
         }}
+      />
+
+      {/* Notifications & Payouts Modal */}
+      <NotificationsModal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        notifications={notifications}
+        onMarkRead={handleMarkNotificationRead}
+        onClearAll={handleClearNotifications}
+        onOpenAirdrop={() => setIsAirdropOpen(true)}
       />
     </div>
   );

@@ -20,6 +20,18 @@ export interface UserStats {
   totalWinnings: string;
 }
 
+export interface UserNotification {
+  id: string;
+  type: 'airdrop_claimed' | 'match_won' | 'friend_request' | 'system';
+  title: string;
+  message: string;
+  txHash?: string;
+  amount?: string;
+  roomCode?: string;
+  createdAt: number;
+  read: boolean;
+}
+
 export interface UserProfileRecord {
   id: string; // e.g. "acc_..."
   tag: string; // e.g. "Chad#4829"
@@ -37,6 +49,7 @@ export interface UserProfileRecord {
   friendRequestsSent: string[]; // User IDs
   friendRequestsReceived: string[]; // User IDs
   recentOpponents: { id: string; name: string; avatar: string; playedAt: number }[];
+  notifications?: UserNotification[];
 }
 
 export interface EnrichedFriend {
@@ -671,6 +684,70 @@ export class ServerDatabase {
     this.data.recentRooms[roomCode] = roomRecord;
     this.save();
     syncRecentRoomToSupabase(roomCode, roomRecord);
+  }
+
+  public addNotification(
+    userId: string,
+    notification: Omit<UserNotification, 'id' | 'createdAt' | 'read'> & { id?: string; createdAt?: number; read?: boolean }
+  ): UserNotification | null {
+    let user = this.data.users[userId];
+    if (!user) {
+      if (userId.startsWith('0x')) {
+        user = this.getUserByAddress(userId) || this.linkOrGetUserByAddress(userId, `wallet_${userId.toLowerCase()}`);
+      } else {
+        user = this.getOrCreateUser(userId, { name: 'Player' });
+      }
+    }
+
+    if (!user.notifications) {
+      user.notifications = [];
+    }
+
+    const newNotif: UserNotification = {
+      id: notification.id || `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      txHash: notification.txHash,
+      amount: notification.amount,
+      roomCode: notification.roomCode,
+      createdAt: notification.createdAt || Date.now(),
+      read: notification.read ?? false,
+    };
+
+    user.notifications.unshift(newNotif);
+    user.notifications = user.notifications.slice(0, 50);
+    this.save();
+    return newNotif;
+  }
+
+  public getUserNotifications(userId: string): UserNotification[] {
+    const user = this.data.users[userId] || (userId.startsWith('0x') ? this.getUserByAddress(userId) : null);
+    return user?.notifications || [];
+  }
+
+  public markNotificationRead(userId: string, notificationId?: string): boolean {
+    const user = this.data.users[userId] || (userId.startsWith('0x') ? this.getUserByAddress(userId) : null);
+    if (!user || !user.notifications) return false;
+
+    if (notificationId) {
+      const target = user.notifications.find(n => n.id === notificationId);
+      if (target) target.read = true;
+    } else {
+      for (const n of user.notifications) {
+        n.read = true;
+      }
+    }
+    this.save();
+    return true;
+  }
+
+  public clearUserNotifications(userId: string): boolean {
+    const user = this.data.users[userId];
+    if (!user) return false;
+    user.notifications = [];
+    this.save();
+    return true;
   }
 }
 

@@ -28,7 +28,13 @@ export function getTokenAddress(): string {
 
 export function getProvider(): ethers.JsonRpcProvider {
   if (!providerInstance) {
-    providerInstance = new ethers.JsonRpcProvider(HEMI_SEPOLIA_RPC);
+    const network = ethers.Network.from({
+      chainId: 743111,
+      name: 'hemi-sepolia',
+    });
+    providerInstance = new ethers.JsonRpcProvider(HEMI_SEPOLIA_RPC, network, {
+      staticNetwork: network,
+    });
   }
   return providerInstance;
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { GameState } from '../types';
-import { Trophy, CheckCircle2, Copy, ArrowRight, ShieldCheck, LogOut } from 'lucide-react';
+import { Trophy, CheckCircle2, Copy, ArrowRight, ShieldCheck, LogOut, ExternalLink } from 'lucide-react';
 import { UserAvatar } from './UserAvatar';
 
 interface VictoryModalProps {
@@ -155,10 +155,25 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                 </button>
               </div>
 
-              <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-[11px] text-slate-300">
+              <div className="space-y-1 sm:space-y-1.5 text-[10px] sm:text-[11px] text-slate-300">
                 <div className="truncate"><span className="text-slate-500">Contract:</span> {signature.contractAddress}</div>
                 <div className="truncate"><span className="text-slate-500">Winner:</span> {signature.winnerAddress}</div>
-                <div className="truncate"><span className="text-slate-500">Sig:</span> {signature.signature.substring(0, 24)}...</div>
+                {signature.signature && signature.signature.length === 66 ? (
+                  <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80">
+                    <span className="text-emerald-400 font-bold">✓ Settled On-Chain:</span>
+                    <a
+                      href={`https://testnet.explorer.hemi.xyz/tx/${signature.signature}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-orange-400 hover:text-orange-300 flex items-center gap-1 underline font-mono font-bold"
+                    >
+                      <span>View Tx on Hemi Explorer</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                ) : (
+                  <div className="truncate"><span className="text-slate-500">Sig:</span> {signature.signature.substring(0, 24)}...</div>
+                )}
               </div>
             </div>
           )}

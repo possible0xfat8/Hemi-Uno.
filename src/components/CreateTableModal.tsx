@@ -38,7 +38,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
       if (onConnectWallet) onConnectWallet();
       return;
     }
-    const buyInValue = selectedBuyIn === 'Free' ? '0.000' : selectedBuyIn;
+    const buyInValue = selectedBuyIn === 'Free' ? '0' : selectedBuyIn;
     onCreateRoom(playerName, avatar, buyInValue, walletAddress);
     onClose();
   };
@@ -105,9 +105,14 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
 
         {/* Buy-In Selection */}
         <div className="mb-5 sm:mb-8">
-          <label className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 block mb-2 sm:mb-2.5">
-            Buy-in Chips ($CRAZY8)
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 block">
+              Buy-in Chips ($CRAZY8)
+            </label>
+            <span className="text-[10px] text-emerald-400 font-bold font-mono">
+              95% Winner Payout • 5% Board Fee
+            </span>
+          </div>
           <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
             {BUY_INS.map((amount) => {
               const active = selectedBuyIn === amount;

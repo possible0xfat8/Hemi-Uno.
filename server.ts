@@ -9,6 +9,7 @@ import { serverDb } from './server/database.js';
 import { fetchLeaderboardFromSupabase } from './server/supabase.js';
 import { uploadAvatarToR2, isR2Configured } from './server/r2.js';
 import { getTokenInfo, getPlayerTokenStatus, dispenseAirdrop } from './server/tokenService.js';
+import { getEscrowInfo, getGameEscrowDetails } from './server/escrowService.js';
 import { CardColor } from './src/types.js';
 
 async function startServer() {
@@ -221,10 +222,78 @@ async function startServer() {
         txHash: result.txHash,
       });
 
+      // Also record in player's notification history
+      const user = serverDb.getUserByAddress(address);
+      if (user) {
+        serverDb.addNotification(user.id, {
+          type: 'airdrop_claimed',
+          title: '🎁 Welcome Airdrop Received!',
+          message: '10,000 $CRAZY8 tokens credited to your Hemi Sepolia wallet.',
+          txHash: result.txHash,
+          amount: '10000',
+        });
+      }
+
       res.json(result);
     } catch (err: any) {
       console.error('[API] Error dispensing airdrop:', err);
       res.status(500).json({ error: err.message || 'Server error processing airdrop' });
+    }
+  });
+
+  // REST: Get on-chain Escrow contract info
+  app.get('/api/escrow/info', async (_req, res) => {
+    try {
+      const info = await getEscrowInfo();
+      res.json(info || { error: 'Escrow info unavailable' });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to fetch escrow info' });
+    }
+  });
+
+  // REST: Get on-chain game escrow details
+  app.get('/api/escrow/game/:roomCode', async (req, res) => {
+    try {
+      const { roomCode } = req.params;
+      const details = await getGameEscrowDetails(roomCode);
+      if (!details) {
+        return res.status(404).json({ error: 'Game escrow record not found' });
+      }
+      res.json(details);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to fetch game escrow details' });
+    }
+  });
+
+  // REST: User Notifications endpoints
+  app.get('/api/notifications/:userId', (req, res) => {
+    try {
+      const { userId } = req.params;
+      const notifications = serverDb.getUserNotifications(userId);
+      res.json({ notifications });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to fetch notifications' });
+    }
+  });
+
+  app.post('/api/notifications/:userId/read', (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { notificationId } = req.body;
+      const success = serverDb.markNotificationRead(userId, notificationId);
+      res.json({ success });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to mark notification as read' });
+    }
+  });
+
+  app.post('/api/notifications/:userId/clear', (req, res) => {
+    try {
+      const { userId } = req.params;
+      const success = serverDb.clearUserNotifications(userId);
+      res.json({ success });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to clear notifications' });
     }
   });
 

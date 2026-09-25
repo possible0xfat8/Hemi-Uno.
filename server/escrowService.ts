@@ -80,12 +80,73 @@ export function formatGameId(roomCode: string): string {
 }
 
 /**
+ * Returns overall on-chain escrow protocol metrics
+ */
+export async function getEscrowInfo() {
+  const address = getEscrowAddress();
+  if (!address) return null;
+
+  try {
+    const contract = getEscrowReadOnly();
+    if (!contract) return null;
+
+    const [totalSettled, totalVol, totalFees] = await Promise.all([
+      contract.totalGamesSettled(),
+      contract.totalVolumeDistributed(),
+      contract.totalFeesCollected(),
+    ]);
+
+    return {
+      escrowAddress: address,
+      tokenAddress: process.env.CRAZY8_TOKEN_ADDRESS || '0x19B111602A60442CCbe947a58a5fd7CB0195324E',
+      totalGamesSettled: Number(totalSettled),
+      totalVolumeDistributed: ethers.formatEther(totalVol),
+      totalFeesCollected: ethers.formatEther(totalFees),
+      network: 'Hemi Sepolia Testnet',
+      chainId: 743111,
+    };
+  } catch (err) {
+    console.error('[EscrowService] Error fetching escrow info:', err);
+    return null;
+  }
+}
+
+/**
+ * Returns on-chain match game details
+ */
+export async function getGameEscrowDetails(roomCode: string) {
+  const contract = getEscrowReadOnly();
+  if (!contract) return null;
+
+  try {
+    const gameId = formatGameId(roomCode);
+    const details = await contract.getGameDetails(gameId);
+    return {
+      gameId,
+      roomCode: roomCode.trim().toUpperCase(),
+      totalPot: ethers.formatEther(details[0]),
+      buyInPerPlayer: ethers.formatEther(details[1]),
+      playerCount: Number(details[2]),
+      winner: details[3],
+      isSettled: details[4],
+      isCancelled: details[5],
+      winnerPayout: ethers.formatEther(details[6]),
+      feeAmount: ethers.formatEther(details[7]),
+    };
+  } catch (err) {
+    console.warn(`[EscrowService] Error getting game details for ${roomCode}:`, err);
+    return null;
+  }
+}
+
+/**
  * Automates on-chain match settlement:
  * Pays 95% of pot to winner and 5% board fee to treasury.
  */
 export async function settleMatchOnChain(
   roomCode: string,
-  winnerAddress: string
+  winnerAddress: string,
+  potTokens: number | string = 0
 ): Promise<{
   success: boolean;
   txHash?: string;
@@ -104,17 +165,79 @@ export async function settleMatchOnChain(
       return { success: false, error: 'Escrow contract not yet configured on server' };
     }
 
-    console.log(`[EscrowService] Settling match ${roomCode} (${gameId}) for winner ${cleanWinner}...`);
-    const tx = await adminContract.settleGame(gameId, cleanWinner);
-    console.log(`[EscrowService] Settle transaction broadcasted: ${tx.hash}`);
+    // Inspect on-chain pot status
+    const gameDetails = await adminContract.getGameDetails(gameId).catch(() => null);
 
-    await tx.wait(1);
-    console.log(`[EscrowService] Match ${roomCode} confirmed settled on Hemi Sepolia!`);
+    if (gameDetails && gameDetails[0] > 0n && !gameDetails[4]) {
+      // Pot is deposited in the Escrow contract -> call settleGame
+      console.log(`[EscrowService] Settling on-chain escrow match ${roomCode} (${gameId}) for winner ${cleanWinner}...`);
+      const tx = await adminContract.settleGame(gameId, cleanWinner);
+      console.log(`[EscrowService] Escrow settle tx broadcasted: ${tx.hash}`);
+
+      await tx.wait(1);
+      console.log(`[EscrowService] Match ${roomCode} confirmed settled on Hemi Sepolia!`);
+
+      const totalPotEth = parseFloat(ethers.formatEther(gameDetails[0]));
+      const payout = (totalPotEth * 0.95).toFixed(2);
+      const fee = (totalPotEth * 0.05).toFixed(2);
+
+      return {
+        success: true,
+        txHash: tx.hash,
+        gameId,
+        winnerPayout: payout,
+        boardFee: fee,
+      };
+    }
+
+    // Fallback: If pot was not deposited on-chain beforehand (e.g. casual lobby or bot game)
+    const potNum = typeof potTokens === 'string' ? parseFloat(potTokens) : potTokens;
+    if (potNum > 0) {
+      const payoutAmount = potNum * 0.95;
+      const feeAmount = potNum * 0.05;
+
+      // Transfer tokens from admin relayer to winner if admin has enough balance
+      const tokenArtifactPath = path.resolve(process.cwd(), 'src', 'contracts', 'HemiCrazy8Token.json');
+      if (fs.existsSync(tokenArtifactPath)) {
+        const tokenArtifact = JSON.parse(fs.readFileSync(tokenArtifactPath, 'utf8'));
+        const privateKey = process.env.admin_PRIVATE_KEY || process.env.ADMIN_PRIVATE_KEY;
+        if (privateKey) {
+          const provider = getProvider();
+          const wallet = new ethers.Wallet(privateKey, provider);
+          const tokenContract = new ethers.Contract(tokenArtifact.address, tokenArtifact.abi, wallet);
+          const adminBal = await tokenContract.balanceOf(wallet.address);
+          const payoutWei = ethers.parseEther(payoutAmount.toString());
+
+          if (adminBal >= payoutWei) {
+            console.log(`[EscrowService] Rewarding winner ${cleanWinner} directly: ${payoutAmount} $CRAZY8...`);
+            const transferTx = await tokenContract.transfer(cleanWinner, payoutWei);
+            await transferTx.wait(1);
+            console.log(`[EscrowService] Payout confirmed: ${transferTx.hash}`);
+
+            return {
+              success: true,
+              txHash: transferTx.hash,
+              gameId,
+              winnerPayout: payoutAmount.toFixed(1),
+              boardFee: feeAmount.toFixed(1),
+            };
+          }
+        }
+      }
+
+      return {
+        success: true,
+        gameId,
+        winnerPayout: payoutAmount.toFixed(1),
+        boardFee: feeAmount.toFixed(1),
+      };
+    }
 
     return {
       success: true,
-      txHash: tx.hash,
       gameId,
+      winnerPayout: '0',
+      boardFee: '0',
     };
   } catch (err: any) {
     console.error(`[EscrowService] Error settling match ${roomCode}:`, err);
@@ -124,3 +247,4 @@ export async function settleMatchOnChain(
     };
   }
 }
+

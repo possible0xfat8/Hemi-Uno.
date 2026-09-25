@@ -107,8 +107,8 @@ export class GameRoom {
   public winner: GameState['winner'] = null;
   public settlementSignature: SettlementSignature | null = null;
 
-  public buyInAmount: string = '0.005';
-  public currency: string = 'ETH';
+  public buyInAmount: string = '100';
+  public currency: string = 'CRAZY8';
   public customMode?: string;
   public description?: string;
   public isQuickMatch: boolean = false;
@@ -937,11 +937,11 @@ export class GameRoom {
     if (!this.winner) return;
 
     // Calculate pot = players * buyIn
-    const totalPot = (this.players.length * parseFloat(this.buyInAmount)).toFixed(3);
+    const totalPot = (this.players.length * parseFloat(this.buyInAmount)).toFixed(1);
     const nonce = Math.floor(Math.random() * 1000000);
     const timestamp = Date.now();
 
-    // Generate EIP-712 settlement signature for Hemi Testnet
+    // Generate settlement signature record for Hemi Testnet
     this.settlementSignature = {
       roomId: this.roomId,
       winnerAddress: this.winner.address || '0x71C...b9',
@@ -949,7 +949,7 @@ export class GameRoom {
       nonce,
       timestamp,
       signature: '0x' + Array.from({ length: 130 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-      contractAddress: '0x328E98d49B5c26a5789A50761e05a30364fBf81F',
+      contractAddress: process.env.CRAZY8_ESCROW_ADDRESS || '0xbD42f75Fee8aD5Dd260DAbbC0520b5A0Efa1F060',
       network: 'Hemi Sepolia (Chain ID 743111)',
     };
   }

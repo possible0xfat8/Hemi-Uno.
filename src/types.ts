@@ -164,6 +164,18 @@ export interface UserGameStats {
   cardsPlayed: number;
 }
 
+export interface UserNotification {
+  id: string;
+  type: 'airdrop_claimed' | 'match_won' | 'friend_request' | 'system';
+  title: string;
+  message: string;
+  txHash?: string;
+  amount?: string;
+  roomCode?: string;
+  createdAt: number;
+  read: boolean;
+}
+
 export interface UserProfileRecord {
   id: string;
   name: string;
@@ -177,6 +189,7 @@ export interface UserProfileRecord {
   friends: string[];
   friendRequestsSent: string[];
   friendRequestsReceived: string[];
+  notifications?: UserNotification[];
   createdAt: number;
 }
 
