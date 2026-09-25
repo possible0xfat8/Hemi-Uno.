@@ -7,6 +7,7 @@ import path from 'path';
 import { RoomManager } from './server/roomManager.js';
 import { serverDb } from './server/database.js';
 import { fetchLeaderboardFromSupabase } from './server/supabase.js';
+import { uploadAvatarToR2, isR2Configured } from './server/r2.js';
 import { CardColor } from './src/types.js';
 
 async function startServer() {
@@ -14,8 +15,9 @@ async function startServer() {
   const httpServer = createServer(app);
   const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-  // JSON body parser for REST APIs
-  app.use(express.json());
+  // JSON body parser for REST APIs (10mb limit for base64 avatars)
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Socket.IO server with enhanced timeout resilience and connection recovery
   const io = new SocketIOServer(httpServer, {
@@ -109,6 +111,71 @@ async function startServer() {
       io.to(`wallet:${updated.address.toLowerCase()}`).emit('profile:updated', updated);
     }
     res.json(updated);
+  });
+
+  // REST: Upload profile picture to Cloudflare R2
+  app.post('/api/profile/upload-avatar', async (req, res) => {
+    try {
+      const { address, accountId, image, contentType } = req.body;
+      if (!image) {
+        return res.status(400).json({ error: 'Image data is required' });
+      }
+
+      if (!isR2Configured()) {
+        return res.status(503).json({ error: 'Cloudflare R2 storage is not configured on server' });
+      }
+
+      let mimeType = contentType || 'image/png';
+      let base64Data = image;
+
+      if (image.startsWith('data:')) {
+        const matches = image.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          mimeType = matches[1];
+          base64Data = matches[2];
+        }
+      }
+
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // 5MB limit
+      if (buffer.length > 5 * 1024 * 1024) {
+        return res.status(400).json({ error: 'Image size exceeds maximum limit of 5MB' });
+      }
+
+      const cleanAddr = address ? address.trim().toLowerCase() : '';
+      const uploadResult = await uploadAvatarToR2(cleanAddr || 'player', buffer, mimeType);
+
+      if (!uploadResult.success || !uploadResult.url) {
+        return res.status(500).json({ error: uploadResult.error || 'Failed to upload image to Cloudflare R2' });
+      }
+
+      const avatarUrl = uploadResult.url;
+
+      // Update in server database and Supabase
+      const targetId = accountId || (cleanAddr ? `wallet_${cleanAddr}` : '');
+      let updatedUser = null;
+      if (targetId || cleanAddr) {
+        updatedUser = serverDb.updateUserProfile(targetId, {
+          avatar: avatarUrl,
+          address: cleanAddr,
+        });
+
+        io.to(`user:${updatedUser.id}`).emit('profile:updated', updatedUser);
+        if (updatedUser.address) {
+          io.to(`wallet:${updatedUser.address.toLowerCase()}`).emit('profile:updated', updatedUser);
+        }
+      }
+
+      res.json({
+        success: true,
+        avatarUrl,
+        user: updatedUser,
+      });
+    } catch (err: any) {
+      console.error('[API] Error uploading avatar:', err);
+      res.status(500).json({ error: err.message || 'Server error uploading avatar' });
+    }
   });
 
   // REST: Friends endpoints

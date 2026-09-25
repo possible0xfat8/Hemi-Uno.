@@ -61,6 +61,7 @@ import {
   ChevronRight,
   ArrowUpDown,
 } from 'lucide-react';
+import { UserAvatar } from './components/UserAvatar';
 
 const COLOR_ORDER: Record<string, number> = { red: 0, blue: 1, green: 2, yellow: 3, wild: 4 };
 const VALUE_ORDER: Record<string, number> = {
@@ -1443,10 +1444,10 @@ export default function App() {
           {wallet.address && account && (
             <button
               onClick={() => setIsProfileOpen(true)}
-              className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-slate-900 border border-slate-700 hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-all cursor-pointer shadow-md shrink-0"
+              className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-slate-900 border border-slate-700 hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-all cursor-pointer shadow-md shrink-0 overflow-hidden"
               title="Profile & Career Stats"
             >
-              {account.avatar}
+              <UserAvatar avatar={account.avatar} name={account.name} className="w-full h-full text-sm sm:text-lg rounded-full" />
             </button>
           )}
 
@@ -1854,7 +1855,7 @@ export default function App() {
                               className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm xs:text-base sm:text-lg transition-all duration-300 shadow-xl ring-2 sm:ring-3 ring-white scale-105 shadow-white/50"
                               style={{ backgroundColor: '#a3e635' }}
                             >
-                              <span className="drop-shadow-sm select-none">{myPlayer.avatar}</span>
+                              <UserAvatar avatar={myPlayer.avatar} name={myPlayer.name} className="w-full h-full rounded-full" />
                               <div className="absolute -bottom-1 -right-1 bg-black/90 text-white font-black text-[7px] sm:text-[8px] px-1 py-0.2 rounded-full shadow-lg font-mono border border-white/60">
                                 {gameState.turnTimeRemaining}s
                               </div>
@@ -1879,7 +1880,7 @@ export default function App() {
                           className="relative w-7 h-7 xs:w-8 xs:h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm xs:text-base ring-1.5 ring-white/30 shadow-md"
                           style={{ backgroundColor: '#84cc16' }}
                         >
-                          <span className="drop-shadow-sm select-none">{myPlayer.avatar}</span>
+                          <UserAvatar avatar={myPlayer.avatar} name={myPlayer.name} className="w-full h-full rounded-full" />
                         </div>
                         <div className="flex flex-col items-start">
                           <span className="text-[10px] sm:text-xs font-black text-white drop-shadow truncate max-w-[90px] sm:max-w-[130px]">

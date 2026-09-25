@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AccountProfile, DEFAULT_AVATARS } from '../utils/account';
 import { UserProfileRecord } from '../types';
 import { WalletState, formatAddress } from '../utils/wallet';
+import { UserAvatar, isAvatarUrl } from './UserAvatar';
 import {
   User,
   X,
@@ -16,6 +17,11 @@ import {
   Layers,
   Save,
   Wallet,
+  Camera,
+  Upload,
+  Loader2,
+  Trash2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ProfileModalProps {
@@ -42,6 +48,10 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [profileData, setProfileData] = useState<UserProfileRecord | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
 
   useEffect(() => {
     if (isOpen && account && wallet.address) {
@@ -114,6 +124,72 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadError(null);
+    setUploadSuccess(false);
+
+    // Validate type
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Please select a valid image file (PNG, JPG, WebP, GIF)');
+      return;
+    }
+
+    // Validate size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+
+      // Read file to data URL
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read image file'));
+        reader.readAsDataURL(file);
+      });
+
+      // Upload to server / Cloudflare R2
+      const res = await fetch('/api/profile/upload-avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: wallet.address || account?.address,
+          accountId: account?.id,
+          image: dataUrl,
+          contentType: file.type,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.avatarUrl) {
+        throw new Error(data.error || 'Failed to upload photo to Cloudflare R2');
+      }
+
+      setAvatar(data.avatarUrl);
+      setUploadSuccess(true);
+      setTimeout(() => setUploadSuccess(false), 3000);
+
+      // Instantly update profile in client state
+      onSaveProfile({
+        avatar: data.avatarUrl,
+      });
+    } catch (err: any) {
+      console.error('Avatar upload error:', err);
+      setUploadError(err.message || 'Error uploading image');
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanName = name.trim() || 'Player';
@@ -171,8 +247,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         {/* Header */}
         <div className="p-3.5 sm:p-5 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold text-base sm:text-lg shrink-0">
-              {avatar}
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold text-base sm:text-lg shrink-0 overflow-hidden">
+              <UserAvatar avatar={avatar} name={name} className="w-full h-full text-base sm:text-lg rounded-lg sm:rounded-xl" />
             </div>
             <div>
               <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wider flex items-center gap-1.5 sm:gap-2">
@@ -198,7 +274,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
         <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto custom-scrollbar">
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4">
-            {/* Display Handle & Avatar */}
+            {/* Display Handle */}
             <div>
               <label className="block text-[11px] sm:text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
                 Lobby Display Handle
@@ -216,26 +292,135 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               </div>
             </div>
 
-            {/* Avatar Selection */}
-            <div>
-              <label className="block text-[11px] sm:text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">
-                Select Your Avatar
-              </label>
-              <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
-                {DEFAULT_AVATARS.map((av) => (
+            {/* Avatar & Photo Upload */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] sm:text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Player Avatar & Photo
+                </label>
+                <span className="text-[10px] text-amber-400 font-medium">Cloudflare R2 Storage</span>
+              </div>
+
+              {/* Avatar Preview & Action Box */}
+              <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 sm:gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                  <div className="relative group shrink-0">
+                    <UserAvatar
+                      avatar={avatar}
+                      name={name}
+                      className="w-14 h-14 sm:w-16 sm:h-16 text-2xl sm:text-3xl rounded-2xl bg-slate-900 border-2 border-amber-500/40 shadow-lg shadow-black/50"
+                      imgClassName="w-full h-full object-cover rounded-2xl"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      title="Upload custom photo"
+                      className="absolute -bottom-1 -right-1 p-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+                    >
+                      {uploadingImage ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Camera className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="text-xs sm:text-sm font-black text-white truncate flex items-center gap-1.5">
+                      <span>{isAvatarUrl(avatar) ? 'Custom Photo' : 'Preset Emoji'}</span>
+                      {isAvatarUrl(avatar) && (
+                        <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[9px] font-mono font-bold">
+                          R2 Active
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] sm:text-[11px] text-slate-400 truncate max-w-[190px] sm:max-w-[240px]">
+                      {isAvatarUrl(avatar)
+                        ? 'Hosted on Cloudflare R2'
+                        : 'Upload a picture or pick an emoji below'}
+                    </p>
+                    {uploadSuccess && (
+                      <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 mt-0.5">
+                        <Check className="w-3 h-3" /> Uploaded to R2!
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+
                   <button
-                    key={av}
                     type="button"
-                    onClick={() => setAvatar(av)}
-                    className={`h-9 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center text-lg sm:text-xl transition-all cursor-pointer ${
-                      avatar === av
-                        ? 'bg-amber-500/20 border-2 border-amber-400 scale-105 shadow-md shadow-amber-500/20'
-                        : 'bg-slate-950 border border-slate-800 hover:border-slate-700'
-                    }`}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50"
                   >
-                    {av}
+                    {uploadingImage ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3 h-3" />
+                        <span>Upload Photo</span>
+                      </>
+                    )}
                   </button>
-                ))}
+
+                  {isAvatarUrl(avatar) && (
+                    <button
+                      type="button"
+                      onClick={() => setAvatar('🦊')}
+                      className="text-[10px] text-slate-400 hover:text-rose-400 flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Reset to Emoji</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Upload Error Banner */}
+              {uploadError && (
+                <div className="p-2 sm:p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="text-[11px] leading-tight">{uploadError}</span>
+                </div>
+              )}
+
+              {/* Preset Emoji Grid */}
+              <div>
+                <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  Or Choose Preset Emoji
+                </span>
+                <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
+                  {DEFAULT_AVATARS.map((av) => (
+                    <button
+                      key={av}
+                      type="button"
+                      onClick={() => {
+                        setAvatar(av);
+                        setUploadError(null);
+                      }}
+                      className={`h-9 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center text-lg sm:text-xl transition-all cursor-pointer ${
+                        avatar === av
+                          ? 'bg-amber-500/20 border-2 border-amber-400 scale-105 shadow-md shadow-amber-500/20'
+                          : 'bg-slate-950 border border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      {av}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 

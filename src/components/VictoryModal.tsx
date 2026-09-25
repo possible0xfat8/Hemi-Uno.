@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { GameState } from '../types';
 import { Trophy, CheckCircle2, Copy, ArrowRight, ShieldCheck, LogOut } from 'lucide-react';
+import { UserAvatar } from './UserAvatar';
 
 interface VictoryModalProps {
   gameState: GameState;
@@ -111,7 +112,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                   >
                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                       <span className="font-mono text-slate-400 font-bold w-4 text-[10px] sm:text-xs">#{idx + 1}</span>
-                      <span className="text-sm sm:text-base shrink-0">{p.avatar}</span>
+                      <UserAvatar avatar={p.avatar} name={p.name} className="w-5 h-5 text-sm sm:text-base shrink-0 rounded-full" />
                       <span className="font-bold truncate max-w-[85px] sm:max-w-[120px]">{p.name}</span>
                       {p.id === myPlayerId && (
                         <span className="text-[8px] sm:text-[9px] px-1 py-0.2 rounded bg-[#FF4600] text-white font-bold shrink-0">YOU</span>

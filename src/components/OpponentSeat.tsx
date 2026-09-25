@@ -2,6 +2,7 @@ import React from 'react';
 import { Player, FloatingEmote } from '../types';
 import { FloatingEmoteDisplay } from './ReactionWheel';
 import { OpponentCardStack } from './OpponentCardStack';
+import { UserAvatar } from './UserAvatar';
 
 interface OpponentSeatProps {
   player: Player;
@@ -72,7 +73,7 @@ export const OpponentSeat: React.FC<OpponentSeatProps> = ({
               backgroundColor: isCurrentTurn ? '#a3e635' : '#84cc16',
             }}
           >
-            <span className="drop-shadow-sm select-none">{player.avatar}</span>
+            <UserAvatar avatar={player.avatar} name={player.name} className="w-full h-full rounded-full" />
 
             {/* Turn timer badge when it is their turn */}
             {isCurrentTurn && (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { EnrichedFriend, UserProfileRecord } from '../types';
 import { AccountProfile } from '../utils/account';
+import { UserAvatar } from './UserAvatar';
 import {
   Users,
   UserPlus,
@@ -320,8 +321,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                       {/* Avatar & Info */}
                       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                         <div className="relative shrink-0">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg sm:text-xl">
-                            {friend.avatar}
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg sm:text-xl overflow-hidden">
+                            <UserAvatar avatar={friend.avatar} name={friend.name} className="w-full h-full text-lg sm:text-xl rounded-lg sm:rounded-xl" />
                           </div>
                           {/* Presence Dot */}
                           <span
@@ -471,8 +472,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2 sm:gap-3"
                       >
                         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-800 flex items-center justify-center text-base sm:text-lg shrink-0">
-                            {player.avatar}
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-800 flex items-center justify-center text-base sm:text-lg shrink-0 overflow-hidden">
+                            <UserAvatar avatar={player.avatar} name={player.name} className="w-full h-full text-base sm:text-lg rounded-lg" />
                           </div>
                           <div className="min-w-0">
                             <div className="text-xs font-bold text-white truncate max-w-[120px] sm:max-w-none">
@@ -525,8 +526,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2 sm:gap-3"
                       >
                         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-800 flex items-center justify-center text-base sm:text-lg shrink-0">
-                            {req.avatar}
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-800 flex items-center justify-center text-base sm:text-lg shrink-0 overflow-hidden">
+                            <UserAvatar avatar={req.avatar} name={req.name} className="w-full h-full text-base sm:text-lg rounded-lg" />
                           </div>
                           <div className="min-w-0">
                             <div className="text-xs font-bold text-white truncate max-w-[120px] sm:max-w-none">
@@ -577,8 +578,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({
                         className="p-2.5 sm:p-3 rounded-lg sm:rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between gap-2 sm:gap-3"
                       >
                         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-800 flex items-center justify-center text-base sm:text-lg shrink-0">
-                            {req.avatar}
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-800 flex items-center justify-center text-base sm:text-lg shrink-0 overflow-hidden">
+                            <UserAvatar avatar={req.avatar} name={req.name} className="w-full h-full text-base sm:text-lg rounded-lg" />
                           </div>
                           <div className="min-w-0">
                             <div className="text-xs font-bold text-slate-300 truncate max-w-[140px] sm:max-w-none">

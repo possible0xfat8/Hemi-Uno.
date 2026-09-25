@@ -4,6 +4,7 @@ import { WalletState, formatAddress } from '../utils/wallet';
 import { AccountProfile } from '../utils/account';
 import { HemiUnoLogo } from './HemiUnoLogo';
 import { HemiHeroCards } from './HemiHeroCards';
+import { UserAvatar, isAvatarUrl } from './UserAvatar';
 import {
   Users,
   Eye,
@@ -507,7 +508,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   >
                     <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
                       <span className="text-[9px] sm:text-[10px] font-black text-amber-400 font-mono">#{idx + 1}</span>
-                      <span className="text-sm sm:text-base">{p.avatar}</span>
+                      <UserAvatar avatar={p.avatar} name={p.name} className="w-5 h-5 text-sm sm:text-base shrink-0 rounded-full" />
                       <span className="text-[10px] sm:text-xs font-bold text-slate-200 truncate max-w-[50px] sm:max-w-[75px]">
                         {p.name}
                       </span>
@@ -546,8 +547,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   }`}
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg sm:text-xl shrink-0">
-                      {p.avatar}
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg sm:text-xl shrink-0 overflow-hidden">
+                      <UserAvatar avatar={p.avatar} name={p.name} className="w-full h-full text-lg sm:text-xl rounded-lg sm:rounded-xl" />
                     </div>
                     <div className="min-w-0">
                       <div className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5 sm:gap-2 flex-wrap">
@@ -857,10 +858,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
                       onClick={onOpenProfile}
-                      className="w-11 h-11 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-2xl shrink-0 shadow-md shadow-[#FF4600]/20 cursor-pointer active:scale-95 transition-transform"
+                      className="w-11 h-11 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-2xl shrink-0 shadow-md shadow-[#FF4600]/20 cursor-pointer active:scale-95 transition-transform overflow-hidden"
                       title="Edit Profile & Avatar"
                     >
-                      {selectedAvatar}
+                      <UserAvatar avatar={selectedAvatar} name={playerName} className="w-full h-full text-2xl rounded-full" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -1004,7 +1005,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
                       <span className="text-slate-400 font-mono text-[10px] sm:text-[11px]">As:</span>
                       <span className="font-bold flex items-center gap-1.5 text-white">
-                        <span>{selectedAvatar}</span>
+                        <UserAvatar avatar={selectedAvatar} name={playerName} className="w-4 h-4 text-xs rounded-full shrink-0" />
                         <span className="text-white max-w-[110px] truncate">{playerName}</span>
                       </span>
                       <button
@@ -1191,8 +1192,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                           <span className="text-slate-500">💼</span>
                           <span>{table.buyIn}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-slate-300">
-                          <span className="text-sm">{table.hostAvatar}</span>
+                        <div className="flex items-center gap-1.5 text-slate-300">
+                          <UserAvatar avatar={table.hostAvatar} name={table.hostName} className="w-4 h-4 text-xs rounded-full shrink-0" />
                           <span className="truncate max-w-[60px] sm:max-w-[80px]">{table.hostName}</span>
                         </div>
                       </div>
@@ -1240,8 +1241,12 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               <div className="flex flex-col items-center text-center">
                 {/* Avatar */}
                 <div className="relative mb-2 sm:mb-3">
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-[#FF4600]/20">
-                    {selectedAvatar}
+                  <div
+                    onClick={onOpenProfile}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-[#FF4600]/20 overflow-hidden cursor-pointer group"
+                    title="Customize Profile & Picture"
+                  >
+                    <UserAvatar avatar={selectedAvatar} name={playerName} className="w-full h-full text-3xl sm:text-4xl rounded-full" />
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-md">
                     👑
@@ -1530,8 +1535,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                       title={`${f.name} (${f.status})`}
                     >
                       <div className="relative">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 border border-slate-800 group-hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-colors">
-                          {f.avatar}
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 border border-slate-800 group-hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-colors overflow-hidden">
+                          <UserAvatar avatar={f.avatar} name={f.name} className="w-full h-full text-sm sm:text-lg rounded-full" />
                         </div>
                         <span className={`absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border-2 border-[#0E1218] ${f.status === 'in_game' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                       </div>

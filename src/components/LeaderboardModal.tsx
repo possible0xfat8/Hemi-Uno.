@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Trophy, Medal, Award, Flame, RefreshCw, User } from 'lucide-react';
 import { formatAddress } from '../utils/wallet';
+import { UserAvatar } from './UserAvatar';
 
 interface LeaderboardUser {
   id: string;
@@ -137,8 +138,8 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                     </div>
 
                     {/* Avatar */}
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-base sm:text-lg shrink-0">
-                      {user.avatar || '🦊'}
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-base sm:text-lg shrink-0 overflow-hidden">
+                      <UserAvatar avatar={user.avatar} name={user.name} className="w-full h-full text-base sm:text-lg rounded-lg sm:rounded-xl" />
                     </div>
 
                     {/* Name & Wallet */}
