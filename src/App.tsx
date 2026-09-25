@@ -20,6 +20,8 @@ import { HemiUnoLogo } from './components/HemiUnoLogo';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { CreateTableModal } from './components/CreateTableModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
+import { AirdropModal } from './components/AirdropModal';
+import { fetchTokenBalance, formatTokenAmount, CRAZY8_TOKEN_SYMBOL } from './utils/token';
 import {
   WalletState,
   getInjectedProvider,
@@ -60,6 +62,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
+  Coins,
+  Gift,
 } from 'lucide-react';
 import { UserAvatar } from './components/UserAvatar';
 
@@ -293,6 +297,41 @@ export default function App() {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [connectingWalletId, setConnectingWalletId] = useState<string | null>(null);
   const [walletModalError, setWalletModalError] = useState<string | null>(null);
+
+  // Hemi Crazy 8 Token ($CRAZY8) & Airdrop State
+  const [tokenBalance, setTokenBalance] = useState<string>('0');
+  const [isAirdropEligible, setIsAirdropEligible] = useState<boolean>(false);
+  const [isAirdropOpen, setIsAirdropOpen] = useState<boolean>(false);
+  const [hasClaimedAirdrop, setHasClaimedAirdrop] = useState<boolean>(false);
+  const [tokenLoading, setTokenLoading] = useState<boolean>(false);
+
+  // Fetch token balance & airdrop eligibility whenever connected wallet changes
+  const refreshTokenBalance = async (address: string | null) => {
+    if (!address) {
+      setTokenBalance('0');
+      setIsAirdropEligible(false);
+      setHasClaimedAirdrop(false);
+      return;
+    }
+    setTokenLoading(true);
+    try {
+      const res = await fetchTokenBalance(address);
+      setTokenBalance(res.balance);
+      setIsAirdropEligible(res.eligible);
+      setHasClaimedAirdrop(res.hasClaimed);
+
+      // Seamless Auto-prompt: If user is eligible and has 0 chips, open airdrop modal!
+      if (res.eligible && (!res.balance || parseFloat(res.balance) === 0)) {
+        setIsAirdropOpen(true);
+      }
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshTokenBalance(wallet.address);
+  }, [wallet.address]);
 
   // Load database-authoritative profile for connected wallet address
   // Ensures username, avatar, bio, stats, and friends are linked to the wallet and consistent across tabs
@@ -1440,6 +1479,31 @@ export default function App() {
             ) : null}
           </button>
 
+          {/* Hemi Crazy 8 Token ($CRAZY8) Balance & Airdrop Chip */}
+          {wallet.address && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-900 border border-amber-500/30 text-[11px] sm:text-xs font-mono font-bold text-amber-400 shadow-sm"
+                title={`${formatTokenAmount(tokenBalance)} $CRAZY8 Chips`}
+              >
+                <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>{formatTokenAmount(tokenBalance)}</span>
+                <span className="text-[9px] sm:text-[10px] text-amber-500/90 font-sans font-bold">CRAZY8</span>
+              </div>
+
+              {isAirdropEligible && (
+                <button
+                  onClick={() => setIsAirdropOpen(true)}
+                  className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] to-[#FF4600] hover:from-[#FF6611] hover:to-[#FF5500] text-[10px] sm:text-xs font-black text-white uppercase tracking-wider transition-all shadow-md shadow-[#FF4600]/30 active:scale-95 animate-pulse cursor-pointer shrink-0"
+                  title="Claim 10,000 $CRAZY8 Welcome Airdrop"
+                >
+                  <Gift className="w-3.5 h-3.5" />
+                  <span className="hidden xs:inline">10K Airdrop</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {/* User Avatar — ONLY VISIBLE WHEN WALLET IS CONNECTED */}
           {wallet.address && account && (
             <button
@@ -2263,6 +2327,18 @@ export default function App() {
         connectingWalletId={connectingWalletId}
         error={walletModalError}
         onClearError={() => setWalletModalError(null)}
+      />
+
+      {/* 10,000 $CRAZY8 Welcome Airdrop Modal */}
+      <AirdropModal
+        isOpen={isAirdropOpen}
+        onClose={() => setIsAirdropOpen(false)}
+        walletAddress={wallet.address}
+        onClaimSuccess={(newBal) => {
+          setTokenBalance(newBal);
+          setIsAirdropEligible(false);
+          setHasClaimedAirdrop(true);
+        }}
       />
     </div>
   );

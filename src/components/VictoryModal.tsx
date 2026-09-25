@@ -75,15 +75,23 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           {/* Pot settlement badge */}
           <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#090B0E] border border-slate-800 mb-3 sm:mb-4">
             <div className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5 sm:mb-1">
-              Escrow Pot Award
+              Escrow Pot Award ($CRAZY8)
             </div>
             <div className="text-xl sm:text-3xl font-black text-[#FF4600] font-mono flex items-center justify-center gap-1.5 sm:gap-2">
               <span>{gameState.escrowPot.amount}</span>
-              <span className="text-sm sm:text-base text-orange-300 font-bold">{gameState.escrowPot.currency}</span>
+              <span className="text-sm sm:text-base text-orange-300 font-bold">
+                {gameState.escrowPot.currency === 'ETH' ? 'CRAZY8' : gameState.escrowPot.currency}
+              </span>
             </div>
-            <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1 flex items-center justify-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="truncate">95% Winner Payout ({(parseFloat(gameState.escrowPot.amount) * 0.95).toFixed(3)} {gameState.escrowPot.currency})</span>
+            <div className="mt-2 pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-[10px] sm:text-[11px] font-mono">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <div className="text-[9px] uppercase font-bold text-slate-400">95% Winner Payout</div>
+                <div className="font-black text-xs">{(parseFloat(gameState.escrowPot.amount) * 0.95).toFixed(1)} {gameState.escrowPot.currency === 'ETH' ? 'CRAZY8' : gameState.escrowPot.currency}</div>
+              </div>
+              <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                <div className="text-[9px] uppercase font-bold text-slate-400">5% Board Fee</div>
+                <div className="font-black text-xs">{(parseFloat(gameState.escrowPot.amount) * 0.05).toFixed(1)} {gameState.escrowPot.currency === 'ETH' ? 'CRAZY8' : gameState.escrowPot.currency}</div>
+              </div>
             </div>
           </div>
 

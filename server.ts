@@ -8,6 +8,7 @@ import { RoomManager } from './server/roomManager.js';
 import { serverDb } from './server/database.js';
 import { fetchLeaderboardFromSupabase } from './server/supabase.js';
 import { uploadAvatarToR2, isR2Configured } from './server/r2.js';
+import { getTokenInfo, getPlayerTokenStatus, dispenseAirdrop } from './server/tokenService.js';
 import { CardColor } from './src/types.js';
 
 async function startServer() {
@@ -175,6 +176,55 @@ async function startServer() {
     } catch (err: any) {
       console.error('[API] Error uploading avatar:', err);
       res.status(500).json({ error: err.message || 'Server error uploading avatar' });
+    }
+  });
+
+  // REST: Hemi Crazy 8 Token info ($CRAZY8)
+  app.get('/api/token/info', async (_req, res) => {
+    try {
+      const info = await getTokenInfo();
+      res.json(info);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to fetch token info' });
+    }
+  });
+
+  // REST: Check player $CRAZY8 balance & airdrop eligibility
+  app.get('/api/token/balance/:address', async (req, res) => {
+    try {
+      const { address } = req.params;
+      const status = await getPlayerTokenStatus(address);
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to fetch token balance' });
+    }
+  });
+
+  // REST: Gasless 10,000 $CRAZY8 welcome airdrop dispenser
+  app.post('/api/token/airdrop', async (req, res) => {
+    try {
+      const { address } = req.body;
+      if (!address) {
+        return res.status(400).json({ error: 'Wallet address is required for airdrop' });
+      }
+
+      const result = await dispenseAirdrop(address);
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      // Broadcast real-time balance update to player's wallet socket
+      io.to(`wallet:${address.toLowerCase()}`).emit('token:airdropped', {
+        address,
+        amount: result.amount,
+        balance: result.balance,
+        txHash: result.txHash,
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error('[API] Error dispensing airdrop:', err);
+      res.status(500).json({ error: err.message || 'Server error processing airdrop' });
     }
   });
 

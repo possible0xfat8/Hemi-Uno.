@@ -17,7 +17,7 @@ const MODES = [
   { id: 'Quick Match', title: 'Quick Match', desc: 'Short 15s turn timer with fast animations.', icon: '⏱️' },
 ];
 
-const BUY_INS = ['Free', '0.001', '0.005', '0.01', '0.05'];
+const BUY_INS = ['Free', '50', '100', '250', '500', '1000'];
 
 export const CreateTableModal: React.FC<CreateTableModalProps> = ({
   isOpen,
@@ -106,9 +106,9 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
         {/* Buy-In Selection */}
         <div className="mb-5 sm:mb-8">
           <label className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 block mb-2 sm:mb-2.5">
-            Buy-in Pot (ETH)
+            Buy-in Chips ($CRAZY8)
           </label>
-          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
             {BUY_INS.map((amount) => {
               const active = selectedBuyIn === amount;
               return (
