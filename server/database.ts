@@ -456,13 +456,25 @@ export class ServerDatabase {
   }
 
   public setUserPresence(id: string, status: 'online' | 'in_game' | 'offline', roomCode?: string | null): void {
-    const user = this.data.users[id];
+    const user = this.data.users[id] || (id.startsWith('0x') ? this.getUserByAddress(id) : null);
     if (!user) return;
     user.status = status;
     user.currentRoomCode = roomCode !== undefined ? roomCode : user.currentRoomCode;
     user.lastSeen = Date.now();
     this.save();
-    syncPresenceToSupabase(id, status, user.currentRoomCode);
+    syncPresenceToSupabase(user.id, status, user.currentRoomCode);
+  }
+
+  public touchUserPresence(id: string, roomCode?: string | null): void {
+    const user = this.data.users[id] || (id.startsWith('0x') ? this.getUserByAddress(id) : null);
+    if (!user) return;
+    user.lastSeen = Date.now();
+    if (roomCode) {
+      user.status = 'in_game';
+      user.currentRoomCode = roomCode;
+    } else if (user.status === 'offline') {
+      user.status = 'online';
+    }
   }
 
   public getEnrichedFriends(userId: string): EnrichedFriend[] {
@@ -473,8 +485,8 @@ export class ServerDatabase {
     for (const fId of user.friends) {
       const f = this.data.users[fId];
       if (f) {
-        // Compute active status based on lastSeen (within 3 minutes = online/in_game)
-        const isRecentlyActive = Date.now() - f.lastSeen < 3 * 60 * 1000;
+        // Compute active status based on lastSeen (within 15 minutes = online/in_game)
+        const isRecentlyActive = Date.now() - f.lastSeen < 15 * 60 * 1000;
         const currentStatus = isRecentlyActive ? f.status : 'offline';
 
         enriched.push({

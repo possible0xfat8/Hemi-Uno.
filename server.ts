@@ -27,8 +27,9 @@ async function startServer() {
       origin: '*',
       methods: ['GET', 'POST'],
     },
-    pingInterval: 10000,
-    pingTimeout: 25000,
+    pingInterval: 15000,
+    pingTimeout: 60000,
+    maxHttpBufferSize: 1e7,
     connectionStateRecovery: {
       maxDisconnectionDuration: 2 * 60 * 1000, // 2 minutes
       skipMiddlewares: true,
@@ -374,11 +375,50 @@ async function startServer() {
   // Socket.IO event handling
   io.on('connection', (socket) => {
     const getPlayerInCurrentRoom = () => {
-      const room = roomManager.getRoomBySocket(socket.id);
-      if (!room) return { room: null, player: null };
-      const player = room.getPlayerBySocket(socket.id);
+      let room = roomManager.getRoomBySocket(socket.id);
+      let player = room ? room.getPlayerBySocket(socket.id) : null;
+      if (!room || !player) {
+        const accId = roomManager.getAccountIdBySocket(socket.id);
+        if (accId) {
+          room = roomManager.getRoomByAccountId(accId);
+          if (room) {
+            player = room.getPlayer(accId) || null;
+            if (player) {
+              player.socketId = socket.id;
+              player.isConnected = true;
+            }
+          }
+        }
+      }
       return { room, player };
     };
+
+    // Keep-alive heartbeat: prevents reverse proxy idle drops & keeps database presence active
+    socket.on('app:heartbeat', ({ accountId, roomCode, address }: { accountId?: string; roomCode?: string; address?: string }, callback?: any) => {
+      const cleanAddress = address && typeof address === 'string' && address.trim().startsWith('0x') ? address.trim().toLowerCase() : undefined;
+      const targetId = accountId || (cleanAddress ? `wallet_${cleanAddress}` : undefined);
+      if (targetId) {
+        serverDb.touchUserPresence(targetId, roomCode);
+      }
+      if (roomCode) {
+        const room = roomManager.getRoomByCode(roomCode);
+        if (room) {
+          const p = room.players.find(pl =>
+            (targetId && pl.id.toLowerCase() === targetId.toLowerCase()) ||
+            (cleanAddress && pl.address && pl.address.toLowerCase() === cleanAddress)
+          );
+          if (p) {
+            p.isConnected = true;
+            if (p.socketId !== socket.id) {
+              p.socketId = socket.id;
+            }
+          }
+        }
+      }
+      if (typeof callback === 'function') {
+        callback({ success: true, timestamp: Date.now() });
+      }
+    });
 
     // 0. Session Resume handshake on connect / reconnect
     socket.on('session:resume', ({ accountId, roomCode, address }, callback) => {
@@ -390,6 +430,9 @@ async function startServer() {
       if (accountId) {
         serverDb.getOrCreateUser(accountId, { address });
         socket.join(`user:${accountId}`);
+      }
+      if (address && address.startsWith('0x')) {
+        socket.join(`wallet:${address.toLowerCase()}`);
       }
 
       const result = roomManager.resumeSession(accountId, socket.id, roomCode, address);
@@ -418,7 +461,11 @@ async function startServer() {
     });
 
     // 0b. Quick Join (1-Click Instant Match finding or auto-creating)
-    socket.on('room:quick_join', ({ accountId, playerName, avatar, address }, callback) => {
+    socket.on('room:quick_join', (payload: any, callback) => {
+      const accountId = payload?.accountId || payload?.userId;
+      const playerName = payload?.playerName;
+      const avatar = payload?.avatar;
+      const address = payload?.address;
       const cleanAddress = address && typeof address === 'string' && address.trim().startsWith('0x') ? address.trim().toLowerCase() : undefined;
       if (!cleanAddress) {
         if (typeof callback === 'function') {
@@ -719,67 +766,95 @@ async function startServer() {
 
     // 6. Start game (Any seated player can start when table is ready)
     socket.on('game:start', (callback) => {
-      const { room, player } = getPlayerInCurrentRoom();
-      if (!room || !player) {
-        if (typeof callback === 'function') callback({ success: false, error: 'Room or player not found' });
-        return;
-      }
-      // If clicking player is seated, ensure they are marked ready
-      player.isReady = true;
-      if (!room.canStart()) {
-        if (typeof callback === 'function') {
-          callback({ success: false, error: 'Requires at least 2 ready players to start' });
+      try {
+        const { room, player } = getPlayerInCurrentRoom();
+        if (!room || !player) {
+          if (typeof callback === 'function') callback({ success: false, error: 'Room or player not found' });
+          return;
         }
-        return;
+        // If clicking player is seated, ensure they are marked ready
+        player.isReady = true;
+        if (!room.canStart()) {
+          if (typeof callback === 'function') {
+            callback({ success: false, error: 'Requires at least 2 ready players to start' });
+          }
+          return;
+        }
+        const started = room.startGame();
+        if (typeof callback === 'function') callback({ success: started });
+      } catch (err: any) {
+        console.error('[Socket] Error in game:start:', err);
+        if (typeof callback === 'function') callback({ success: false, error: err.message });
       }
-      const started = room.startGame();
-      if (typeof callback === 'function') callback({ success: started });
     });
 
     // 7. Play card
     socket.on('game:play_card', ({ cardId, chosenColor }: { cardId: string; chosenColor?: CardColor }, callback) => {
-      const { room, player } = getPlayerInCurrentRoom();
-      if (!room || !player) {
-        if (typeof callback === 'function') callback({ success: false, error: 'Room not found' });
-        return;
+      try {
+        const { room, player } = getPlayerInCurrentRoom();
+        if (!room || !player) {
+          if (typeof callback === 'function') callback({ success: false, error: 'Room not found' });
+          return;
+        }
+        const res = room.playCard(player.id, cardId, chosenColor);
+        if (typeof callback === 'function') callback(res);
+      } catch (err: any) {
+        console.error('[Socket] Error in game:play_card:', err);
+        if (typeof callback === 'function') callback({ success: false, error: err.message });
       }
-      const res = room.playCard(player.id, cardId, chosenColor);
-      if (typeof callback === 'function') callback(res);
     });
 
     // 8. Draw card
     socket.on('game:draw_card', (callback) => {
-      const { room, player } = getPlayerInCurrentRoom();
-      if (!room || !player) {
-        if (typeof callback === 'function') callback({ success: false, error: 'Room not found' });
-        return;
+      try {
+        const { room, player } = getPlayerInCurrentRoom();
+        if (!room || !player) {
+          if (typeof callback === 'function') callback({ success: false, error: 'Room not found' });
+          return;
+        }
+        const res = room.drawCard(player.id);
+        if (typeof callback === 'function') callback(res);
+      } catch (err: any) {
+        console.error('[Socket] Error in game:draw_card:', err);
+        if (typeof callback === 'function') callback({ success: false, error: err.message });
       }
-      const res = room.drawCard(player.id);
-      if (typeof callback === 'function') callback(res);
     });
 
     // 9. Pass turn
     socket.on('game:pass_turn', (callback) => {
-      const { room, player } = getPlayerInCurrentRoom();
-      if (!room || !player) {
-        if (typeof callback === 'function') callback({ success: false, error: 'Room not found' });
-        return;
+      try {
+        const { room, player } = getPlayerInCurrentRoom();
+        if (!room || !player) {
+          if (typeof callback === 'function') callback({ success: false, error: 'Room not found' });
+          return;
+        }
+        const res = room.passTurn(player.id);
+        if (typeof callback === 'function') callback(res);
+      } catch (err: any) {
+        console.error('[Socket] Error in game:pass_turn:', err);
+        if (typeof callback === 'function') callback({ success: false, error: err.message });
       }
-      const res = room.passTurn(player.id);
-      if (typeof callback === 'function') callback(res);
     });
 
     // 10. Call last card
     socket.on('game:call_last_card', () => {
-      const { room, player } = getPlayerInCurrentRoom();
-      if (room && player) {
-        room.callLastCard(player.id);
+      try {
+        const { room, player } = getPlayerInCurrentRoom();
+        if (room && player) {
+          room.callLastCard(player.id);
+        }
+      } catch (err: any) {
+        console.error('[Socket] Error in game:call_last_card:', err);
       }
     });
 
     // 11. Send emote
     socket.on('game:send_emote', ({ emoji, text }: { emoji: string; text?: string }) => {
-      roomManager.sendEmote(socket.id, emoji, text);
+      try {
+        roomManager.sendEmote(socket.id, emoji, text);
+      } catch (err: any) {
+        console.error('[Socket] Error in game:send_emote:', err);
+      }
     });
 
     // 11b. Send chat message

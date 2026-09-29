@@ -492,12 +492,24 @@ export class RoomManager {
       }
     }
 
+    // Helper to match player by any account ID, wallet address, or canonical id
+    const matchPlayer = (p: Player) => {
+      const targetAcc = accountId ? accountId.toLowerCase().trim() : '';
+      const targetAddr = address ? address.toLowerCase().trim() : '';
+      const pId = p.id ? p.id.toLowerCase().trim() : '';
+      const pAddr = p.address ? p.address.toLowerCase().trim() : '';
+
+      if (targetAcc && pId === targetAcc) return true;
+      if (targetAddr && pAddr === targetAddr) return true;
+      if (targetAddr && pId === `wallet_${targetAddr}`) return true;
+      if (targetAcc.startsWith('wallet_') && pAddr === targetAcc.replace('wallet_', '')) return true;
+      return false;
+    };
+
     // If still not found, search through all active rooms for player by accountId or wallet address
     if (!room) {
       for (const r of this.rooms.values()) {
-        const foundPlayer = r.players.find(
-          p => p.id === accountId || (address && p.address && p.address.toLowerCase() === address.toLowerCase())
-        );
+        const foundPlayer = r.players.find(matchPlayer);
         if (foundPlayer) {
           room = r;
           break;
@@ -515,13 +527,11 @@ export class RoomManager {
     }
 
     // Check if player in this room
-    let player = room.players.find(p => p.id === accountId);
-    if (!player && address) {
-      player = room.players.find(p => p.address && p.address.toLowerCase() === address.toLowerCase());
-    }
+    let player = room.players.find(matchPlayer);
 
     if (player) {
       this.clearDisconnectTimer(player.id);
+      this.clearDisconnectTimer(accountId);
       player.isConnected = true;
       player.socketId = socketId;
 
@@ -531,6 +541,8 @@ export class RoomManager {
       if (accountId !== player.id) {
         this.accountToRoomId.set(accountId, room.roomId);
       }
+
+      serverDb.touchUserPresence(player.id, room.roomCode);
 
       room.addChatMessage({
         senderId: 'system',
@@ -667,34 +679,45 @@ export class RoomManager {
     const player = room.players.find(p => p.id === accountId);
     if (!player) return;
 
-    // Mark player temporarily disconnected
-    player.isConnected = false;
-    this.broadcastRoomState(room);
-
-    // Generous grace period (120 seconds) for network reconnects, sleep, tab switch
+    // Generous disconnection debounce (10 seconds):
+    // Do NOT immediately mark player offline or broadcast disconnection on momentary network blips,
+    // transport upgrades, or quick tab switches.
     this.clearDisconnectTimer(accountId);
     const timer = setTimeout(() => {
       this.disconnectTimers.delete(accountId);
 
-      // Verify if still disconnected
+      // Verify if player is still disconnected after 10 seconds
       const p = room.players.find(pl => pl.id === accountId);
-      if (p && !p.isConnected) {
-        this.accountToRoomId.delete(accountId);
+      if (p && (!p.socketId || p.socketId === socketId)) {
+        p.isConnected = false;
+        this.broadcastRoomState(room);
         serverDb.setUserPresence(accountId, 'offline', null);
-        room.removePlayer(accountId);
-
-        const humanCount = room.players.filter(pl => !pl.isBot).length;
-        if (humanCount === 0) {
-          if (room.isSeededPublic) {
-            this.reseedPublicRoom(room);
-          } else {
-            this.destroyRoom(room.roomId);
-          }
-        } else {
-          this.broadcastRoomState(room);
-        }
       }
-    }, 120000);
+
+      // Eviction timer: if player does not return within 110 more seconds (120s total), remove from seat
+      const evictTimer = setTimeout(() => {
+        this.disconnectTimers.delete(accountId);
+        const pEvict = room.players.find(pl => pl.id === accountId);
+        if (pEvict && !pEvict.isConnected) {
+          this.accountToRoomId.delete(accountId);
+          serverDb.setUserPresence(accountId, 'offline', null);
+          room.removePlayer(accountId);
+
+          const humanCount = room.players.filter(pl => !pl.isBot).length;
+          if (humanCount === 0) {
+            if (room.isSeededPublic) {
+              this.reseedPublicRoom(room);
+            } else {
+              this.destroyRoom(room.roomId);
+            }
+          } else {
+            this.broadcastRoomState(room);
+          }
+        }
+      }, 110000);
+
+      this.disconnectTimers.set(accountId, evictTimer);
+    }, 10000);
 
     this.disconnectTimers.set(accountId, timer);
   }
@@ -710,7 +733,7 @@ export class RoomManager {
 
   public broadcastRoomState(room: GameRoom): void {
     for (const player of room.players) {
-      if (!player.isBot && player.isConnected && player.socketId) {
+      if (!player.isBot && player.socketId) {
         const sanitized = room.getSanitizedStateForPlayer(player.id);
         this.io.to(player.socketId).emit('game:state', sanitized);
       }
@@ -721,7 +744,6 @@ export class RoomManager {
         this.io.to(spec.socketId).emit('game:state', sanitized);
       }
     }
-    this.io.emit('rooms:public_list', this.getPublicRooms());
   }
 
   public sendChatMessage(

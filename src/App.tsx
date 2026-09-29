@@ -673,6 +673,16 @@ export default function App() {
     gameStateRef.current = gameState;
   }, [gameState]);
 
+  const accountRef = useRef<AccountProfile | null>(account);
+  useEffect(() => {
+    accountRef.current = account;
+  }, [account]);
+
+  const walletRef = useRef<WalletState>(wallet);
+  useEffect(() => {
+    walletRef.current = wallet;
+  }, [wallet]);
+
   // Public live rooms for spectator browser
   const [liveRooms, setLiveRooms] = useState<PublicRoomSummary[]>([]);
 
@@ -744,42 +754,45 @@ export default function App() {
       .catch(() => {});
   };
 
-  // Initialize Socket.IO connection with auto-reconnect and session resume
+  // Initialize Socket.IO connection with auto-reconnect and session resume (stable singleton connection)
   useEffect(() => {
     const s = io(window.location.origin, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 4000,
-      timeout: 20000,
+      reconnectionDelayMax: 5000,
+      timeout: 30000,
     });
 
     s.on('connect', () => {
       setSocketConnected(true);
       setConnectionStatus('connected');
 
-      // Sync user profile and resume session ONLY if wallet is actively connected
-      if (wallet.address && account) {
+      // Use current refs so reconnects never miss active credentials
+      const currentWallet = walletRef.current;
+      const currentAccount = accountRef.current;
+
+      if (currentWallet.address && currentAccount) {
         s.emit('profile:sync', {
-          id: account.id,
-          name: account.name,
-          avatar: account.avatar,
-          bio: account.bio,
-          address: wallet.address,
+          id: currentAccount.id,
+          name: currentAccount.name,
+          avatar: currentAccount.avatar,
+          bio: currentAccount.bio,
+          address: currentWallet.address,
         });
 
         const urlParams = new URLSearchParams(window.location.search);
         const urlCode = urlParams.get('room') || urlParams.get('join');
-        const activeCode = getActiveRoomCode() || (urlCode ? urlCode.toUpperCase().trim() : null);
+        const activeCode = getActiveRoomCode() || (urlCode ? urlCode.toUpperCase().trim() : null) || gameStateRef.current?.roomCode;
 
         if (activeCode) {
           s.emit(
             'session:resume',
             {
-              accountId: account.id,
+              accountId: currentAccount.id,
               roomCode: activeCode,
-              address: wallet.address,
+              address: currentWallet.address,
             },
             (res: any) => {
               if (res?.success && res?.gameState) {
@@ -791,14 +804,6 @@ export default function App() {
                   currentUrl.searchParams.set('room', res.roomCode);
                   currentUrl.searchParams.delete('join');
                   window.history.replaceState({}, '', currentUrl.toString());
-                }
-              } else if (res?.roomNotFound && activeCode) {
-                setActiveRoomCode(null);
-                const currentUrl = new URL(window.location.href);
-                if (currentUrl.searchParams.has('room') || currentUrl.searchParams.has('join')) {
-                  currentUrl.searchParams.delete('room');
-                  currentUrl.searchParams.delete('join');
-                  window.history.replaceState({}, '', currentUrl.pathname);
                 }
               }
             }
@@ -823,7 +828,8 @@ export default function App() {
 
     // Authoritative profile sync response from database
     s.on('profile:synced', (serverProfile: any) => {
-      if (serverProfile && serverProfile.id && wallet.address) {
+      const curWallet = walletRef.current;
+      if (serverProfile && serverProfile.id && curWallet.address) {
         const synced = syncAccountWithServerProfile(serverProfile);
         if (synced) {
           setAccount(synced);
@@ -833,10 +839,11 @@ export default function App() {
 
     // Real-time broadcast if profile (name/avatar/bio) was updated on another tab or via database
     s.on('profile:updated', (serverProfile: any) => {
-      if (serverProfile && serverProfile.id && wallet.address) {
+      const curWallet = walletRef.current;
+      if (serverProfile && serverProfile.id && curWallet.address) {
         const matchesAddress =
           serverProfile.address &&
-          wallet.address.toLowerCase() === serverProfile.address.toLowerCase();
+          curWallet.address.toLowerCase() === serverProfile.address.toLowerCase();
 
         if (matchesAddress) {
           console.log('[Profile] Live update received from database/tab:', serverProfile.name);
@@ -851,18 +858,19 @@ export default function App() {
 
     // Real-time $CRAZY8 airdrop confirmation listener
     s.on('token:airdropped', (data: any) => {
-      if (wallet.address && data.address?.toLowerCase() === wallet.address.toLowerCase()) {
+      const curWallet = walletRef.current;
+      if (curWallet.address && data.address?.toLowerCase() === curWallet.address.toLowerCase()) {
         setTokenBalance(data.balance);
         setIsAirdropEligible(false);
         setHasClaimedAirdrop(true);
-        if (account?.id) fetchNotifications(account.id);
+        if (accountRef.current?.id) fetchNotifications(accountRef.current.id);
       }
     });
 
     // Real-time on-chain escrow match settlement confirmation
-    s.on('game:settlement', (data: any) => {
-      if (account?.id) fetchNotifications(account.id);
-      if (wallet.address) refreshTokenBalance(wallet.address);
+    s.on('game:settlement', () => {
+      if (accountRef.current?.id) fetchNotifications(accountRef.current.id);
+      if (walletRef.current.address) refreshTokenBalance(walletRef.current.address);
     });
 
     s.on('disconnect', () => {
@@ -934,6 +942,20 @@ export default function App() {
 
     setSocket(s);
 
+    // Keep-alive heartbeat: prevents reverse-proxy idle disconnects and maintains presence
+    const heartbeatInterval = setInterval(() => {
+      const curWallet = walletRef.current;
+      const curAccount = accountRef.current;
+      const curRoom = gameStateRef.current?.roomCode || getActiveRoomCode();
+      if (s.connected) {
+        s.emit('app:heartbeat', {
+          accountId: curAccount?.id,
+          roomCode: curRoom || undefined,
+          address: curWallet.address || undefined,
+        });
+      }
+    }, 12000);
+
     // Periodic poll for live rooms and stats every 6 seconds when not in a game
     refreshLiveStats();
     const interval = setInterval(() => {
@@ -943,9 +965,41 @@ export default function App() {
 
     return () => {
       clearInterval(interval);
+      clearInterval(heartbeatInterval);
       s.disconnect();
     };
-  }, [account?.id, wallet.address]);
+  }, []);
+
+  // Synchronize profile and resume active session whenever wallet or account updates (without disconnecting socket!)
+  useEffect(() => {
+    if (!socket || !wallet.address || !account) return;
+
+    socket.emit('profile:sync', {
+      id: account.id,
+      name: account.name,
+      avatar: account.avatar,
+      bio: account.bio,
+      address: wallet.address,
+    });
+
+    const activeCode = getActiveRoomCode() || gameStateRef.current?.roomCode;
+    if (activeCode && (!gameState || !gameState.players.some((p) => p.id === account.id && p.isConnected))) {
+      socket.emit(
+        'session:resume',
+        {
+          accountId: account.id,
+          roomCode: activeCode,
+          address: wallet.address,
+        },
+        (res: any) => {
+          if (res?.success && res?.gameState) {
+            setGameState(res.gameState);
+            setActiveRoomCode(res.roomCode);
+          }
+        }
+      );
+    }
+  }, [socket, wallet.address, account?.id]);
 
   // Fetch private chat history whenever entering a new room code
   useEffect(() => {
@@ -1200,8 +1254,9 @@ export default function App() {
       {
         playerName: account.name,
         avatar: account.avatar,
-        address: playerAddress,
+        accountId: account.id,
         userId: account.id,
+        address: playerAddress,
       },
       (res: any) => {
         if (!res.success) {
