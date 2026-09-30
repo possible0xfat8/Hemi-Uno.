@@ -9,7 +9,7 @@ import { serverDb } from './server/database.js';
 import { fetchLeaderboardFromSupabase } from './server/supabase.js';
 import { uploadAvatarToR2, isR2Configured } from './server/r2.js';
 import { getTokenInfo, getPlayerTokenStatus, dispenseAirdrop } from './server/tokenService.js';
-import { getEscrowInfo, getGameEscrowDetails } from './server/escrowService.js';
+import { getEscrowInfo, getGameEscrowDetails, getOracleStatus } from './server/escrowService.js';
 import { CardColor } from './src/types.js';
 
 async function startServer() {
@@ -249,6 +249,16 @@ async function startServer() {
       res.json(info || { error: 'Escrow info unavailable' });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to fetch escrow info' });
+    }
+  });
+
+  // REST: Get on-chain Oracle relayer operational status & balances
+  app.get('/api/oracle/status', async (_req, res) => {
+    try {
+      const status = await getOracleStatus();
+      res.json(status);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to fetch oracle status' });
     }
   });
 

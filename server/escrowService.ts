@@ -139,9 +139,82 @@ export async function getGameEscrowDetails(roomCode: string) {
   }
 }
 
+export function getOracleWallet(): ethers.Wallet | null {
+  const privateKey = process.env.admin_PRIVATE_KEY || process.env.ADMIN_PRIVATE_KEY;
+  if (!privateKey) return null;
+  try {
+    return new ethers.Wallet(privateKey.trim(), getProvider());
+  } catch (err) {
+    console.error('[EscrowService] Error creating Oracle wallet from private key:', err);
+    return null;
+  }
+}
+
+/**
+ * Returns the operational health & balances of the Oracle relayer
+ */
+export async function getOracleStatus() {
+  const wallet = getOracleWallet();
+  const tokenAddress = process.env.CRAZY8_TOKEN_ADDRESS || '0x19B111602A60442CCbe947a58a5fd7CB0195324E';
+  const escrowAddress = getEscrowAddress();
+
+  if (!wallet) {
+    return {
+      isReady: false,
+      oracleAddress: null,
+      ethBalance: '0',
+      tokenBalance: '0',
+      tokenAddress,
+      escrowAddress,
+      network: 'Hemi Sepolia Testnet',
+      chainId: 743111,
+      error: 'Oracle private key not configured',
+    };
+  }
+
+  try {
+    const provider = getProvider();
+    const ethBalWei = await provider.getBalance(wallet.address);
+    let tokenBal = '0';
+
+    const tokenArtifactPath = path.resolve(process.cwd(), 'src', 'contracts', 'HemiCrazy8Token.json');
+    if (fs.existsSync(tokenArtifactPath)) {
+      const tokenArtifact = JSON.parse(fs.readFileSync(tokenArtifactPath, 'utf8'));
+      const tokenContract = new ethers.Contract(tokenArtifact.address || tokenAddress, tokenArtifact.abi, provider);
+      const rawBal = await tokenContract.balanceOf(wallet.address).catch(() => 0n);
+      tokenBal = ethers.formatEther(rawBal);
+    }
+
+    return {
+      isReady: ethBalWei > 0n,
+      oracleAddress: wallet.address,
+      ethBalance: ethers.formatEther(ethBalWei),
+      tokenBalance: tokenBal,
+      tokenAddress,
+      escrowAddress,
+      network: 'Hemi Sepolia Testnet',
+      chainId: 743111,
+    };
+  } catch (err: any) {
+    console.warn('[EscrowService] Error getting oracle status:', err);
+    return {
+      isReady: false,
+      oracleAddress: wallet.address,
+      ethBalance: '0',
+      tokenBalance: '0',
+      tokenAddress,
+      escrowAddress,
+      network: 'Hemi Sepolia Testnet',
+      chainId: 743111,
+      error: err.message,
+    };
+  }
+}
+
 /**
  * Automates on-chain match settlement:
  * Pays 95% of pot to winner and 5% board fee to treasury.
+ * Handled gaslessly via the Oracle relayer so users don't need gas or manual deposits.
  */
 export async function settleMatchOnChain(
   roomCode: string,
@@ -158,86 +231,99 @@ export async function settleMatchOnChain(
   try {
     const cleanWinner = ethers.getAddress(winnerAddress.trim());
     const gameId = formatGameId(roomCode);
-    const adminContract = getEscrowAdmin();
-
-    if (!adminContract) {
-      console.warn('[EscrowService] Escrow contract not deployed or admin key missing.');
-      return { success: false, error: 'Escrow contract not yet configured on server' };
-    }
-
-    // Inspect on-chain pot status
-    const gameDetails = await adminContract.getGameDetails(gameId).catch(() => null);
-
-    if (gameDetails && gameDetails[0] > 0n && !gameDetails[4]) {
-      // Pot is deposited in the Escrow contract -> call settleGame
-      console.log(`[EscrowService] Settling on-chain escrow match ${roomCode} (${gameId}) for winner ${cleanWinner}...`);
-      const tx = await adminContract.settleGame(gameId, cleanWinner);
-      console.log(`[EscrowService] Escrow settle tx broadcasted: ${tx.hash}`);
-
-      await tx.wait(1);
-      console.log(`[EscrowService] Match ${roomCode} confirmed settled on Hemi Sepolia!`);
-
-      const totalPotEth = parseFloat(ethers.formatEther(gameDetails[0]));
-      const payout = (totalPotEth * 0.95).toFixed(2);
-      const fee = (totalPotEth * 0.05).toFixed(2);
-
-      return {
-        success: true,
-        txHash: tx.hash,
-        gameId,
-        winnerPayout: payout,
-        boardFee: fee,
-      };
-    }
-
-    // Fallback: If pot was not deposited on-chain beforehand (e.g. casual lobby or bot game)
     const potNum = typeof potTokens === 'string' ? parseFloat(potTokens) : potTokens;
-    if (potNum > 0) {
-      const payoutAmount = potNum * 0.95;
-      const feeAmount = potNum * 0.05;
 
-      // Transfer tokens from admin relayer to winner if admin has enough balance
-      const tokenArtifactPath = path.resolve(process.cwd(), 'src', 'contracts', 'HemiCrazy8Token.json');
-      if (fs.existsSync(tokenArtifactPath)) {
-        const tokenArtifact = JSON.parse(fs.readFileSync(tokenArtifactPath, 'utf8'));
-        const privateKey = process.env.admin_PRIVATE_KEY || process.env.ADMIN_PRIVATE_KEY;
-        if (privateKey) {
-          const provider = getProvider();
-          const wallet = new ethers.Wallet(privateKey, provider);
-          const tokenContract = new ethers.Contract(tokenArtifact.address, tokenArtifact.abi, wallet);
-          const adminBal = await tokenContract.balanceOf(wallet.address);
-          const payoutWei = ethers.parseEther(payoutAmount.toString());
-
-          if (adminBal >= payoutWei) {
-            console.log(`[EscrowService] Rewarding winner ${cleanWinner} directly: ${payoutAmount} $CRAZY8...`);
-            const transferTx = await tokenContract.transfer(cleanWinner, payoutWei);
-            await transferTx.wait(1);
-            console.log(`[EscrowService] Payout confirmed: ${transferTx.hash}`);
-
-            return {
-              success: true,
-              txHash: transferTx.hash,
-              gameId,
-              winnerPayout: payoutAmount.toFixed(1),
-              boardFee: feeAmount.toFixed(1),
-            };
-          }
-        }
-      }
-
+    if (potNum <= 0) {
       return {
         success: true,
         gameId,
-        winnerPayout: payoutAmount.toFixed(1),
-        boardFee: feeAmount.toFixed(1),
+        winnerPayout: '0',
+        boardFee: '0',
       };
     }
+
+    const payoutAmount = Math.max(0, potNum * 0.95);
+    const feeAmount = Math.max(0, potNum * 0.05);
+
+    // 1. Check if the table was deposited directly to the Escrow contract on-chain
+    const adminContract = getEscrowAdmin();
+    if (adminContract) {
+      const gameDetails = await adminContract.getGameDetails(gameId).catch(() => null);
+      if (gameDetails && gameDetails[0] > 0n && !gameDetails[4]) {
+        console.log(`[EscrowService] Settling on-chain escrow match ${roomCode} (${gameId}) for winner ${cleanWinner}...`);
+        const tx = await adminContract.settleGame(gameId, cleanWinner);
+        console.log(`[EscrowService] Escrow settle tx broadcasted: ${tx.hash}`);
+
+        await tx.wait(1);
+        console.log(`[EscrowService] Match ${roomCode} confirmed settled in Escrow on Hemi Sepolia!`);
+
+        const totalPotEth = parseFloat(ethers.formatEther(gameDetails[0]));
+        const payout = (totalPotEth * 0.95).toFixed(1);
+        const fee = (totalPotEth * 0.05).toFixed(1);
+
+        return {
+          success: true,
+          txHash: tx.hash,
+          gameId,
+          winnerPayout: payout,
+          boardFee: fee,
+        };
+      }
+    }
+
+    // 2. Oracle-Sponsored Settlement: Disburse 95% of the lobby pot directly to the winner
+    const oracleWallet = getOracleWallet();
+    if (!oracleWallet) {
+      console.warn('[EscrowService] Oracle private key not configured on server.');
+      return {
+        success: false,
+        error: 'Oracle relayer signer not configured on server',
+      };
+    }
+
+    const tokenArtifactPath = path.resolve(process.cwd(), 'src', 'contracts', 'HemiCrazy8Token.json');
+    if (!fs.existsSync(tokenArtifactPath)) {
+      return {
+        success: false,
+        error: 'HemiCrazy8Token artifact missing',
+      };
+    }
+
+    const tokenArtifact = JSON.parse(fs.readFileSync(tokenArtifactPath, 'utf8'));
+    const tokenAddress = process.env.CRAZY8_TOKEN_ADDRESS || tokenArtifact.address || '0x19B111602A60442CCbe947a58a5fd7CB0195324E';
+    const tokenContract = new ethers.Contract(tokenAddress, tokenArtifact.abi, oracleWallet);
+
+    const payoutWei = ethers.parseEther(payoutAmount.toString());
+    const adminBal = await tokenContract.balanceOf(oracleWallet.address).catch(() => 0n);
+
+    // Auto-replenish if oracle balance is insufficient and oracle owns the token contract
+    if (adminBal < payoutWei) {
+      try {
+        const owner = await tokenContract.owner();
+        if (owner.toLowerCase() === oracleWallet.address.toLowerCase()) {
+          console.log(`[Oracle] Oracle token balance low (${ethers.formatEther(adminBal)}). Replenishing reserve by minting 500,000 $CRAZY8...`);
+          const replenishTx = await tokenContract.mint(oracleWallet.address, ethers.parseEther('500000'));
+          await replenishTx.wait(1);
+          console.log(`[Oracle] Reserve replenished. Tx: ${replenishTx.hash}`);
+        }
+      } catch (mintErr) {
+        console.warn('[Oracle] Could not auto-mint replenishment tokens:', mintErr);
+      }
+    }
+
+    console.log(`[Oracle] Disbursing 95% pot reward to winner ${cleanWinner}: ${payoutAmount} $CRAZY8 (Match ${roomCode})...`);
+    const transferTx = await tokenContract.transfer(cleanWinner, payoutWei);
+    console.log(`[Oracle] Payout tx broadcasted: ${transferTx.hash}`);
+
+    await transferTx.wait(1);
+    console.log(`[Oracle] Winner payout confirmed on Hemi Sepolia! Tx: ${transferTx.hash}`);
 
     return {
       success: true,
+      txHash: transferTx.hash,
       gameId,
-      winnerPayout: '0',
-      boardFee: '0',
+      winnerPayout: payoutAmount.toFixed(1),
+      boardFee: feeAmount.toFixed(1),
     };
   } catch (err: any) {
     console.error(`[EscrowService] Error settling match ${roomCode}:`, err);

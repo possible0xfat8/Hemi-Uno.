@@ -1,0 +1,6 @@
+{
+  "summary": "Revised implementation plan for Oracle-sponsored on-chain pot settlement on Hemi Sepolia:\n- Players stake in-app $CRAZY8 chips in the lobby gaslessly (no player wallet approval or gas required).\n- The funded backend Oracle relayer manages on-chain execution and pays all gas fees.\n- Upon match completion, the Oracle releases 95% of the lobby's pot directly to the winner's wallet address on Hemi Sepolia with a verifiable transaction hash.\n- Unstarted lobby exits automatically refund chips instantly without gas.",
+  "updatedAt": "2026-09-30T08:20:31.502306476Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

@@ -493,14 +493,17 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   🪙
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs sm:text-sm font-black text-white">Staking Table</span>
                     <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">
-                      Debited on Entry • Refunded if Left
+                      Gasless Entry • Refunded if Left
+                    </span>
+                    <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-bold">
+                      ⚡ Oracle Sponsored Payout
                     </span>
                   </div>
                   <div className="text-[10px] sm:text-[11px] text-slate-400">
-                    Each player stakes <strong className="text-amber-300 font-mono">{gameState.escrowPot.buyInAmount} $CRAZY8</strong> into the pot. Winner takes 95%!
+                    Each player stakes <strong className="text-amber-300 font-mono">{gameState.escrowPot.buyInAmount} $CRAZY8</strong>. When the match ends, our funded Oracle automatically pays out 95% on-chain to the winner!
                   </div>
                 </div>
               </div>

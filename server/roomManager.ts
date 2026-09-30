@@ -125,7 +125,7 @@ export class RoomManager {
                 nonce: Date.now(),
                 timestamp: Date.now(),
                 signature: settleRes.txHash,
-                contractAddress: getEscrowAddress() || '0xbD42f75Fee8aD5Dd260DAbbC0520b5A0Efa1F060',
+                contractAddress: getEscrowAddress() || process.env.CRAZY8_TOKEN_ADDRESS || '0x19B111602A60442CCbe947a58a5fd7CB0195324E',
                 network: 'Hemi Sepolia (Chain ID 743111)',
               };
               this.broadcastRoomState(room);
