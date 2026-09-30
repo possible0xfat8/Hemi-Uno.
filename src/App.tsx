@@ -21,6 +21,7 @@ import { LeaderboardModal } from './components/LeaderboardModal';
 import { CreateTableModal } from './components/CreateTableModal';
 import { ConnectWalletModal } from './components/ConnectWalletModal';
 import { AirdropModal } from './components/AirdropModal';
+import { AirdropTourToast } from './components/AirdropTourToast';
 import { NotificationsModal } from './components/NotificationsModal';
 import { fetchTokenBalance, formatTokenAmount, CRAZY8_TOKEN_SYMBOL } from './utils/token';
 import {
@@ -304,7 +305,20 @@ export default function App() {
   const [tokenBalance, setTokenBalance] = useState<string>('0');
   const [isAirdropEligible, setIsAirdropEligible] = useState<boolean>(false);
   const [isAirdropOpen, setIsAirdropOpen] = useState<boolean>(false);
-  const [hasClaimedAirdrop, setHasClaimedAirdrop] = useState<boolean>(false);
+  const [hasClaimedAirdrop, setHasClaimedAirdrop] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hemi_uno_airdrop_claimed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [tourDismissed, setTourDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('hemi_uno_tour_dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [tokenLoading, setTokenLoading] = useState<boolean>(false);
 
   // User Notifications state
@@ -360,19 +374,32 @@ export default function App() {
     if (!address) {
       setTokenBalance('0');
       setIsAirdropEligible(false);
-      setHasClaimedAirdrop(false);
+      try {
+        setHasClaimedAirdrop(localStorage.getItem('hemi_uno_airdrop_claimed') === 'true');
+      } catch {
+        setHasClaimedAirdrop(false);
+      }
       return;
     }
     setTokenLoading(true);
     try {
+      const walletClaimedKey = `hemi_uno_airdrop_claimed_${address.toLowerCase()}`;
+      try {
+        if (localStorage.getItem(walletClaimedKey) === 'true') {
+          setHasClaimedAirdrop(true);
+        }
+      } catch {}
+
       const res = await fetchTokenBalance(address);
       setTokenBalance(res.balance);
       setIsAirdropEligible(res.eligible);
       setHasClaimedAirdrop(res.hasClaimed);
 
-      // Seamless Auto-prompt: If user is eligible and has 0 chips, open airdrop modal!
-      if (res.eligible && (!res.balance || parseFloat(res.balance) === 0)) {
-        setIsAirdropOpen(true);
+      if (res.hasClaimed) {
+        try {
+          localStorage.setItem('hemi_uno_airdrop_claimed', 'true');
+          localStorage.setItem(walletClaimedKey, 'true');
+        } catch {}
       }
     } finally {
       setTokenLoading(false);
@@ -864,6 +891,11 @@ export default function App() {
         setTokenBalance(data.balance);
         setIsAirdropEligible(false);
         setHasClaimedAirdrop(true);
+        try {
+          localStorage.setItem('hemi_uno_airdrop_claimed', 'true');
+          localStorage.setItem(`hemi_uno_airdrop_claimed_${curWallet.address.toLowerCase()}`, 'true');
+          localStorage.setItem('hemi_uno_tour_dismissed', 'true');
+        } catch {}
         if (accountRef.current?.id) fetchNotifications(accountRef.current.id);
       }
     });
@@ -1676,7 +1708,7 @@ export default function App() {
           </button>
 
           {/* Hemi Crazy 8 Token ($CRAZY8) Balance & Airdrop Chip */}
-          {wallet.address && (
+          {wallet.address ? (
             <div className="flex items-center gap-1.5 shrink-0">
               <div
                 className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] sm:text-xs font-mono font-medium text-slate-300"
@@ -1689,16 +1721,27 @@ export default function App() {
 
               {isAirdropEligible && (
                 <button
+                  id="nav-airdrop-gift-btn"
                   onClick={() => setIsAirdropOpen(true)}
-                  className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-[#FF4600] hover:bg-[#FF5500] text-[10px] sm:text-xs font-bold text-white transition-all active:scale-95 cursor-pointer shrink-0"
+                  className="relative z-30 flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-[#FF4600] to-[#FF6B00] hover:from-[#FF5500] hover:to-[#FF7B00] text-[10px] sm:text-xs font-bold text-white transition-all active:scale-95 cursor-pointer shrink-0 shadow-[0_0_12px_rgba(255,70,0,0.5)]"
                   title="Claim 10,000 $CRAZY8 Welcome Airdrop"
                 >
-                  <Gift className="w-3.5 h-3.5" />
+                  <Gift className="w-3.5 h-3.5 animate-pulse" />
                   <span className="hidden xs:inline">10K Airdrop</span>
                 </button>
               )}
             </div>
-          )}
+          ) : !hasClaimedAirdrop ? (
+            <button
+              id="nav-airdrop-gift-btn"
+              onClick={handleConnectWallet}
+              className="relative z-30 flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-gradient-to-r from-[#FF4600] to-[#FF6B00] hover:from-[#FF5500] hover:to-[#FF7B00] text-[10px] sm:text-xs font-bold text-white transition-all active:scale-95 cursor-pointer shrink-0 shadow-[0_0_12px_rgba(255,70,0,0.5)]"
+              title="Claim 10,000 $CRAZY8 Welcome Airdrop"
+            >
+              <Gift className="w-3.5 h-3.5 animate-pulse" />
+              <span className="hidden xs:inline">10K Gift</span>
+            </button>
+          ) : null}
 
           {/* User Avatar — ONLY VISIBLE WHEN WALLET IS CONNECTED */}
           {wallet.address && account && (
@@ -2555,6 +2598,39 @@ export default function App() {
           setTokenBalance(newBal);
           setIsAirdropEligible(false);
           setHasClaimedAirdrop(true);
+          try {
+            localStorage.setItem('hemi_uno_airdrop_claimed', 'true');
+            if (wallet.address) {
+              localStorage.setItem(`hemi_uno_airdrop_claimed_${wallet.address.toLowerCase()}`, 'true');
+            }
+            localStorage.setItem('hemi_uno_tour_dismissed', 'true');
+          } catch {}
+        }}
+      />
+
+      {/* Onboarding Tour Spotlight for New Time Users */}
+      <AirdropTourToast
+        isVisible={
+          !hasClaimedAirdrop &&
+          !tourDismissed &&
+          !isAirdropOpen &&
+          !connectingWalletId &&
+          (!gameState || gameState.status === 'lobby')
+        }
+        targetId="nav-airdrop-gift-btn"
+        isWalletConnected={Boolean(wallet.address)}
+        onClaimClick={() => {
+          if (!wallet.address) {
+            handleConnectWallet();
+          } else {
+            setIsAirdropOpen(true);
+          }
+        }}
+        onDismiss={() => {
+          setTourDismissed(true);
+          try {
+            localStorage.setItem('hemi_uno_tour_dismissed', 'true');
+          } catch {}
         }}
       />
 

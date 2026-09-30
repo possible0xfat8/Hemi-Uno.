@@ -115,7 +115,7 @@ export async function getTokenInfo() {
 }
 
 export async function getPlayerTokenStatus(rawAddress: string) {
-  if (!rawAddress) return { balance: '0', eligible: false, hasClaimed: false };
+  if (!rawAddress) return { balance: '0', eligible: false, hasClaimed: false, symbol: 'CRAZY8' };
   try {
     const cleanAddr = ethers.getAddress(rawAddress.trim());
     const contract = getTokenReadOnly();
@@ -126,22 +126,21 @@ export async function getPlayerTokenStatus(rawAddress: string) {
       contract.hasClaimedAirdrop(cleanAddr).catch(() => false),
     ]);
 
-    const dbBal = serverDb.getUserTokenBalance(cleanAddr);
     const onChainBal = parseFloat(ethers.formatEther(rawBal)) || 0;
-    // Effective balance combines on-chain or internal test token balance
-    const effectiveBal = typeof dbBal === 'number' ? dbBal : (onChainBal > 0 ? onChainBal : 10000);
+    const user = serverDb.getUserByAddress(cleanAddr);
+    // On-chain balance is authoritative. Otherwise check user tokenBalance in database.
+    const effectiveBal = onChainBal > 0 ? onChainBal : (typeof user?.tokenBalance === 'number' ? user.tokenBalance : 0);
 
     return {
       address: cleanAddr,
       balance: effectiveBal.toString(),
-      eligible: isEligible,
+      eligible: isEligible && !hasClaimed,
       hasClaimed,
       symbol: 'CRAZY8',
     };
   } catch (err) {
     console.error(`[TokenService] Error checking status for ${rawAddress}:`, err);
-    const fallbackBal = serverDb.getUserTokenBalance(rawAddress);
-    return { balance: fallbackBal.toString(), eligible: false, hasClaimed: false, symbol: 'CRAZY8' };
+    return { balance: '0', eligible: false, hasClaimed: false, symbol: 'CRAZY8' };
   }
 }
 
@@ -173,19 +172,35 @@ export async function dispenseAirdrop(rawAddress: string): Promise<{
     }
 
     console.log(`[TokenService] Dispensing 10,000 $CRAZY8 to ${cleanAddr}...`);
-    const tx = await adminContract.airdropTo(cleanAddr);
+    // Explicit gasPrice (0.1 Gwei) and gasLimit (120,000) ensure instant sequencer inclusion
+    const tx = await adminContract.airdropTo(cleanAddr, {
+      gasLimit: 120000,
+      gasPrice: ethers.parseUnits('0.1', 'gwei'),
+    });
     console.log(`[TokenService] Airdrop transaction broadcasted: ${tx.hash}`);
 
-    // Wait for 1 confirmation
-    await tx.wait(1);
-    console.log(`[TokenService] Airdrop confirmed for ${cleanAddr}`);
+    // Update server DB immediately so player can use their chips without waiting for block confirmation
+    const user = serverDb.getUserByAddress(cleanAddr);
+    if (user) {
+      user.tokenBalance = (user.tokenBalance || 0) + 10000;
+      serverDb.save();
+    }
 
-    const newBalance = await adminContract.balanceOf(cleanAddr);
+    // Confirm in background without blocking the HTTP response
+    tx.wait(1).then(async (receipt: any) => {
+      console.log(`[TokenService] Airdrop confirmed in block ${receipt?.blockNumber} for ${cleanAddr}`);
+      try {
+        const bal = await adminContract.balanceOf(cleanAddr);
+        console.log(`[TokenService] Confirmed on-chain balance for ${cleanAddr}: ${ethers.formatEther(bal)}`);
+      } catch {}
+    }).catch((err: any) => {
+      console.warn(`[TokenService] Background confirmation warning for ${tx.hash}:`, err);
+    });
 
     return {
       success: true,
       txHash: tx.hash,
-      balance: ethers.formatEther(newBalance),
+      balance: '10000',
       amount: 10000,
     };
   } catch (err: any) {
