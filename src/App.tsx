@@ -42,6 +42,7 @@ import {
   syncAccountWithServerProfile,
   getActiveRoomCode,
   setActiveRoomCode,
+  getLastConnectedWallet,
   saveLastConnectedWallet,
   AccountProfile,
 } from './utils/account';
@@ -867,6 +868,20 @@ export default function App() {
       }
     });
 
+    // Real-time chip debit / credit / refund notification
+    s.on('token:balance_updated', (data: any) => {
+      const curWallet = walletRef.current;
+      if (
+        !data.address ||
+        (curWallet.address && data.address.toLowerCase() === curWallet.address.toLowerCase())
+      ) {
+        if (data.balance !== undefined) {
+          setTokenBalance(String(data.balance));
+        }
+        if (accountRef.current?.id) fetchNotifications(accountRef.current.id);
+      }
+    });
+
     // Real-time on-chain escrow match settlement confirmation
     s.on('game:settlement', () => {
       if (accountRef.current?.id) fetchNotifications(accountRef.current.id);
@@ -1015,34 +1030,23 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('join') || params.get('room');
-    if (code && socket && !gameState) {
-      if (!wallet.address || !account) {
-        // Disconnected visitor viewing room link — spectate instead of claiming a player seat
-        socket.emit(
-          'room:spectate',
-          {
-            roomCode: code.toUpperCase(),
-            accountId: `spectator_${socket.id}`,
-            spectatorName: 'Spectator',
-            avatar: '👀',
-          },
-          (res: any) => {
-            if (res?.success && res?.gameState) {
-              setGameState(res.gameState);
-              setActiveRoomCode(res.roomCode);
-            }
-          }
-        );
-        return;
-      }
+    if (!code || !socket || gameState) return;
+
+    const lastSavedWallet = getLastConnectedWallet();
+    // If a wallet was previously connected, wait for wallet/account hydration rather than blindly spectating
+    if ((!wallet.address || !account) && lastSavedWallet) {
+      return;
+    }
+
+    if (!wallet.address || !account) {
+      // Disconnected visitor viewing room link — spectate instead of claiming a player seat
       socket.emit(
-        'room:join',
+        'room:spectate',
         {
           roomCode: code.toUpperCase(),
-          accountId: account.id,
-          playerName: account.name,
-          avatar: account.avatar,
-          address: wallet.address,
+          accountId: `spectator_${socket.id}`,
+          spectatorName: 'Spectator',
+          avatar: '👀',
         },
         (res: any) => {
           if (res?.success && res?.gameState) {
@@ -1051,7 +1055,43 @@ export default function App() {
           }
         }
       );
+      return;
     }
+
+    // First try session resume to restore existing seated player seamlessly
+    socket.emit(
+      'session:resume',
+      {
+        accountId: account.id,
+        roomCode: code.toUpperCase(),
+        address: wallet.address,
+      },
+      (resumeRes: any) => {
+        if (resumeRes?.success && resumeRes?.gameState) {
+          setGameState(resumeRes.gameState);
+          setActiveRoomCode(resumeRes.roomCode);
+          return;
+        }
+
+        // If not already seated, join room
+        socket.emit(
+          'room:join',
+          {
+            roomCode: code.toUpperCase(),
+            accountId: account.id,
+            playerName: account.name,
+            avatar: account.avatar,
+            address: wallet.address,
+          },
+          (res: any) => {
+            if (res?.success && res?.gameState) {
+              setGameState(res.gameState);
+              setActiveRoomCode(res.roomCode);
+            }
+          }
+        );
+      }
+    );
   }, [socket, gameState, account?.id, account?.name, account?.avatar, wallet.address]);
 
   // When opening chat, reset unread counter
@@ -1392,7 +1432,7 @@ export default function App() {
   // Game actions
   const handlePlayCard = (card: Card) => {
     if (!socket || !gameState) return;
-    if (gameState.currentTurnPlayerId !== myPlayerId) return;
+    if (!isMyTurn && gameState.currentTurnPlayerId !== myPlayer?.id && gameState.currentTurnPlayerId !== myPlayerId) return;
 
     if (card.color === 'wild' || card.value === '8' || card.value === 'wild_draw4') {
       // Prompt Crazy 8 color nomination cross modal
@@ -1477,11 +1517,39 @@ export default function App() {
     refreshLiveRooms();
   };
 
-  const myPlayerId = account?.id || '';
-  const isSpectator = !!gameState?.isSpectator || !account;
-  const myPlayer = account ? gameState?.players.find((p) => p.id === myPlayerId) : undefined;
-  const isMyTurn = !!account && gameState?.currentTurnPlayerId === myPlayerId;
-  const isHost = !!account && gameState?.hostId === myPlayerId;
+  // Robust player identity matching: checks account id, canonical id, and wallet address
+  const myPlayer = useMemo(() => {
+    if (!gameState?.players) return undefined;
+    const cleanWallet = wallet.address ? wallet.address.trim().toLowerCase() : '';
+    const accId = account?.id ? account.id.trim().toLowerCase() : '';
+
+    return gameState.players.find((p) => {
+      const pId = p.id ? p.id.trim().toLowerCase() : '';
+      const pAddr = p.address ? p.address.trim().toLowerCase() : '';
+      if (accId && pId === accId) return true;
+      if (cleanWallet && pAddr === cleanWallet) return true;
+      if (cleanWallet && pId === `wallet_${cleanWallet}`) return true;
+      if (accId.startsWith('wallet_') && pAddr === accId.replace('wallet_', '')) return true;
+      return false;
+    });
+  }, [gameState?.players, account?.id, wallet.address]);
+
+  const myPlayerId = myPlayer?.id || account?.id || '';
+  // CRITICAL FIX: Seated players are NEVER spectators! Spectator mode only applies if user has no player seat at the table
+  const isSpectator = !myPlayer && (!!gameState?.isSpectator || !account);
+  const isMyTurn = !isSpectator && !!myPlayer && (
+    gameState?.currentTurnPlayerId === myPlayer.id ||
+    gameState?.currentTurnPlayerId === myPlayerId
+  );
+  const isHost = !!myPlayer && (gameState?.hostId === myPlayer.id || gameState?.hostId === myPlayerId);
+
+  // Auto-recovery: If player is seated during a live match but hand is missing or desynced, re-request state
+  useEffect(() => {
+    if (gameState?.status === 'playing' && myPlayer && !myPlayer.hand && socket?.connected) {
+      console.log('[Game] Active player hand missing, requesting immediate state sync...');
+      socket.emit('room:refresh_state');
+    }
+  }, [gameState?.status, myPlayer?.id, myPlayer?.hand, socket?.connected]);
   const topCard = gameState?.topDiscardCard || null;
 
   // Compute defense ability when under attack (+2, +4 stack)
@@ -2209,6 +2277,22 @@ export default function App() {
                         ? '-space-x-3.5 xs:-space-x-4.5 sm:-space-x-6'
                         : '-space-x-1 sm:-space-x-2';
 
+                    if (handCount === 0 && gameState.status === 'playing') {
+                      return (
+                        <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-slate-900/90 border border-amber-500/30 text-amber-300 text-xs font-bold animate-pulse my-2 shadow-lg backdrop-blur-md">
+                          <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
+                          <span>Syncing cards with table...</span>
+                          <button
+                            type="button"
+                            onClick={() => socket?.emit('room:refresh_state')}
+                            className="ml-2 px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] uppercase font-mono tracking-wider cursor-pointer border border-amber-500/40"
+                          >
+                            Sync Cards
+                          </button>
+                        </div>
+                      );
+                    }
+
                     return (
                       <div className="relative w-full max-w-4xl flex items-center justify-center">
                         {/* Scroll Left Arrow (shows on high card counts) */}
@@ -2392,6 +2476,7 @@ export default function App() {
         playerName={account?.name || ''}
         avatar={account?.avatar || '🦊'}
         walletAddress={wallet.address || undefined}
+        tokenBalance={tokenBalance}
         onConnectWallet={handleConnectWallet}
       />
 

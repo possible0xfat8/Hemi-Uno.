@@ -380,15 +380,30 @@ async function startServer() {
       if (!room || !player) {
         const accId = roomManager.getAccountIdBySocket(socket.id);
         if (accId) {
-          room = roomManager.getRoomByAccountId(accId);
+          room = roomManager.getRoomByAccountId(accId) || room;
           if (room) {
             player = room.getPlayer(accId) || null;
-            if (player) {
-              player.socketId = socket.id;
-              player.isConnected = true;
+            if (!player && accId.startsWith('wallet_')) {
+              const cleanAddr = accId.replace('wallet_', '').toLowerCase();
+              player = room.players.find(p => p.address && p.address.toLowerCase() === cleanAddr) || null;
             }
           }
         }
+      }
+      // Thorough fallback across all active rooms if socket reconnected or re-paired
+      if (!room || !player) {
+        for (const r of roomManager.getAllRooms()) {
+          const p = r.players.find(pl => pl.socketId === socket.id);
+          if (p) {
+            room = r;
+            player = p;
+            break;
+          }
+        }
+      }
+      if (room && player) {
+        player.socketId = socket.id;
+        player.isConnected = true;
       }
       return { room, player };
     };
@@ -412,11 +427,38 @@ async function startServer() {
             if (p.socketId !== socket.id) {
               p.socketId = socket.id;
             }
+            // Ensure socket lookup mappings
+            (roomManager as any).socketToRoomId?.set(socket.id, room.roomId);
+            (roomManager as any).socketToAccountId?.set(socket.id, p.id);
+            // Purge spectator record
+            room.spectators.delete(p.id);
+            if (targetId) room.spectators.delete(targetId);
+            for (const [sId, s] of Array.from(room.spectators.entries())) {
+              if (s.socketId === socket.id) room.spectators.delete(sId);
+            }
           }
         }
       }
       if (typeof callback === 'function') {
         callback({ success: true, timestamp: Date.now() });
+      }
+    });
+
+    // Dedicated state refresh event (guarantees player recovers full state and hand if temporarily desynced)
+    socket.on('room:refresh_state', (callback?: any) => {
+      const { room, player } = getPlayerInCurrentRoom();
+      if (room && player) {
+        player.socketId = socket.id;
+        player.isConnected = true;
+        const sanitized = room.getSanitizedStateForPlayer(player.id);
+        socket.emit('game:state', sanitized);
+        if (typeof callback === 'function') {
+          callback({ success: true, gameState: sanitized });
+        }
+      } else {
+        if (typeof callback === 'function') {
+          callback({ success: false });
+        }
       }
     });
 
@@ -700,12 +742,18 @@ async function startServer() {
         const result = roomManager.joinAsSpectator(roomCode, validAccountId, socket.id, spectatorName, avatar);
         if (result.success && result.room) {
           socket.join(result.room.roomId);
+          const resolvedPlayerId = result.playerId || validAccountId;
+          const sanitized = result.room.getSanitizedStateForPlayer(resolvedPlayerId);
+          socket.emit('game:state', sanitized);
+
           if (typeof callback === 'function') {
             callback({
               success: true,
               roomCode: result.room.roomCode,
               roomId: result.room.roomId,
-              accountId: validAccountId,
+              accountId: resolvedPlayerId,
+              isSpectator: !result.isPlayerReconnect,
+              gameState: sanitized,
             });
           }
         } else {
@@ -764,7 +812,7 @@ async function startServer() {
       }
     });
 
-    // 6. Start game (Any seated player can start when table is ready)
+    // 6. Start game (Host or seated player can launch once lobby conditions are met)
     socket.on('game:start', (callback) => {
       try {
         const { room, player } = getPlayerInCurrentRoom();
@@ -772,14 +820,34 @@ async function startServer() {
           if (typeof callback === 'function') callback({ success: false, error: 'Room or player not found' });
           return;
         }
-        // If clicking player is seated, ensure they are marked ready
-        player.isReady = true;
-        if (!room.canStart()) {
+
+        // REQUIREMENT: More than 2 players must be on the lobby
+        if (room.players.length <= 2) {
           if (typeof callback === 'function') {
-            callback({ success: false, error: 'Requires at least 2 ready players to start' });
+            callback({ success: false, error: 'More than 2 players required on the lobby before game can be started (minimum 3 players).' });
           }
           return;
         }
+
+        // REQUIREMENT: All seated players must click "I am Ready!"
+        const notReady = room.players.filter(p => !p.isBot && !p.isReady);
+        if (notReady.length > 0) {
+          if (typeof callback === 'function') {
+            callback({
+              success: false,
+              error: `All players must click 'I am Ready!' before the game can start. Waiting on: ${notReady.map(p => p.name).join(', ')}`,
+            });
+          }
+          return;
+        }
+
+        if (!room.canStart()) {
+          if (typeof callback === 'function') {
+            callback({ success: false, error: 'Cannot start match. More than 2 players required and all players must be ready.' });
+          }
+          return;
+        }
+
         const started = room.startGame();
         if (typeof callback === 'function') callback({ success: started });
       } catch (err: any) {

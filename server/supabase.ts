@@ -14,6 +14,7 @@ export interface SupabaseProfileRow {
   wins: number;
   cards_played: number;
   total_winnings: string;
+  token_balance?: number | null;
   last_seen: number;
   created_at: number;
   updated_at: number;
@@ -116,6 +117,7 @@ export function toSupabaseProfile(user: UserProfileRecord): SupabaseProfileRow {
     wins: user.stats?.wins || 0,
     cards_played: user.stats?.cardsPlayed || 0,
     total_winnings: user.stats?.totalWinnings || '0.000',
+    token_balance: typeof user.tokenBalance === 'number' ? user.tokenBalance : 10000,
     last_seen: user.lastSeen || Date.now(),
     created_at: user.createdAt || Date.now(),
     updated_at: user.updatedAt || Date.now(),
@@ -362,6 +364,7 @@ export async function loadInitialDataFromSupabase(): Promise<{
           cardsPlayed: p.cards_played,
           totalWinnings: p.total_winnings,
         },
+        tokenBalance: typeof (p as any).token_balance === 'number' ? (p as any).token_balance : 10000,
         friends: [],
         friendRequestsSent: [],
         friendRequestsReceived: [],
@@ -464,6 +467,7 @@ export async function fetchLeaderboardFromSupabase(limit = 15): Promise<UserProf
         cardsPlayed: p.cards_played,
         totalWinnings: p.total_winnings,
       },
+      tokenBalance: typeof (p as any).token_balance === 'number' ? (p as any).token_balance : 10000,
       friends: [],
       friendRequestsSent: [],
       friendRequestsReceived: [],

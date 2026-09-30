@@ -29,6 +29,7 @@ export interface Player {
   wins?: number; // Cumulative match wins in this lobby
   roundsPlayed?: number; // Total rounds in current lobby
   lastRoundScore?: number; // Score earned in the most recent completed round
+  tokenBalance?: number; // Current test token balance
 }
 
 export type BannerType = 'REVERSE' | 'SKIP' | 'LAST_CARD' | 'DRAW2' | 'DRAW4' | 'WILD' | 'TURN_TIMEOUT';
@@ -128,6 +129,9 @@ export interface GameState {
   hostId: string;
   status: 'lobby' | 'playing' | 'game_over';
   players: Player[];
+  isStaking?: boolean;
+  buyInAmount?: string;
+  minPlayersRequired?: number; // Minimum players required to start match (3 players)
   isQuickMatch?: boolean;
   customMode?: string;
   currentTurnPlayerId: string | null;

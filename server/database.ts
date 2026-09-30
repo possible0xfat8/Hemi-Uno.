@@ -45,6 +45,7 @@ export interface UserProfileRecord {
   createdAt: number;
   updatedAt: number;
   stats: UserStats;
+  tokenBalance: number; // In-app test token balance ($CRAZY8) for stakes & matches
   friends: string[]; // User IDs
   friendRequestsSent: string[]; // User IDs
   friendRequestsReceived: string[]; // User IDs
@@ -300,6 +301,7 @@ export class ServerDatabase {
         cardsPlayed: 0,
         totalWinnings: '0.000',
       },
+      tokenBalance: fallbackUser?.tokenBalance ?? 10000,
       friends: fallbackUser?.friends || [],
       friendRequestsSent: fallbackUser?.friendRequestsSent || [],
       friendRequestsReceived: fallbackUser?.friendRequestsReceived || [],
@@ -330,6 +332,7 @@ export class ServerDatabase {
       if (initial.name && !user.name) user.name = initial.name;
       if (initial.avatar && !user.avatar) user.avatar = initial.avatar;
       if (initial.bio && !user.bio) user.bio = initial.bio;
+      if (typeof user.tokenBalance !== 'number') user.tokenBalance = 10000;
       user.lastSeen = Date.now();
       return user;
     }
@@ -355,6 +358,7 @@ export class ServerDatabase {
         cardsPlayed: 0,
         totalWinnings: '0.000',
       },
+      tokenBalance: 10000,
       friends: [],
       friendRequestsSent: [],
       friendRequestsReceived: [],
@@ -365,6 +369,53 @@ export class ServerDatabase {
     this.save();
     syncProfileToSupabase(newUser);
     return newUser;
+  }
+
+  private resolveUserRecord(idOrAddress: string): UserProfileRecord | null {
+    if (!idOrAddress) return null;
+    let user = this.data.users[idOrAddress] ||
+      (idOrAddress.startsWith('0x') ? this.getUserByAddress(idOrAddress) : null) ||
+      this.getUser(idOrAddress);
+    if (!user) {
+      if (idOrAddress.startsWith('0x')) {
+        user = this.linkOrGetUserByAddress(idOrAddress);
+      } else {
+        user = this.getOrCreateUser(idOrAddress, {});
+      }
+    }
+    if (user && typeof user.tokenBalance !== 'number') {
+      user.tokenBalance = 10000;
+      this.save();
+    }
+    return user;
+  }
+
+  public getUserTokenBalance(idOrAddress: string): number {
+    const user = this.resolveUserRecord(idOrAddress);
+    return user?.tokenBalance ?? 10000;
+  }
+
+  public debitUserTokenBalance(idOrAddress: string, amount: number): boolean {
+    if (!idOrAddress || amount <= 0) return true;
+    const user = this.resolveUserRecord(idOrAddress);
+    if (!user) return false;
+    if (user.tokenBalance < amount) return false;
+
+    user.tokenBalance -= amount;
+    user.updatedAt = Date.now();
+    this.save();
+    return true;
+  }
+
+  public creditUserTokenBalance(idOrAddress: string, amount: number): number {
+    if (!idOrAddress || amount <= 0) return 0;
+    const user = this.resolveUserRecord(idOrAddress);
+    if (!user) return 0;
+
+    user.tokenBalance += amount;
+    user.updatedAt = Date.now();
+    this.save();
+    return user.tokenBalance;
   }
 
   public getUser(id: string): UserProfileRecord | null {

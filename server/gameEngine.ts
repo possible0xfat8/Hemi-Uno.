@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { Card, CardColor, CardValue, GameState, Player, BannerType, SettlementSignature, CardsDrawnEvent, CardPlayedEvent, ChatMessage } from '../src/types.js';
+import { serverDb } from './database.js';
 
 const COLORS: CardColor[] = ['red', 'blue', 'green', 'yellow'];
 const NUMBERS: CardValue[] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -108,6 +109,7 @@ export class GameRoom {
   public settlementSignature: SettlementSignature | null = null;
 
   public buyInAmount: string = '100';
+  public isStaking: boolean = true;
   public currency: string = 'CRAZY8';
   public customMode?: string;
   public description?: string;
@@ -117,6 +119,51 @@ export class GameRoom {
   public spectators: Map<string, { id: string; socketId: string; name: string; avatar: string }> = new Map();
   public messages: ChatMessage[] = [];
   public cardsPlayedPerPlayer: Record<string, number> = {};
+  public playerStakes: Map<string, number> = new Map();
+
+  public recordStake(playerId: string, amount: number): void {
+    if (this.isStaking && amount > 0) {
+      this.playerStakes.set(playerId, amount);
+      this.emitUpdate();
+    }
+  }
+
+  public removeStake(playerId: string): number {
+    const amount = this.playerStakes.get(playerId) || 0;
+    this.playerStakes.delete(playerId);
+    this.emitUpdate();
+    return amount;
+  }
+
+  public hasPlayerStaked(playerId: string): boolean {
+    return this.playerStakes.has(playerId);
+  }
+
+  public getPlayerStake(playerId: string): number {
+    return this.playerStakes.get(playerId) || 0;
+  }
+
+  public getAllStakes(): [string, number][] {
+    return Array.from(this.playerStakes.entries());
+  }
+
+  public clearStakes(): void {
+    this.playerStakes.clear();
+    this.emitUpdate();
+  }
+
+  public getPotAmount(): number {
+    if (!this.isStaking || parseFloat(this.buyInAmount || '0') <= 0) return 0;
+    let total = 0;
+    for (const stake of this.playerStakes.values()) {
+      total += stake;
+    }
+    // Fallback if players are present but stakes haven't been individually mapped
+    if (total === 0 && this.players.length > 0) {
+      total = this.players.length * parseFloat(this.buyInAmount || '0');
+    }
+    return total;
+  }
 
   private turnInterval: NodeJS.Timeout | null = null;
   private onStateChangeCallback: (() => void) | null = null;
@@ -156,6 +203,10 @@ export class GameRoom {
   }
 
   public addSpectator(id: string, socketId: string, name: string, avatar: string): void {
+    // A seated player in this room must NEVER be added to spectators
+    if (this.players.some(p => p.id === id || (p.socketId && p.socketId === socketId))) {
+      return;
+    }
     const existing = this.spectators.get(id);
     if (!existing) {
       this.addChatMessage({
@@ -255,7 +306,7 @@ export class GameRoom {
       cardCount: 0,
       hand: [],
       isHost: shouldBecomeHost ? true : player.isHost,
-      isReady: shouldBecomeHost ? true : (player.isHost || !!player.isBot),
+      isReady: !!player.isBot, // Every real player (including host) must explicitly click "I am Ready!"
       score: player.score ?? 0,
       wins: player.wins ?? 0,
       roundsPlayed: player.roundsPlayed ?? 0,
@@ -270,6 +321,10 @@ export class GameRoom {
       this.hostId = newPlayer.id;
     }
 
+    if (newPlayer.isBot && this.isStaking && parseFloat(this.buyInAmount || '0') > 0) {
+      this.recordStake(newPlayer.id, parseFloat(this.buyInAmount));
+    }
+
     this.players.push(newPlayer);
     this.emitUpdate();
     return newPlayer;
@@ -281,6 +336,9 @@ export class GameRoom {
 
     const removed = this.players[pIndex];
     this.players.splice(pIndex, 1);
+    if (this.status === 'lobby') {
+      this.removeStake(playerId);
+    }
 
     // Re-index seats
     this.players.forEach((p, idx) => {
@@ -323,7 +381,7 @@ export class GameRoom {
 
   public toggleReady(playerId: string): void {
     const p = this.players.find(pl => pl.id === playerId);
-    if (p && !p.isHost) {
+    if (p && !p.isBot) {
       p.isReady = !p.isReady;
       this.emitUpdate();
     }
@@ -352,10 +410,10 @@ export class GameRoom {
   }
 
   public canStart(): boolean {
-    // 2 to 5 players required (supporting 1v1 up to 5 players)
-    if (this.players.length < 2 || this.players.length > 5) return false;
-    // Non-host players must be ready (bots are automatically ready)
-    return this.players.every(p => p.isHost || p.isReady || p.isBot);
+    // STRICT REQUIREMENT: More than 2 players required (minimum 3 players up to 5)
+    if (this.players.length <= 2 || this.players.length > 5) return false;
+    // ALL seated players (including host) must click "I am Ready!" (bots are automatically ready)
+    return this.players.every(p => p.isReady || p.isBot);
   }
 
   public startGame(): boolean {
@@ -927,7 +985,7 @@ export class GameRoom {
 
     this.createSettlement();
     if (this.onGameOverCallback) {
-      const potAmount = (this.players.length * parseFloat(this.buyInAmount)).toFixed(3);
+      const potAmount = this.getPotAmount().toFixed(1);
       this.onGameOverCallback(winner, this.players, potAmount, this.cardsPlayedPerPlayer);
     }
     this.emitUpdate();
@@ -936,8 +994,8 @@ export class GameRoom {
   private createSettlement(): void {
     if (!this.winner) return;
 
-    // Calculate pot = players * buyIn
-    const totalPot = (this.players.length * parseFloat(this.buyInAmount)).toFixed(1);
+    // Calculate live pot from stakes
+    const totalPot = this.getPotAmount().toFixed(1);
     const nonce = Math.floor(Math.random() * 1000000);
     const timestamp = Date.now();
 
@@ -967,7 +1025,7 @@ export class GameRoom {
       p.cardCount = 0;
       p.hand = [];
       p.hasCalledLastCard = false;
-      p.isReady = p.isHost || !!p.isBot;
+      p.isReady = !!p.isBot; // Human players must click "I am Ready!" for the new match
     });
     this.emitUpdate();
   }
@@ -1004,6 +1062,20 @@ export class GameRoom {
 
   public getSanitizedStateForPlayer(targetPlayerId: string): GameState {
     const curPlayer = this.getCurrentPlayer();
+    const isTargetSeatedPlayer = this.players.some(p => p.id === targetPlayerId || (p.socketId && p.socketId === targetPlayerId));
+
+    // If target player is seated, cleanse them from spectators map if erroneously present
+    if (isTargetSeatedPlayer) {
+      if (this.spectators.has(targetPlayerId)) {
+        this.spectators.delete(targetPlayerId);
+      }
+      for (const [sId, spec] of Array.from(this.spectators.entries())) {
+        if (spec.socketId === targetPlayerId || this.players.some(p => p.id === sId || p.socketId === spec.socketId)) {
+          this.spectators.delete(sId);
+        }
+      }
+    }
+
     return {
       roomId: this.roomId,
       roomCode: this.roomCode,
@@ -1027,10 +1099,14 @@ export class GameRoom {
         wins: p.wins ?? 0,
         roundsPlayed: p.roundsPlayed ?? 0,
         lastRoundScore: p.lastRoundScore ?? 0,
+        tokenBalance: p.isBot ? 10000 : serverDb.getUserTokenBalance(p.address || p.id),
         // Hand is strictly hidden from other players! Only target player sees their own hand
         // In game_over state, all hands can optionally be revealed
-        hand: p.id === targetPlayerId || this.status === 'game_over' ? p.hand : undefined,
+        hand: (p.id === targetPlayerId || (p.socketId && p.socketId === targetPlayerId)) || this.status === 'game_over' ? p.hand : undefined,
       })),
+      isStaking: this.isStaking && parseFloat(this.buyInAmount || '0') > 0,
+      buyInAmount: this.buyInAmount,
+      minPlayersRequired: 3,
       currentTurnPlayerId: curPlayer?.id || null,
       currentTurnIndex: this.currentTurnIndex,
       turnDirection: this.turnDirection,
@@ -1039,20 +1115,20 @@ export class GameRoom {
       topDiscardCard: this.getTopDiscard(),
       activeColor: this.activeColor,
       drawPileCount: this.drawPile.length,
-      drawPendingForPlayer: curPlayer?.id === targetPlayerId ? this.drawPendingForPlayer : false,
-      drawnCard: curPlayer?.id === targetPlayerId ? this.drawnCard : null,
+      drawPendingForPlayer: (curPlayer?.id === targetPlayerId || (curPlayer?.socketId && curPlayer.socketId === targetPlayerId)) ? this.drawPendingForPlayer : false,
+      drawnCard: (curPlayer?.id === targetPlayerId || (curPlayer?.socketId && curPlayer.socketId === targetPlayerId)) ? this.drawnCard : null,
       pendingDrawCount: this.pendingDrawCount,
       lastActionMessage: this.lastActionMessage,
       bannerAlert: this.bannerAlert,
       winner: this.winner,
       escrowPot: {
-        amount: (this.players.length * parseFloat(this.buyInAmount)).toFixed(3),
+        amount: this.getPotAmount().toString(),
         currency: this.currency,
         buyInAmount: this.buyInAmount,
       },
       settlementSignature: this.settlementSignature,
       spectatorCount: this.spectators.size,
-      isSpectator: this.spectators.has(targetPlayerId),
+      isSpectator: !isTargetSeatedPlayer && this.spectators.has(targetPlayerId),
     };
   }
 }

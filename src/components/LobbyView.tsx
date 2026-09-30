@@ -263,7 +263,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     mode: r.mode || 'Classic',
     desc: r.description || 'The original. 2-5 players.',
     players: `${r.playerCount}/${r.maxPlayers || 5}`,
-    buyIn: r.escrowPot?.buyInAmount && parseFloat(r.escrowPot.buyInAmount) > 0 ? `${r.escrowPot.buyInAmount} ETH` : 'Free',
+    buyIn: r.escrowPot?.buyInAmount && parseFloat(r.escrowPot.buyInAmount) > 0 ? `${r.escrowPot.buyInAmount} $CRAZY8` : 'Free (Non-Staking)',
     hostName: r.hostName || r.players[0]?.name || 'Host',
     hostAvatar: r.hostAvatar || r.players[0]?.avatar || '🦊',
   }));
@@ -284,10 +284,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     const isSpectator = !myPlayer;
     const playerCount = gameState.players.length;
     const isQuickMatch = !!gameState.isQuickMatch;
-    const canStart =
-      playerCount >= 2 &&
-      playerCount <= 5 &&
-      gameState.players.every((p) => p.isHost || p.isReady || p.isBot);
+    const readyPlayersCount = gameState.players.filter((p) => p.isReady || p.isBot).length;
+    const allPlayersReady = gameState.players.every((p) => p.isReady || p.isBot);
+    // STRICT REQUIREMENT: More than 2 players on the lobby (minimum 3 players) AND all players have clicked "I am Ready!"
+    const canStart = playerCount > 2 && playerCount <= 5 && allPlayersReady;
 
     const handleCopyCode = () => {
       navigator.clipboard.writeText(gameState.roomCode);
@@ -425,10 +425,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </div>
               <p className="text-[10px] sm:text-xs text-slate-400">
                 {isHost
-                  ? isQuickMatch
-                    ? 'Match begins once 2+ real players are seated.'
-                    : 'Invite players or add bots, then click Start Game.'
-                  : 'Waiting for host to begin match...'}
+                  ? 'More than 2 players required (3+ min). All players must click "I am Ready!" before match starts.'
+                  : 'Click "I am Ready!" to prepare for match start.'}
               </p>
             </div>
           </div>
@@ -486,6 +484,48 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
         </div>
 
+        {/* Staking Table / Non-Staking Banner */}
+        {gameState.isStaking && parseFloat(gameState.escrowPot?.buyInAmount || '0') > 0 ? (
+          <div className="mt-3 sm:mt-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#0B0F14] to-[#FF4600]/10 border border-amber-500/30 shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-lg shrink-0">
+                  🪙
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-black text-white">Staking Table</span>
+                    <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-bold">
+                      Debited on Entry • Refunded if Left
+                    </span>
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] text-slate-400">
+                    Each player stakes <strong className="text-amber-300 font-mono">{gameState.escrowPot.buyInAmount} $CRAZY8</strong> into the pot. Winner takes 95%!
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 self-end sm:self-center bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl font-mono text-xs">
+                <span className="text-slate-400 text-[10px] uppercase font-bold">Total Pot:</span>
+                <span className="font-black text-amber-400 text-sm sm:text-base flex items-center gap-1">
+                  <span>{gameState.escrowPot.amount || '0'}</span>
+                  <span className="text-[10px] text-amber-300/80">$CRAZY8</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 sm:mt-4 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-slate-300">
+              <span className="text-base">🎮</span>
+              <span className="font-bold text-[11px] sm:text-xs">Non-Staking Casual Lobby</span>
+              <span className="text-slate-500 text-[10px] hidden sm:inline">• Free play, no test tokens required</span>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono font-bold">
+              0 Stake
+            </span>
+          </div>
+        )}
+
         {/* Lobby Leaderboard Summary if games or scores exist */}
         {gameState.players.some((p) => (p.score || 0) > 0 || (p.roundsPlayed || 0) > 0) && (
           <div className="mt-3 sm:mt-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500/10 via-[#090B0E] to-orange-500/10 border border-amber-500/30 shadow-lg">
@@ -527,7 +567,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           <div className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
             <span>Seat Roster ({playerCount}/5)</span>
             <span className="text-emerald-400 lowercase font-mono font-normal">
-              {gameState.players.filter(p => p.isReady || p.isHost || p.isBot).length} ready
+              {readyPlayersCount}/{playerCount} ready {playerCount <= 2 ? '(more than 2 players needed to start)' : ''}
             </span>
           </div>
 
@@ -590,17 +630,19 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                    {p.isHost ? (
-                      <span className="text-[10px] sm:text-xs font-mono text-amber-400 font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 bg-amber-500/10 rounded-lg">
+                    {p.isHost && (
+                      <span className="text-[10px] sm:text-xs font-mono text-amber-400 font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                         Host
                       </span>
-                    ) : p.isReady || p.isBot ? (
-                      <span className="text-[10px] sm:text-xs font-mono text-emerald-400 font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 bg-emerald-500/10 rounded-lg flex items-center gap-0.5 sm:gap-1">
+                    )}
+                    {p.isReady || p.isBot ? (
+                      <span className="text-[10px] sm:text-xs font-mono text-emerald-400 font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-0.5 sm:gap-1">
                         <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         Ready
                       </span>
                     ) : (
-                      <span className="text-[10px] sm:text-xs font-mono text-slate-500 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-800 rounded-lg">
+                      <span className="text-[10px] sm:text-xs font-mono text-amber-300/90 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                         Waiting
                       </span>
                     )}
@@ -674,37 +716,60 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </button>
             )}
 
-            {!isHost && !isSpectator && !canStart && (
+            {/* Ready / Unready toggle for all seated players (including host) */}
+            {!isSpectator && myPlayer && (
               <button
                 onClick={onToggleReady}
-                className={`w-full sm:w-auto px-5 sm:px-6 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                  myPlayer?.isReady
-                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                    : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20'
+                className={`w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 ${
+                  myPlayer.isReady
+                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 shadow-sm'
+                    : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25'
                 }`}
               >
-                {myPlayer?.isReady ? 'Cancel Ready' : 'I am Ready!'}
+                {myPlayer.isReady ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Cancel Ready</span>
+                  </>
+                ) : (
+                  <span>I am Ready!</span>
+                )}
               </button>
             )}
 
-            {/* Any seated player can start once the minimum ready players threshold is met! */}
-            {canStart ? (
-              <button
-                onClick={onStartGame}
-                className="w-full sm:w-auto px-5 sm:px-7 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white shadow-xl shadow-[#FF4600]/30 cursor-pointer active:scale-98 animate-pulse"
-                title="Launch Match (Any seated player can start!)"
-              >
-                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
-                <span>Start Match!</span>
-              </button>
-            ) : isHost ? (
-              <button
-                disabled
-                className="w-full sm:w-auto px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider bg-slate-800 text-slate-500 cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
-                <span>Waiting for Ready</span>
-              </button>
+            {/* Match Launch controls */}
+            {isHost ? (
+              canStart ? (
+                <button
+                  onClick={onStartGame}
+                  className="w-full sm:w-auto px-5 sm:px-7 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white shadow-xl shadow-[#FF4600]/30 cursor-pointer active:scale-98 animate-pulse"
+                  title="Launch Match! (All conditions met)"
+                >
+                  <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+                  <span>Start Match!</span>
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider bg-slate-800 text-slate-500 cursor-not-allowed flex items-center justify-center gap-2 border border-slate-800"
+                >
+                  <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" />
+                  <span>
+                    {playerCount <= 2
+                      ? 'Waiting for Players (3+ Needed)'
+                      : !myPlayer?.isReady
+                      ? "Click 'I am Ready!' First"
+                      : `Waiting for All Ready (${readyPlayersCount}/${playerCount})`}
+                  </span>
+                </button>
+              )
+            ) : !isSpectator ? (
+              canStart ? (
+                <div className="px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-bold flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>All ready! Waiting for Host to start match.</span>
+                </div>
+              ) : null
             ) : null}
           </div>
         </div>

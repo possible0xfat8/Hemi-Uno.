@@ -8,16 +8,24 @@ interface CreateTableModalProps {
   playerName: string;
   avatar: string;
   walletAddress?: string;
+  tokenBalance?: string;
   onConnectWallet?: () => void;
 }
 
 const MODES = [
-  { id: 'Classic', title: 'Classic', desc: 'The original official rules for 2-4 players.', icon: '🎴' },
+  { id: 'Classic', title: 'Classic', desc: 'The original official rules for 2-5 players.', icon: '🎴' },
   { id: 'Stacked Draw', title: 'Stacked Draw', desc: 'Defend and stack +2 and +4 cards to force rivals to draw!', icon: '⚡' },
   { id: 'Quick Match', title: 'Quick Match', desc: 'Short 15s turn timer with fast animations.', icon: '⏱️' },
 ];
 
-const BUY_INS = ['Free', '50', '100', '250', '500', '1000'];
+const STAKE_OPTIONS = [
+  { label: '50', value: '50', isStaking: true },
+  { label: '100', value: '100', isStaking: true, recommended: true },
+  { label: '250', value: '250', isStaking: true },
+  { label: '500', value: '500', isStaking: true },
+  { label: '1000', value: '1000', isStaking: true },
+  { label: 'Non-Staking', value: 'Free', isStaking: false },
+];
 
 export const CreateTableModal: React.FC<CreateTableModalProps> = ({
   isOpen,
@@ -26,18 +34,24 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
   playerName,
   avatar,
   walletAddress,
+  tokenBalance = '10000',
   onConnectWallet,
 }) => {
   const [selectedMode, setSelectedMode] = useState('Classic');
-  const [selectedBuyIn, setSelectedBuyIn] = useState('Free');
+  const [selectedBuyIn, setSelectedBuyIn] = useState('100'); // Default to 100 chips stake
 
   if (!isOpen) return null;
+
+  const currentBalNum = parseFloat(tokenBalance || '0');
+  const selectedStakeNum = selectedBuyIn === 'Free' ? 0 : parseFloat(selectedBuyIn || '0');
+  const hasInsufficientTokens = selectedStakeNum > 0 && currentBalNum < selectedStakeNum;
 
   const handleCreate = () => {
     if (!walletAddress) {
       if (onConnectWallet) onConnectWallet();
       return;
     }
+    if (hasInsufficientTokens) return;
     const buyInValue = selectedBuyIn === 'Free' ? '0' : selectedBuyIn;
     onCreateRoom(playerName, avatar, buyInValue, walletAddress);
     onClose();
@@ -105,33 +119,64 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
 
         {/* Buy-In Selection */}
         <div className="mb-5 sm:mb-8">
-          <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
             <label className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 block">
-              Buy-in Chips ($CRAZY8)
+              Table Stake Chips ($CRAZY8)
             </label>
-            <span className="text-[10px] text-emerald-400 font-bold font-mono">
-              95% Winner Payout • 5% Board Fee
-            </span>
+            <div className="flex items-center gap-1.5 text-[11px] font-mono">
+              <span className="text-slate-400">Your Chips:</span>
+              <span className="font-bold text-amber-400 font-mono">
+                {parseFloat(tokenBalance || '0').toLocaleString()} $CRAZY8
+              </span>
+            </div>
           </div>
-          <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
-            {BUY_INS.map((amount) => {
-              const active = selectedBuyIn === amount;
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2">
+            {STAKE_OPTIONS.map((opt) => {
+              const active = selectedBuyIn === opt.value;
               return (
                 <button
-                  key={amount}
-                  onClick={() => setSelectedBuyIn(amount)}
+                  key={opt.value}
+                  onClick={() => setSelectedBuyIn(opt.value)}
                   type="button"
-                  className={`py-2 sm:py-2.5 px-1.5 sm:px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-mono font-bold transition-all text-center border cursor-pointer ${
+                  className={`py-2 sm:py-2.5 px-1.5 sm:px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-mono font-bold transition-all text-center border cursor-pointer relative ${
                     active
                       ? 'bg-[#FF4600] text-white border-[#FF4600] shadow-lg shadow-[#FF4600]/25 scale-102 sm:scale-105'
                       : 'bg-slate-900/80 text-slate-300 border-slate-800 hover:border-slate-700'
                   }`}
                 >
-                  {amount}
+                  <div>{opt.label}</div>
+                  {opt.recommended && (
+                    <div className="text-[8px] text-amber-300 font-sans uppercase font-bold">Standard</div>
+                  )}
+                  {!opt.isStaking && (
+                    <div className="text-[8px] text-emerald-300 font-sans uppercase font-bold">Free</div>
+                  )}
                 </button>
               );
             })}
           </div>
+
+          {/* Staking summary & edge-case warning */}
+          <div className="mt-2.5 p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] flex items-center justify-between">
+            {selectedStakeNum > 0 ? (
+              <span className="text-slate-300">
+                Debits <strong className="text-amber-400 font-mono">{selectedStakeNum} $CRAZY8</strong> upon lobby creation into the pot.
+              </span>
+            ) : (
+              <span className="text-emerald-400 font-bold">
+                ✓ Non-Staking Lobby: No test tokens debited. Free casual play.
+              </span>
+            )}
+            <span className="text-[10px] text-slate-400 font-mono">
+              {selectedStakeNum > 0 ? '95% Winner Payout' : 'Prestige Only'}
+            </span>
+          </div>
+
+          {hasInsufficientTokens && (
+            <div className="mt-2 p-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-2">
+              <span>⚠️ Insufficient test tokens. You have {currentBalNum.toLocaleString()} $CRAZY8, but table stake is {selectedStakeNum.toLocaleString()} $CRAZY8. Choose a lower stake or Non-Staking.</span>
+            </div>
+          )}
         </div>
 
         {/* Action Button */}
@@ -148,9 +193,20 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
         ) : (
           <button
             onClick={handleCreate}
-            className="w-full py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-[#FF4600]/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+            disabled={hasInsufficientTokens}
+            className={`w-full py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl flex items-center justify-center gap-2 ${
+              hasInsufficientTokens
+                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-800'
+                : 'bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white hover:brightness-110 active:scale-98 shadow-[#FF4600]/30 cursor-pointer'
+            }`}
           >
-            <span>Create and Open Table</span>
+            <span>
+              {hasInsufficientTokens
+                ? 'Insufficient $CRAZY8 Chips'
+                : selectedStakeNum > 0
+                ? `Stake ${selectedStakeNum} $CRAZY8 & Open Table`
+                : 'Create Non-Staking Table'}
+            </span>
             <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         )}
