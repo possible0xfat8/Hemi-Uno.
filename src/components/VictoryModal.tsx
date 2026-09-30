@@ -48,21 +48,17 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4 animate-in fade-in zoom-in-95 duration-200">
-      <div className="bg-[#0E1217] border-2 border-[#FF4600]/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 max-w-lg w-full shadow-2xl shadow-[#FF4600]/20 text-center relative overflow-y-auto max-h-[92vh] sm:max-h-[90vh] custom-scrollbar">
-        {/* Glow backdrop */}
-        <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#FF4600]/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-orange-600/20 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="bg-[#0C0F14] border border-white/[0.08] rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 max-w-lg w-full shadow-2xl text-center relative overflow-y-auto max-h-[92vh] sm:max-h-[90vh] custom-scrollbar">
         <div className="relative z-10">
-          <div className="w-14 h-14 sm:w-20 sm:h-20 mx-auto rounded-full bg-gradient-to-tr from-[#FF4600] to-orange-400 flex items-center justify-center text-2xl sm:text-4xl shadow-xl shadow-[#FF4600]/40 mb-2.5 sm:mb-3 animate-bounce">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-2xl sm:text-3xl mb-2.5 sm:mb-3">
             🏆
           </div>
 
-          <div className="inline-block px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-[#FF4600]/20 border border-[#FF4600]/40 text-[#FF4600] font-mono text-[10px] sm:text-xs font-bold mb-1.5 sm:mb-2">
-            HEMI CRAZY 8 • VICTORY!
+          <div className="inline-block px-2.5 sm:px-3 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-[#FF4600] font-mono text-[10px] sm:text-xs font-semibold mb-1.5 sm:mb-2">
+            HEMI CRAZY 8 • MATCH COMPLETE
           </div>
 
-          <h2 className="text-xl sm:text-3xl font-black text-white tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
             {isMe ? 'YOU WON THE MATCH!' : `${winner?.name || 'Player'} Won!`}
           </h2>
 
@@ -73,33 +69,33 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           </p>
 
           {/* Pot settlement badge */}
-          <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#090B0E] border border-slate-800 mb-3 sm:mb-4">
-            <div className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5 sm:mb-1">
+          <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06] mb-3 sm:mb-4">
+            <div className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mb-0.5 sm:mb-1">
               Escrow Pot Award ($CRAZY8)
             </div>
-            <div className="text-xl sm:text-3xl font-black text-[#FF4600] font-mono flex items-center justify-center gap-1.5 sm:gap-2">
-              <span>{gameState.escrowPot.amount}</span>
-              <span className="text-sm sm:text-base text-orange-300 font-bold">
+            <div className="text-xl sm:text-2xl font-bold text-white font-mono flex items-center justify-center gap-1.5 sm:gap-2">
+              <span className="text-[#FF4600]">{gameState.escrowPot.amount}</span>
+              <span className="text-xs sm:text-sm text-slate-400 font-medium">
                 {gameState.escrowPot.currency === 'ETH' ? 'CRAZY8' : gameState.escrowPot.currency}
               </span>
             </div>
-            <div className="mt-2 pt-2 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-[10px] sm:text-[11px] font-mono">
-              <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                <div className="text-[9px] uppercase font-bold text-slate-400">95% Winner Payout</div>
-                <div className="font-black text-xs">{(parseFloat(gameState.escrowPot.amount) * 0.95).toFixed(1)} {gameState.escrowPot.currency === 'ETH' ? 'CRAZY8' : gameState.escrowPot.currency}</div>
+            <div className="mt-2 pt-2 border-t border-white/[0.06] grid grid-cols-2 gap-2 text-[10px] sm:text-[11px] font-mono">
+              <div className="p-1.5 rounded-lg bg-white/[0.02] border border-white/[0.06] text-slate-300">
+                <div className="text-[9px] uppercase font-medium text-slate-400">95% Winner Payout</div>
+                <div className="font-bold text-xs text-white">{(parseFloat(gameState.escrowPot.amount) * 0.95).toFixed(1)} {gameState.escrowPot.currency === 'ETH' ? 'CRAZY8' : gameState.escrowPot.currency}</div>
               </div>
-              <div className="p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                <div className="text-[9px] uppercase font-bold text-slate-400">5% Board Fee</div>
-                <div className="font-black text-xs">{(parseFloat(gameState.escrowPot.amount) * 0.05).toFixed(1)} {gameState.escrowPot.currency === 'ETH' ? 'CRAZY8' : gameState.escrowPot.currency}</div>
+              <div className="p-1.5 rounded-lg bg-white/[0.02] border border-white/[0.06] text-slate-300">
+                <div className="text-[9px] uppercase font-medium text-slate-400">5% Board Fee</div>
+                <div className="font-bold text-xs text-white">{(parseFloat(gameState.escrowPot.amount) * 0.05).toFixed(1)} {gameState.escrowPot.currency === 'ETH' ? 'CRAZY8' : gameState.escrowPot.currency}</div>
               </div>
             </div>
           </div>
 
           {/* Lobby Scoreboard & Standings */}
-          <div className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-[#090B0E] border border-slate-800 mb-3 sm:mb-4 text-left">
+          <div className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-white/[0.02] border border-white/[0.06] mb-3 sm:mb-4 text-left">
             <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-              <span className="text-[11px] sm:text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
+              <span className="text-[11px] sm:text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#FF4600]" />
                 Lobby Standings & Scores
               </span>
               <span className="text-[9px] sm:text-[10px] text-slate-500 font-mono">
@@ -114,24 +110,24 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                     key={p.id}
                     className={`flex items-center justify-between px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl border text-[11px] sm:text-xs ${
                       p.id === winner?.id
-                        ? 'bg-[#FF4600]/15 border-[#FF4600]/40 text-white'
-                        : 'bg-slate-900/50 border-slate-800 text-slate-300'
+                        ? 'bg-white/[0.06] border-white/[0.12] text-white'
+                        : 'bg-white/[0.02] border-white/[0.04] text-slate-300'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                      <span className="font-mono text-slate-400 font-bold w-4 text-[10px] sm:text-xs">#{idx + 1}</span>
+                      <span className="font-mono text-slate-400 font-medium w-4 text-[10px] sm:text-xs">#{idx + 1}</span>
                       <UserAvatar avatar={p.avatar} name={p.name} className="w-5 h-5 text-sm sm:text-base shrink-0 rounded-full" />
-                      <span className="font-bold truncate max-w-[85px] sm:max-w-[120px]">{p.name}</span>
+                      <span className="font-medium truncate max-w-[85px] sm:max-w-[120px]">{p.name}</span>
                       {p.id === myPlayerId && (
-                        <span className="text-[8px] sm:text-[9px] px-1 py-0.2 rounded bg-[#FF4600] text-white font-bold shrink-0">YOU</span>
+                        <span className="text-[8px] sm:text-[9px] px-1 py-0.2 rounded bg-[#FF4600]/20 border border-[#FF4600]/40 text-[#FF4600] font-bold shrink-0">YOU</span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-2 font-mono shrink-0">
                       {p.lastRoundScore !== undefined && p.lastRoundScore > 0 && (
-                        <span className="text-emerald-400 text-[10px] sm:text-[11px] font-bold">+{p.lastRoundScore}</span>
+                        <span className="text-emerald-400 text-[10px] sm:text-[11px] font-medium">+{p.lastRoundScore}</span>
                       )}
-                      <span className="text-white font-black text-xs sm:text-sm">
-                        {p.score || 0} <span className="text-[9px] sm:text-[10px] text-slate-400 font-normal">pts</span>
+                      <span className="text-white font-bold text-xs sm:text-sm">
+                        {p.score || 0} <span className="text-[9px] sm:text-[10px] text-slate-500 font-normal">pts</span>
                       </span>
                     </div>
                   </div>
@@ -141,15 +137,15 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
 
           {/* Oracle On-Chain Settlement Status Box */}
           {signature ? (
-            <div className="p-2.5 sm:p-3.5 rounded-lg sm:rounded-xl bg-[#090B0E]/90 border border-emerald-500/30 text-left text-[10px] sm:text-xs mb-3 sm:mb-4 font-mono shadow-sm">
+            <div className="p-2.5 sm:p-3.5 rounded-lg sm:rounded-xl bg-white/[0.02] border border-white/[0.06] text-left text-[10px] sm:text-xs mb-3 sm:mb-4 font-mono shadow-sm">
               <div className="flex items-center justify-between text-slate-400 mb-1.5">
-                <span className="font-bold text-emerald-400 flex items-center gap-1.5">
+                <span className="font-semibold text-emerald-400 flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Oracle On-Chain Settlement</span>
                 </span>
                 <button
                   onClick={handleCopySignature}
-                  className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-300 hover:text-white bg-slate-800 px-1.5 sm:px-2 py-0.5 rounded transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-300 hover:text-white bg-white/[0.04] border border-white/[0.06] px-1.5 sm:px-2 py-0.5 rounded transition-colors cursor-pointer"
                 >
                   {copied ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                   <span>{copied ? 'Copied!' : 'Copy'}</span>
@@ -159,8 +155,8 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
               <div className="space-y-1 sm:space-y-1.5 text-[10px] sm:text-[11px] text-slate-300">
                 <div className="truncate"><span className="text-slate-500">Winner:</span> {signature.winnerAddress}</div>
                 {signature.signature && signature.signature.length === 66 ? (
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80 flex-wrap">
-                    <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.06] flex-wrap">
+                    <span className="text-emerald-400 font-medium flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                       <span>95% Pot Transferred</span>
                     </span>
@@ -168,9 +164,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                       href={`https://testnet.explorer.hemi.xyz/tx/${signature.signature}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-orange-400 hover:text-orange-300 flex items-center gap-1 underline font-mono font-bold"
+                      className="text-[#FF4600] hover:text-[#FF6622] flex items-center gap-1 font-mono font-medium"
                     >
-                      <span>View Tx on Hemi Explorer</span>
+                      <span>View Tx on Explorer</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
@@ -180,8 +176,8 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
               </div>
             </div>
           ) : gameState.isStaking && parseFloat(gameState.escrowPot?.amount || '0') > 0 ? (
-            <div className="p-2.5 sm:p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[10px] sm:text-xs mb-3 sm:mb-4 text-center text-amber-300 flex items-center justify-center gap-2 font-mono">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400 shrink-0" />
+            <div className="p-2.5 sm:p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] text-[10px] sm:text-xs mb-3 sm:mb-4 text-center text-slate-300 flex items-center justify-center gap-2 font-mono">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FF4600] shrink-0" />
               <span>Oracle disbursing 95% pot reward on Hemi Sepolia...</span>
             </div>
           ) : null}
@@ -194,15 +190,15 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                   href={`https://testnet.explorer.hemi.xyz/tx/${signature.signature}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-wide bg-emerald-600/20 border border-emerald-500 text-emerald-300 hover:bg-emerald-600/30 flex items-center justify-center gap-1.5 transition-all shadow-lg"
+                  className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-wide bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/30 flex items-center justify-center gap-1.5 transition-all shadow-sm"
                 >
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>✓ 95% Pot Transferred (View Tx)</span>
+                  <span>✓ 95% Pot Transferred</span>
                   <ExternalLink className="w-3 h-3 text-emerald-400" />
                 </a>
               ) : gameState.isStaking && parseFloat(gameState.escrowPot?.amount || '0') > 0 ? (
-                <div className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-wide bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-center justify-center gap-2 cursor-wait">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                <div className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-medium text-xs sm:text-sm tracking-wide bg-white/[0.04] border border-white/[0.08] text-slate-300 flex items-center justify-center gap-2 cursor-wait">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FF4600]" />
                   <span>Oracle Disbursing On-Chain...</span>
                 </div>
               ) : (
@@ -210,20 +206,20 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
                   onClick={handleClaim}
                   disabled={claimed}
                   className={`
-                    w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm tracking-wide transition-all shadow-lg cursor-pointer
+                    w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm tracking-wide transition-all shadow-sm cursor-pointer
                     ${claimed
-                      ? 'bg-emerald-600/30 border border-emerald-500 text-emerald-300 cursor-default'
-                      : 'bg-gradient-to-r from-[#FF4600] to-[#FF6200] hover:from-[#ff5500] hover:to-[#ff731a] text-white hover:brightness-110 active:scale-95 shadow-[#FF4600]/30'}
+                      ? 'bg-white/[0.06] border border-white/[0.1] text-slate-300 cursor-default'
+                      : 'bg-[#FF4600] hover:bg-[#FF5500] text-white active:scale-95'}
                   `}
                 >
-                  {claimed ? '✓ Recorded' : '🏆 Record Match'}
+                  {claimed ? '✓ Recorded' : 'Record Match'}
                 </button>
               )
             )}
 
             <button
               onClick={onRematch}
-              className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-black text-xs sm:text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 shadow-lg shadow-[#FF4600]/25 cursor-pointer"
+              className="w-full sm:w-auto px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-xs sm:text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm cursor-pointer"
             >
               <span>Next Round / Rematch</span>
               <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -232,9 +228,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             {onLeaveRoom && (
               <button
                 onClick={onLeaveRoom}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 hover:text-white font-bold text-xs sm:text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-300 hover:text-white font-medium text-xs sm:text-sm tracking-wide transition-all active:scale-95 flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer"
               >
-                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400" />
+                <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
                 <span>Quit to Lobby</span>
               </button>
             )}

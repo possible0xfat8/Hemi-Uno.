@@ -7,34 +7,34 @@ interface HemiHeroCardsProps {
 export const HemiHeroCards: React.FC<HemiHeroCardsProps> = ({ className = '' }) => {
   return (
     <div className={`relative flex items-center justify-center select-none ${className}`}>
-      {/* Intense Ambient Radial Orange Glow */}
-      <div className="absolute inset-0 bg-radial-gradient from-[#FF4600]/40 via-[#FF4600]/15 to-transparent blur-2xl pointer-events-none transform scale-125" />
+      {/* Subtle ambient glow — much less intense */}
+      <div className="absolute inset-0 bg-radial-gradient from-white/[0.03] via-transparent to-transparent blur-2xl pointer-events-none transform scale-110" />
 
       <svg
         viewBox="0 0 380 280"
-        className="w-full max-w-[380px] h-auto overflow-visible filter drop-shadow-[0_15px_30px_rgba(255,70,0,0.3)]"
+        className="w-full max-w-[380px] h-auto overflow-visible filter drop-shadow-[0_10px_20px_rgba(0,0,0,0.4)]"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
       >
         <defs>
           <radialGradient id="heroCardAura" cx="50%" cy="50%" r="60%">
-            <stop offset="0%" stopColor="#FF5500" stopOpacity="0.4" />
-            <stop offset="60%" stopColor="#FF3700" stopOpacity="0.1" />
+            <stop offset="0%" stopColor="#FF5500" stopOpacity="0.12" />
+            <stop offset="60%" stopColor="#FF3700" stopOpacity="0.04" />
             <stop offset="100%" stopColor="#0B0E14" stopOpacity="0" />
           </radialGradient>
 
           <filter id="heroCardDropShadow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="8" stdDeviation="12" floodColor="#000000" floodOpacity="0.8" />
-            <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor="#FF4600" floodOpacity="0.5" />
+            <feDropShadow dx="0" dy="6" stdDeviation="10" floodColor="#000000" floodOpacity="0.7" />
+            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#FF4600" floodOpacity="0.15" />
           </filter>
 
           <linearGradient id="heroBorderGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FF7722" />
-            <stop offset="100%" stopColor="#FF3700" />
+            <stop offset="0%" stopColor="rgba(255,255,255,0.15)" />
+            <stop offset="100%" stopColor="rgba(255,255,255,0.06)" />
           </linearGradient>
         </defs>
 
-        {/* Ambient background glow circle */}
+        {/* Ambient background glow circle — subtle */}
         <circle cx="210" cy="140" r="130" fill="url(#heroCardAura)" />
 
         {/* Card 1 (Far Left / Back Card, angled at -26 degrees) */}
@@ -45,11 +45,11 @@ export const HemiHeroCards: React.FC<HemiHeroCardsProps> = ({ className = '' }) 
             width="100"
             height="150"
             rx="12"
-            fill="#0E1217"
+            fill="#0C0F14"
             stroke="url(#heroBorderGlow)"
-            strokeWidth="3.2"
+            strokeWidth="1.5"
           />
-          {/* Inner subtle frame */}
+          {/* Inner frame */}
           <rect
             x="6"
             y="6"
@@ -57,9 +57,8 @@ export const HemiHeroCards: React.FC<HemiHeroCardsProps> = ({ className = '' }) 
             height="138"
             rx="8"
             fill="none"
-            stroke="#FF4600"
+            stroke="rgba(255,255,255,0.06)"
             strokeWidth="1"
-            strokeOpacity="0.3"
           />
           {/* Center Hemi Logo */}
           <g transform="translate(50, 75) scale(0.6)">
@@ -76,11 +75,11 @@ export const HemiHeroCards: React.FC<HemiHeroCardsProps> = ({ className = '' }) 
             width="116"
             height="176"
             rx="14"
-            fill="#0E1217"
+            fill="#0C0F14"
             stroke="url(#heroBorderGlow)"
-            strokeWidth="3.6"
+            strokeWidth="1.5"
           />
-          {/* Inner subtle frame */}
+          {/* Inner frame */}
           <rect
             x="7"
             y="7"
@@ -88,9 +87,8 @@ export const HemiHeroCards: React.FC<HemiHeroCardsProps> = ({ className = '' }) 
             height="162"
             rx="10"
             fill="none"
-            stroke="#FF4600"
+            stroke="rgba(255,255,255,0.06)"
             strokeWidth="1"
-            strokeOpacity="0.4"
           />
           {/* Center Hemi Logo */}
           <g transform="translate(58, 88) scale(0.85)">
@@ -107,11 +105,11 @@ export const HemiHeroCards: React.FC<HemiHeroCardsProps> = ({ className = '' }) 
             width="124"
             height="188"
             rx="16"
-            fill="#0B0F15"
+            fill="#0A0D12"
             stroke="url(#heroBorderGlow)"
-            strokeWidth="4"
+            strokeWidth="1.8"
           />
-          {/* Inner subtle frame */}
+          {/* Inner frame */}
           <rect
             x="8"
             y="8"
@@ -119,11 +117,10 @@ export const HemiHeroCards: React.FC<HemiHeroCardsProps> = ({ className = '' }) 
             height="172"
             rx="12"
             fill="none"
-            stroke="#FF4600"
-            strokeWidth="1.2"
-            strokeOpacity="0.5"
+            stroke="rgba(255,255,255,0.08)"
+            strokeWidth="1"
           />
-          {/* Center Hemi Logo with slight inner shine */}
+          {/* Center Hemi Logo */}
           <g transform="translate(62, 94) scale(0.95)">
             <path d="M -7 -38 A 38 38 0 0 0 -7 38 L -7 15 A 15 15 0 0 1 -7 -15 Z" fill="#FF4600" />
             <path d="M 7 -38 A 38 38 0 0 1 7 38 L 7 15 A 15 15 0 0 0 7 -15 Z" fill="#FF4600" />

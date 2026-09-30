@@ -1590,20 +1590,20 @@ export default function App() {
       id="game-root"
       className={`min-h-screen ${
         gameState && gameState.status !== 'lobby'
-          ? 'h-[100dvh] max-h-[100dvh] overflow-hidden bg-gradient-to-b from-[#1c0808] via-[#240c0c] to-[#120404]'
-          : 'bg-[#090B0E] hemi-radial-bg'
+          ? 'h-[100dvh] max-h-[100dvh] overflow-hidden bg-gradient-to-b from-[#0F0A08] via-[#0C0F14] to-[#08090C]'
+          : 'bg-[#08090C] hemi-radial-bg'
       } text-slate-100 flex flex-col justify-between overflow-x-hidden ${screenShake ? 'shake-effect' : ''}`}
     >
       {/* Top Spectator Banner if in spectator mode */}
       {isSpectator && gameState && (
-        <div className="w-full bg-gradient-to-r from-[#FF4600]/20 via-slate-900 to-[#FF4600]/20 border-b border-[#FF4600]/40 px-3 sm:px-4 py-1.5 flex items-center justify-between text-xs text-orange-200 z-30 shadow-lg shrink-0">
+        <div className="w-full bg-[#0C0F14] border-b border-slate-800 px-3 sm:px-4 py-1.5 flex items-center justify-between text-xs text-slate-300 z-30 shadow-sm shrink-0">
           <div className="flex items-center gap-2 font-black tracking-wide">
             <Eye className="w-4 h-4 text-[#FF4600] animate-pulse" />
             <span className="text-white text-xs sm:text-sm">LIVE SPECTATOR</span>
             <span className="hidden sm:inline-block text-orange-300/80 font-normal">
               • Room <strong className="text-[#FF4600] font-mono">{gameState.roomCode}</strong>
             </span>
-            <span className="px-1.5 py-0.2 rounded-full bg-[#FF4600]/20 text-orange-300 font-bold border border-[#FF4600]/30 text-[10px]">
+            <span className="px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-bold border border-slate-700 text-[10px]">
               {gameState.spectatorCount || 1} Watching
             </span>
           </div>
@@ -1618,7 +1618,7 @@ export default function App() {
       )}
 
       {/* Top Navigation Bar */}
-      <header className="h-12 sm:h-16 px-2 sm:px-6 md:px-8 border-b border-slate-800/80 bg-[#0E1217]/90 backdrop-blur-md flex items-center justify-between shrink-0 z-20 safe-bottom">
+      <header className="h-12 sm:h-14 px-3 sm:px-6 md:px-8 border-b border-white/[0.06] bg-[#0C0F14]/95 backdrop-blur-md flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0 min-w-0">
           <HemiUnoLogo size="md" variant="clean" />
           <div className="hidden sm:flex flex-col">
@@ -1663,13 +1663,13 @@ export default function App() {
               }
               setIsFriendsOpen(true);
             }}
-            className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 text-xs font-bold text-slate-200 hover:text-white transition-all cursor-pointer shadow-sm shrink-0"
+            className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:border-white/[0.12] text-xs font-medium text-slate-300 hover:text-white transition-all cursor-pointer shrink-0"
             title="Friends & Social"
           >
             <Users className="w-3.5 h-3.5 text-slate-400" />
             <span className="hidden sm:inline text-xs">Friends</span>
             {wallet.address && friendCount > 0 ? (
-              <span className="px-1 py-0.5 rounded-full bg-[#FF4600] text-white text-[9px] font-black leading-none">
+              <span className="px-1 py-0.5 rounded-full bg-white/10 text-white text-[9px] font-bold leading-none">
                 {friendCount}
               </span>
             ) : null}
@@ -1679,18 +1679,18 @@ export default function App() {
           {wallet.address && (
             <div className="flex items-center gap-1.5 shrink-0">
               <div
-                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-slate-900 border border-amber-500/30 text-[11px] sm:text-xs font-mono font-bold text-amber-400 shadow-sm"
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px] sm:text-xs font-mono font-medium text-slate-300"
                 title={`${formatTokenAmount(tokenBalance)} $CRAZY8 Chips`}
               >
-                <Coins className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <Coins className="w-3.5 h-3.5 text-[#FF4600] shrink-0" />
                 <span>{formatTokenAmount(tokenBalance)}</span>
-                <span className="text-[9px] sm:text-[10px] text-amber-500/90 font-sans font-bold">CRAZY8</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-sans font-medium">CRAZY8</span>
               </div>
 
               {isAirdropEligible && (
                 <button
                   onClick={() => setIsAirdropOpen(true)}
-                  className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] to-[#FF4600] hover:from-[#FF6611] hover:to-[#FF5500] text-[10px] sm:text-xs font-black text-white uppercase tracking-wider transition-all shadow-md shadow-[#FF4600]/30 active:scale-95 animate-pulse cursor-pointer shrink-0"
+                  className="flex items-center gap-1 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-[#FF4600] hover:bg-[#FF5500] text-[10px] sm:text-xs font-bold text-white transition-all active:scale-95 cursor-pointer shrink-0"
                   title="Claim 10,000 $CRAZY8 Welcome Airdrop"
                 >
                   <Gift className="w-3.5 h-3.5" />
@@ -1704,7 +1704,7 @@ export default function App() {
           {wallet.address && account && (
             <button
               onClick={() => setIsProfileOpen(true)}
-              className="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-slate-900 border border-slate-700 hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-all cursor-pointer shadow-md shrink-0 overflow-hidden"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/[0.06] border border-white/[0.08] hover:border-white/20 flex items-center justify-center text-sm sm:text-lg transition-all cursor-pointer shrink-0 overflow-hidden"
               title="Profile & Career Stats"
             >
               <UserAvatar avatar={account.avatar} name={account.name} className="w-full h-full text-sm sm:text-lg rounded-full" />
@@ -1714,12 +1714,12 @@ export default function App() {
           {/* Notification Bell */}
           <button
             onClick={() => setIsNotificationsOpen(true)}
-            className="flex w-7 h-7 sm:w-8 sm:h-8 rounded-xl sm:rounded-2xl bg-[#111620] border border-slate-800 hover:border-slate-700 items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer relative shadow-sm shrink-0"
+            className="flex w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:border-white/[0.12] items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer relative shrink-0"
             title="Notifications & Pot Payouts"
           >
             <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             {unreadNotifCount > 0 ? (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#FF4600] text-white text-[9px] font-black flex items-center justify-center shadow-sm">
+              <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-[#FF4600] text-white text-[8px] font-bold flex items-center justify-center">
                 {unreadNotifCount}
               </span>
             ) : onlineFriendCount > 0 ? (
@@ -1729,7 +1729,7 @@ export default function App() {
 
           {/* Room code badge — desktop only, during game */}
           {gameState && gameState.status !== 'lobby' && (
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-xl bg-[#090B0E] border border-[#FF4600]/30 text-xs font-mono">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs font-mono">
               <span className="text-slate-500">ROOM:</span>
               <span className="text-[#FF4600] font-black">{gameState.roomCode}</span>
               {isSpectator && (
@@ -1743,10 +1743,10 @@ export default function App() {
           {/* Background Music — desktop only */}
           <button
             onClick={toggleMusic}
-            className={`hidden md:flex p-1.5 sm:p-2 rounded-xl transition-all cursor-pointer items-center gap-1.5 ${
+            className={`hidden md:flex p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer items-center gap-1.5 ${
               isMusicOn && !isMuted
-                ? 'bg-[#FF4600]/20 text-[#FF4600] border border-[#FF4600]/40 hover:bg-[#FF4600]/30 shadow-sm'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white'
+                ? 'bg-white/[0.06] text-[#FF4600] border border-white/[0.08] hover:bg-white/[0.1]'
+                : 'bg-white/[0.03] hover:bg-white/[0.06] text-slate-400 hover:text-white'
             }`}
             title={isMusicOn && !isMuted ? 'Background Music (Playing)' : 'Background Music (Off)'}
           >
@@ -1763,7 +1763,7 @@ export default function App() {
           {/* Mute — desktop only */}
           <button
             onClick={toggleMute}
-            className="hidden md:flex p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+            className="hidden md:flex p-1.5 sm:p-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.06] text-slate-400 hover:text-white transition-colors cursor-pointer"
             title={isMuted ? 'Unmute All Audio' : 'Mute All Audio'}
           >
             {isMuted ? (
@@ -1889,12 +1889,12 @@ export default function App() {
             )}
             {/* Circular Table Arena with GamePigeon Red Felt Surface */}
             <div
-              className="relative w-full max-w-2xl sm:max-w-3xl md:max-w-4xl flex-1 flex items-center justify-center my-auto px-1 sm:px-4 select-none min-h-[350px] xs:min-h-[390px] sm:min-h-[430px] md:min-h-[470px] rounded-3xl sm:rounded-[44px] overflow-hidden shadow-2xl border border-red-950/40"
+              className="relative w-full max-w-2xl sm:max-w-3xl md:max-w-4xl flex-1 flex items-center justify-center my-auto px-1 sm:px-4 select-none min-h-[350px] xs:min-h-[390px] sm:min-h-[430px] md:min-h-[470px] rounded-3xl sm:rounded-[44px] overflow-hidden shadow-2xl border border-white/[0.06]"
               style={{
-                backgroundColor: '#631313',
+                backgroundColor: '#1A1215',
                 backgroundImage: `
-                  radial-gradient(ellipse at 50% 50%, rgba(135, 26, 26, 0.88) 0%, rgba(85, 14, 14, 0.96) 65%, rgba(42, 6, 6, 1) 100%),
-                  radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)
+                  radial-gradient(ellipse at 50% 50%, rgba(60, 18, 18, 0.9) 0%, rgba(30, 10, 10, 0.95) 65%, rgba(14, 6, 6, 1) 100%),
+                  radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px)
                 `,
                 backgroundSize: '100% 100%, 16px 16px',
               }}
@@ -2183,7 +2183,7 @@ export default function App() {
                               prev === 'default' ? 'color' : prev === 'color' ? 'value' : 'default'
                             );
                           }}
-                          className="px-2 py-0.5 rounded-lg bg-[#0E1217] hover:bg-slate-800 border border-slate-700/80 text-[9px] sm:text-[10px] font-bold text-slate-300 flex items-center gap-1 transition-colors cursor-pointer"
+                          className="px-2 py-0.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-[9px] sm:text-[10px] font-bold text-slate-300 flex items-center gap-1 transition-colors cursor-pointer"
                           title="Sort cards by Color or Number Value"
                         >
                           <ArrowUpDown className="w-2.5 h-2.5 text-[#FF4600]" />
@@ -2197,7 +2197,7 @@ export default function App() {
                     {/* Center / Right: Active Card Inspection Tooltip */}
                     <div className="flex-1 min-w-0 flex justify-end">
                       {hoveredCard ? (
-                        <div className="px-2.5 py-0.5 rounded-full bg-[#0E1217]/95 border border-[#FF4600]/60 text-[10px] sm:text-xs text-white shadow-xl shadow-black/80 flex items-center gap-1.5 animate-in fade-in duration-100 backdrop-blur-md truncate max-w-full">
+                        <div className="px-2.5 py-0.5 rounded-full bg-[#0C0F14]/95 border border-white/[0.08] text-[10px] sm:text-xs text-white shadow-xl shadow-black/80 flex items-center gap-1.5 animate-in fade-in duration-100 backdrop-blur-md truncate max-w-full">
                           {hoveredCard.value === '8' ? (
                             <>
                               <span className="px-1.5 py-0.2 rounded-full bg-gradient-to-r from-pink-500 via-yellow-400 to-blue-500 text-white font-black text-[9px] shadow-sm">
@@ -2393,7 +2393,7 @@ export default function App() {
                 </div>
 
                 {/* Bottom Quick Controls Bar */}
-                <div className="w-full max-w-xl flex items-center justify-between gap-2 px-3 py-1.5 sm:py-2 rounded-2xl bg-[#0E1217]/95 border border-slate-800 backdrop-blur-md mt-1 sm:mt-2 shadow-xl shadow-black/60 shrink-0">
+                <div className="w-full max-w-xl flex items-center justify-between gap-2 px-3 py-1.5 sm:py-2 rounded-2xl bg-[#0C0F14]/95 border border-white/[0.06] backdrop-blur-md mt-1 sm:mt-2 shadow-xl shadow-black/60 shrink-0">
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     {/* Reaction Emote Wheel */}
                     <ReactionWheel onSendEmote={handleSendEmote} />
@@ -2404,7 +2404,7 @@ export default function App() {
                     {isMyTurn && gameState.drawPendingForPlayer && (
                       <button
                         onClick={handlePassTurn}
-                        className="px-3 sm:px-4 py-1.5 rounded-xl bg-[#0E1217] hover:bg-slate-800 border border-[#FF4600]/60 text-[#FF4600] font-black text-[11px] sm:text-xs uppercase tracking-wider transition-colors animate-pulse cursor-pointer"
+                        className="px-3 sm:px-4 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-[#FF4600]/40 text-[#FF4600] font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors animate-pulse cursor-pointer"
                       >
                         Pass Turn
                       </button>
@@ -2414,10 +2414,10 @@ export default function App() {
                       <button
                         onClick={handleDrawCard}
                         className={`
-                          px-3.5 sm:px-4.5 py-1.5 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer
+                          px-3.5 sm:px-4.5 py-1.5 rounded-xl font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-all cursor-pointer
                           ${gameState.pendingDrawCount && gameState.pendingDrawCount > 0
-                            ? 'bg-gradient-to-r from-red-600 via-[#FF4600] to-orange-400 text-white shadow-[#FF4600]/40 ring-2 ring-white animate-pulse'
-                            : 'bg-gradient-to-r from-[#FF4600] to-[#FF6200] hover:from-[#ff5500] hover:to-[#ff731a] text-white shadow-lg shadow-[#FF4600]/30 active:scale-95'}
+                            ? 'bg-[#FF4600] text-white ring-2 ring-white/40 animate-pulse'
+                            : 'bg-[#FF4600] hover:bg-[#FF5500] text-white active:scale-95'}
                         `}
                       >
                         {gameState.pendingDrawCount && gameState.pendingDrawCount > 0

@@ -55,17 +55,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-[#0E1217] border border-slate-800 rounded-2xl sm:rounded-3xl max-w-xl w-full p-3.5 sm:p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+      <div className="bg-[#0C0F14] border border-white/[0.08] rounded-2xl sm:rounded-3xl max-w-xl w-full p-3.5 sm:p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800/80 shrink-0">
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/[0.06] shrink-0">
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-[#FF4600]/15 border border-[#FF4600]/30 flex items-center justify-center text-[#FF4600] shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-[#FF4600] shrink-0">
               <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-xl font-black text-white flex items-center gap-1.5 sm:gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-1.5 sm:gap-2">
                 Leaderboard
-                <span className="text-[9px] sm:text-xs font-mono px-1.5 sm:px-2 py-0.5 rounded-full bg-[#FF4600]/20 text-[#FF4600] border border-[#FF4600]/30 font-bold">
+                <span className="text-[9px] sm:text-xs font-mono px-1.5 sm:px-2 py-0.5 rounded-full bg-white/[0.06] text-[#FF4600] border border-white/[0.08] font-semibold">
                   Global
                 </span>
               </h2>
@@ -77,14 +77,14 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
             <button
               onClick={fetchLeaderboard}
               disabled={loading}
-              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-300 hover:text-white transition-colors cursor-pointer"
               title="Refresh rankings"
             >
               <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${loading ? 'animate-spin text-[#FF4600]' : ''}`} />
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-400 hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
@@ -113,12 +113,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
               return (
                 <div
                   key={user.id}
-                  className={`flex items-center justify-between p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border transition-all ${
+                  className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border transition-all ${
                     isCurrentUser
-                      ? 'bg-[#FF4600]/10 border-[#FF4600]/40 shadow-lg shadow-[#FF4600]/10'
-                      : idx === 0
-                      ? 'bg-amber-500/10 border-amber-500/30'
-                      : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
+                      ? 'bg-white/[0.06] border-[#FF4600]/60 shadow-sm'
+                      : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.1]'
                   }`}
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -131,23 +129,23 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       ) : idx === 2 ? (
                         <Medal className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 mx-auto" />
                       ) : (
-                        <span className="font-mono text-[11px] sm:text-xs font-bold text-slate-500">
+                        <span className="font-mono text-[11px] sm:text-xs font-semibold text-slate-500">
                           #{idx + 1}
                         </span>
                       )}
                     </div>
 
                     {/* Avatar */}
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-base sm:text-lg shrink-0 overflow-hidden">
-                      <UserAvatar avatar={user.avatar} name={user.name} className="w-full h-full text-base sm:text-lg rounded-lg sm:rounded-xl" />
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-base sm:text-lg shrink-0 overflow-hidden">
+                      <UserAvatar avatar={user.avatar} name={user.name} className="w-full h-full text-base sm:text-lg rounded-xl" />
                     </div>
 
                     {/* Name & Wallet */}
                     <div className="min-w-0">
-                      <div className="text-xs sm:text-sm font-black text-white truncate flex items-center gap-1.5">
+                      <div className="text-xs sm:text-sm font-bold text-white truncate flex items-center gap-1.5">
                         <span className="truncate max-w-[90px] sm:max-w-none">{user.name}</span>
                         {isCurrentUser && (
-                          <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 rounded bg-[#FF4600] text-white font-bold shrink-0">
+                          <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-[#FF4600]/20 border border-[#FF4600]/40 text-[#FF4600] font-semibold shrink-0">
                             YOU
                           </span>
                         )}
@@ -161,7 +159,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                   {/* Stats */}
                   <div className="flex items-center gap-2.5 sm:gap-4 shrink-0 text-right">
                     <div>
-                      <div className="text-[11px] sm:text-xs font-black text-emerald-400 font-mono">
+                      <div className="text-[11px] sm:text-xs font-bold text-white font-mono">
                         {user.stats.wins} WINS
                       </div>
                       <div className="text-[9px] sm:text-[10px] text-slate-400">
@@ -169,7 +167,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       </div>
                     </div>
                     <div className="hidden sm:block">
-                      <div className="text-xs font-black text-amber-400 font-mono">
+                      <div className="text-xs font-bold text-slate-200 font-mono">
                         {user.stats.totalWinnings || '0.000'} ETH
                       </div>
                       <div className="text-[10px] text-slate-500">Won</div>

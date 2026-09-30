@@ -43,56 +43,56 @@ export const Crazy8ColorModal: React.FC<Crazy8ColorModalProps> = ({
           {/* TOP: RED 8 */}
           <div
             onClick={() => handleSelect('red')}
-            className="absolute top-0 left-1/2 -translate-x-1/2 z-20 cursor-pointer transform transition-all duration-150 hover:scale-110 hover:z-30 active:scale-95"
+            className="absolute top-0 left-1/2 -translate-x-1/2 z-20 cursor-pointer transform transition-all duration-150 hover:scale-105 hover:z-30 active:scale-95"
             title="Nominate RED"
           >
             <CardComponent
               card={{ id: 'c8_red', color: 'red', value: '8', label: '8' }}
               isPlayable
               size="md"
-              className="ring-4 ring-white/90 shadow-2xl shadow-red-500/70"
+              className="ring-2 ring-white/60 shadow-xl shadow-black/80"
             />
           </div>
 
           {/* BOTTOM: BLUE 8 */}
           <div
             onClick={() => handleSelect('blue')}
-            className="absolute bottom-0 left-1/2 -translate-x-1/2 z-20 cursor-pointer transform transition-all duration-150 hover:scale-110 hover:z-30 active:scale-95"
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 z-20 cursor-pointer transform transition-all duration-150 hover:scale-105 hover:z-30 active:scale-95"
             title="Nominate BLUE"
           >
             <CardComponent
               card={{ id: 'c8_blue', color: 'blue', value: '8', label: '8' }}
               isPlayable
               size="md"
-              className="ring-4 ring-white/90 shadow-2xl shadow-blue-500/70"
+              className="ring-2 ring-white/60 shadow-xl shadow-black/80"
             />
           </div>
 
           {/* LEFT: YELLOW 8 */}
           <div
             onClick={() => handleSelect('yellow')}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 cursor-pointer transform transition-all duration-150 hover:scale-110 hover:z-30 active:scale-95"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 cursor-pointer transform transition-all duration-150 hover:scale-105 hover:z-30 active:scale-95"
             title="Nominate YELLOW"
           >
             <CardComponent
               card={{ id: 'c8_yellow', color: 'yellow', value: '8', label: '8' }}
               isPlayable
               size="md"
-              className="ring-4 ring-white/90 shadow-2xl shadow-amber-400/70"
+              className="ring-2 ring-white/60 shadow-xl shadow-black/80"
             />
           </div>
 
           {/* RIGHT: GREEN 8 */}
           <div
             onClick={() => handleSelect('green')}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 cursor-pointer transform transition-all duration-150 hover:scale-110 hover:z-30 active:scale-95"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 cursor-pointer transform transition-all duration-150 hover:scale-105 hover:z-30 active:scale-95"
             title="Nominate GREEN"
           >
             <CardComponent
               card={{ id: 'c8_green', color: 'green', value: '8', label: '8' }}
               isPlayable
               size="md"
-              className="ring-4 ring-white/90 shadow-2xl shadow-emerald-500/70"
+              className="ring-2 ring-white/60 shadow-xl shadow-black/80"
             />
           </div>
         </div>
@@ -100,7 +100,7 @@ export const Crazy8ColorModal: React.FC<Crazy8ColorModalProps> = ({
         {/* Cancel Button */}
         <button
           onClick={onCancel}
-          className="mt-5 px-4 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-slate-300 hover:text-white transition-colors border border-slate-700 shadow-md cursor-pointer"
+          className="mt-5 px-4 py-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-slate-300 hover:text-white transition-colors border border-white/[0.08] shadow-md cursor-pointer"
         >
           Cancel & Pick Another Card
         </button>

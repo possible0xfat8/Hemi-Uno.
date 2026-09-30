@@ -37,7 +37,7 @@ export const HemiUnoLogo: React.FC<HemiUnoLogoProps> = ({
       {/* Hemi Uno Signature Emblem */}
       <div
         className={`relative ${emblemSizes} shrink-0 ${
-          glow ? 'drop-shadow-[0_0_12px_rgba(255,70,0,0.5)]' : ''
+          glow ? 'drop-shadow-[0_0_8px_rgba(255,70,0,0.25)]' : ''
         }`}
       >
         <svg
@@ -89,7 +89,7 @@ export const HemiUnoLogo: React.FC<HemiUnoLogoProps> = ({
           >
             Hemi
           </span>
-          <span className="text-[#FF4600] font-black tracking-tight ml-1 sm:ml-1.5 font-['Montserrat','Plus_Jakarta_Sans',sans-serif] drop-shadow-[0_0_12px_rgba(255,70,0,0.4)]">
+          <span className="text-[#FF4600] font-black tracking-tight ml-1 sm:ml-1.5 font-['Montserrat','Plus_Jakarta_Sans',sans-serif]">
             Crazy 8
           </span>
         </div>

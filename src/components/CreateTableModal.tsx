@@ -59,33 +59,33 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-2 sm:p-4 animate-in fade-in duration-200">
-      <div className="bg-[#0E1217] border border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 md:p-8 shadow-2xl relative overflow-y-auto max-h-[92vh] sm:max-h-[90vh] custom-scrollbar">
+      <div className="bg-[#0C0F14] border border-white/[0.08] rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 md:p-8 shadow-2xl relative overflow-y-auto max-h-[92vh] sm:max-h-[90vh] custom-scrollbar">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800/80 mb-4 sm:mb-6">
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/[0.06] mb-4 sm:mb-6">
           <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] text-white flex items-center justify-center shadow-lg shadow-[#FF4600]/25 shrink-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/[0.06] border border-white/[0.08] text-[#FF4600] flex items-center justify-center shrink-0">
               <Users className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-xl font-black text-white">Create Table</h2>
-              <p className="text-[10px] sm:text-xs text-slate-400">Host your own game with custom rules</p>
+              <h2 className="text-base sm:text-lg font-bold text-white">Create Table</h2>
+              <p className="text-[10px] sm:text-xs text-slate-400">Host your own room with custom rules</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
           >
             <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
 
         {/* Game Mode Selector */}
-        <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-6">
-          <label className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 block">
+        <div className="space-y-2.5 sm:space-y-3 mb-4 sm:mb-6">
+          <label className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 block">
             Select Game Mode
           </label>
-          <div className="grid grid-cols-1 gap-2 sm:gap-2.5">
+          <div className="grid grid-cols-1 gap-2">
             {MODES.map((m) => {
               const active = selectedMode === m.id;
               return (
@@ -93,18 +93,18 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                   key={m.id}
                   onClick={() => setSelectedMode(m.id)}
                   type="button"
-                  className={`p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl border text-left transition-all flex items-center gap-2.5 sm:gap-3.5 cursor-pointer ${
+                  className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all flex items-center gap-3 cursor-pointer ${
                     active
-                      ? 'bg-[#FF4600]/15 border-[#FF4600] shadow-md shadow-[#FF4600]/10'
-                      : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                      ? 'bg-white/[0.06] border-[#FF4600]/60 text-white shadow-sm'
+                      : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04] hover:border-white/[0.12] text-slate-300'
                   }`}
                 >
                   <span className="text-xl sm:text-2xl shrink-0">{m.icon}</span>
                   <div className="flex-1 min-w-0">
-                    <div className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5 sm:gap-2">
+                    <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 sm:gap-2">
                       <span>{m.title}</span>
                       {active && (
-                        <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-[#FF4600] text-white font-bold">
+                        <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded bg-[#FF4600]/20 border border-[#FF4600]/40 text-[#FF4600] font-semibold">
                           Selected
                         </span>
                       )}
@@ -118,14 +118,14 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
         </div>
 
         {/* Buy-In Selection */}
-        <div className="mb-5 sm:mb-8">
-          <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
-            <label className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-slate-400 block">
+        <div className="mb-5 sm:mb-7">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
+            <label className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400 block">
               Table Stake Chips ($CRAZY8)
             </label>
             <div className="flex items-center gap-1.5 text-[11px] font-mono">
-              <span className="text-slate-400">Your Chips:</span>
-              <span className="font-bold text-amber-400 font-mono">
+              <span className="text-slate-400">Balance:</span>
+              <span className="font-bold text-slate-200 font-mono">
                 {parseFloat(tokenBalance || '0').toLocaleString()} $CRAZY8
               </span>
             </div>
@@ -138,43 +138,43 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
                   key={opt.value}
                   onClick={() => setSelectedBuyIn(opt.value)}
                   type="button"
-                  className={`py-2 sm:py-2.5 px-1.5 sm:px-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-mono font-bold transition-all text-center border cursor-pointer relative ${
+                  className={`py-2 sm:py-2.5 px-1.5 sm:px-2 rounded-xl text-[11px] sm:text-xs font-mono font-bold transition-all text-center border cursor-pointer relative ${
                     active
-                      ? 'bg-[#FF4600] text-white border-[#FF4600] shadow-lg shadow-[#FF4600]/25 scale-102 sm:scale-105'
-                      : 'bg-slate-900/80 text-slate-300 border-slate-800 hover:border-slate-700'
+                      ? 'bg-[#FF4600] text-white border-[#FF4600] shadow-sm'
+                      : 'bg-white/[0.03] text-slate-300 border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1]'
                   }`}
                 >
                   <div>{opt.label}</div>
                   {opt.recommended && (
-                    <div className="text-[8px] text-amber-300 font-sans uppercase font-bold">Standard</div>
+                    <div className={`text-[8px] font-sans uppercase font-medium ${active ? 'text-white/80' : 'text-slate-400'}`}>Standard</div>
                   )}
                   {!opt.isStaking && (
-                    <div className="text-[8px] text-emerald-300 font-sans uppercase font-bold">Free</div>
+                    <div className={`text-[8px] font-sans uppercase font-medium ${active ? 'text-white/80' : 'text-slate-400'}`}>Free</div>
                   )}
                 </button>
               );
             })}
           </div>
 
-          {/* Staking summary & edge-case warning */}
-          <div className="mt-2.5 p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] flex items-center justify-between">
+          {/* Staking summary */}
+          <div className="mt-2.5 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] text-[11px] flex items-center justify-between">
             {selectedStakeNum > 0 ? (
               <span className="text-slate-300">
-                Debits <strong className="text-amber-400 font-mono">{selectedStakeNum} $CRAZY8</strong> upon lobby creation into the pot.
+                Debits <strong className="text-white font-mono">{selectedStakeNum} $CRAZY8</strong> into the pot.
               </span>
             ) : (
-              <span className="text-emerald-400 font-bold">
-                ✓ Non-Staking Lobby: No test tokens debited. Free casual play.
+              <span className="text-slate-300 font-medium">
+                Casual Play: No chips debited.
               </span>
             )}
             <span className="text-[10px] text-slate-400 font-mono">
-              {selectedStakeNum > 0 ? '95% Winner Payout' : 'Prestige Only'}
+              {selectedStakeNum > 0 ? '95% Winner Payout' : 'Practice'}
             </span>
           </div>
 
           {hasInsufficientTokens && (
-            <div className="mt-2 p-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-2">
-              <span>⚠️ Insufficient test tokens. You have {currentBalNum.toLocaleString()} $CRAZY8, but table stake is {selectedStakeNum.toLocaleString()} $CRAZY8. Choose a lower stake or Non-Staking.</span>
+            <div className="mt-2 p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-medium flex items-center gap-2">
+              <span>⚠️ Insufficient test tokens. Balance: {currentBalNum.toLocaleString()} $CRAZY8. Choose a lower stake or Non-Staking.</span>
             </div>
           )}
         </div>
@@ -185,7 +185,7 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
             onClick={() => {
               if (onConnectWallet) onConnectWallet();
             }}
-            className="w-full py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl shadow-[#FF4600]/30 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-2.5 sm:py-3 rounded-xl bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-xs sm:text-sm uppercase tracking-wider transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
           >
             <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Connect Wallet to Create Table</span>
@@ -194,10 +194,10 @@ export const CreateTableModal: React.FC<CreateTableModalProps> = ({
           <button
             onClick={handleCreate}
             disabled={hasInsufficientTokens}
-            className={`w-full py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-xl flex items-center justify-center gap-2 ${
+            className={`w-full py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
               hasInsufficientTokens
-                ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-800'
-                : 'bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white hover:brightness-110 active:scale-98 shadow-[#FF4600]/30 cursor-pointer'
+                ? 'bg-white/[0.04] text-slate-500 cursor-not-allowed border border-white/[0.06]'
+                : 'bg-[#FF4600] hover:bg-[#FF5500] text-white active:scale-98 shadow-md cursor-pointer'
             }`}
           >
             <span>

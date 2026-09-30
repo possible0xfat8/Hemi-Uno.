@@ -41,10 +41,10 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
           disabled={wallet.isConnecting}
           className={`
             px-2.5 xs:px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-xl font-bold text-[11px] sm:text-xs tracking-wider uppercase transition-all duration-200
-            flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-md select-none shrink-0
+            flex items-center gap-1.5 sm:gap-2 cursor-pointer shadow-sm select-none shrink-0
             ${wallet.isConnecting
-              ? 'bg-slate-800 text-slate-400 cursor-wait'
-              : 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 hover:brightness-110 active:scale-95 shadow-amber-500/20'}
+              ? 'bg-white/[0.06] text-slate-400 cursor-wait'
+              : 'bg-[#FF4600] hover:bg-[#FF5500] text-white active:scale-95'}
           `}
           title="Connect Web3 Wallet (MetaMask, OKX, Rabby, Zerion)"
         >
@@ -53,7 +53,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
         </button>
 
         {wallet.error && (
-          <div className="absolute right-0 top-full mt-2 w-64 p-2.5 rounded-xl bg-rose-950/90 border border-rose-500/50 text-rose-200 text-[11px] shadow-xl z-50 animate-in fade-in">
+          <div className="absolute right-0 top-full mt-2 w-64 p-2.5 rounded-xl bg-rose-950/90 border border-rose-500/30 text-rose-200 text-[11px] shadow-xl z-50 animate-in fade-in">
             <div className="flex items-start gap-1.5">
               <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0 mt-0.5" />
               <div>{wallet.error}</div>
@@ -101,11 +101,11 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
             className="fixed inset-0 z-40"
             onClick={() => setDropdownOpen(false)}
           />
-          <div className="absolute right-0 top-full mt-2 w-72 p-3.5 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+          <div className="absolute right-0 top-full mt-2 w-72 p-3.5 rounded-2xl bg-[#0C0F14] border border-white/[0.08] shadow-2xl z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
             {/* Header / Network */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] mb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-[#FF4600]">
                   <Zap className="w-4 h-4" />
                 </div>
                 <div>
@@ -124,7 +124,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
                     onSwitchNetwork();
                     setDropdownOpen(false);
                   }}
-                  className="px-2 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold text-[10px] hover:bg-amber-400 transition-colors"
+                  className="px-2.5 py-1 rounded-lg bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-[10px] transition-colors"
                 >
                   Switch to Hemi
                 </button>
@@ -132,16 +132,16 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
             </div>
 
             {/* Address & Copy */}
-            <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 mb-3">
-              <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">
+            <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] mb-3">
+              <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">
                 Connected Address
               </div>
               <div className="text-xs font-mono text-slate-200 break-all select-all">
                 {wallet.address}
               </div>
-              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800 text-[11px]">
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/[0.06] text-[11px]">
                 <span className="text-slate-400">Balance:</span>
-                <span className="font-mono font-bold text-amber-400">
+                <span className="font-mono font-bold text-white">
                   {wallet.balance ? `${wallet.balance} ETH` : 'Fetching...'}
                 </span>
               </div>
@@ -153,7 +153,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
                 href={`${networkInfo.explorerUrl}/address/${wallet.address}`}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white flex items-center justify-between transition-colors"
+                className="w-full p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] text-slate-300 hover:text-white flex items-center justify-between transition-colors"
               >
                 <span>View on Explorer</span>
                 <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
@@ -164,7 +164,7 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = ({
                   onDisconnect();
                   setDropdownOpen(false);
                 }}
-                className="w-full p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 flex items-center justify-between transition-colors cursor-pointer"
+                className="w-full p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 flex items-center justify-between transition-colors cursor-pointer"
               >
                 <span>Disconnect</span>
                 <LogOut className="w-3.5 h-3.5 text-rose-400" />

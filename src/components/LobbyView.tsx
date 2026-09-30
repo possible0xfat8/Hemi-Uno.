@@ -784,26 +784,26 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   // VIEW: MAIN HOMEPAGE DASHBOARD
   // =========================================================================
   return (
-    <div className="w-full max-w-7xl mx-auto py-1 sm:py-2 pb-16 lg:pb-2">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-5 items-start">
+    <div className="w-full max-w-7xl mx-auto py-2 sm:py-4 pb-16 lg:pb-4 px-2 sm:px-4 lg:px-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-start">
         {/* ========================================================= */}
         {/* LEFT COLUMN: Navigation Sidebar (Desktop Only)            */}
         {/* ========================================================= */}
         <div className="lg:col-span-2 hidden lg:flex flex-col gap-3">
           {/* Main Nav Items */}
-          <div className="space-y-1.5">
+          <div className="space-y-0.5">
             <button
               type="button"
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] text-white font-black text-sm shadow-lg shadow-[#FF4600]/25 transition-all text-left"
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white/[0.06] text-white font-bold text-sm transition-all text-left border border-white/[0.08]"
             >
-              <Home className="w-5 h-5" />
+              <Home className="w-4.5 h-4.5" />
               <span>Home</span>
             </button>
 
             <button
               type="button"
               onClick={onQuickJoin}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-900/60 font-bold text-sm transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.04] font-medium text-sm transition-all text-left cursor-pointer"
             >
               <Gamepad2 className="w-5 h-5" />
               <span>Play</span>
@@ -812,7 +812,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             <button
               type="button"
               onClick={onOpenLeaderboard}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-900/60 font-bold text-sm transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.04] font-medium text-sm transition-all text-left cursor-pointer"
             >
               <Trophy className="w-5 h-5" />
               <span>Leaderboard</span>
@@ -821,7 +821,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             <button
               type="button"
               onClick={onOpenRules}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-900/60 font-bold text-sm transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.04] font-medium text-sm transition-all text-left cursor-pointer"
             >
               <BookOpen className="w-5 h-5" />
               <span>How to Play</span>
@@ -832,39 +832,39 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           {onToggleMusic && (
             <div
               onClick={onToggleMusic}
-              className={`mt-2 p-3.5 rounded-2xl border transition-all cursor-pointer group ${
+              className={`mt-2 p-3.5 rounded-xl border transition-all cursor-pointer group ${
                 isMusicOn
-                  ? 'bg-gradient-to-br from-[#FF4600]/15 via-slate-900 to-[#111620] border-[#FF4600]/40 shadow-lg shadow-[#FF4600]/10'
-                  : 'bg-[#111620] border-slate-800 hover:border-slate-700'
+                  ? 'bg-white/[0.04] border-white/[0.1]'
+                  : 'bg-white/[0.02] border-white/[0.05] hover:border-white/[0.08]'
               }`}
             >
               <div className="flex items-center justify-between mb-1.5">
-                <span className="flex items-center gap-1.5 text-[11px] font-mono font-bold text-orange-400">
-                  <Music className={`w-3.5 h-3.5 ${isMusicOn ? 'text-[#FF4600] animate-bounce' : 'text-slate-500'}`} />
-                  BGM GROOVE
+                <span className="flex items-center gap-1.5 text-[11px] font-mono font-medium text-slate-400">
+                  <Music className={`w-3.5 h-3.5 ${isMusicOn ? 'text-[#FF4600]' : 'text-slate-500'}`} />
+                  BGM
                 </span>
                 <span
-                  className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded-full ${
+                  className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full ${
                     isMusicOn
-                      ? 'bg-[#FF4600] text-white shadow-sm shadow-[#FF4600]/40'
-                      : 'bg-slate-800 text-slate-500'
+                      ? 'bg-[#FF4600] text-white'
+                      : 'bg-white/[0.06] text-slate-500'
                   }`}
                 >
-                  {isMusicOn ? 'LIVE' : 'MUTED'}
+                  {isMusicOn ? 'ON' : 'OFF'}
                 </span>
               </div>
-              <div className="text-xs font-black text-white group-hover:text-[#FF4600] transition-colors flex items-center justify-between">
-                <span>Cyber Synth Uno Track</span>
+              <div className="text-xs font-bold text-white group-hover:text-slate-200 transition-colors flex items-center justify-between">
+                <span>Background Track</span>
                 {isMusicOn && (
                   <span className="flex gap-0.5 items-end h-3">
-                    <span className="w-0.5 h-2 bg-[#FF4600] animate-pulse" />
-                    <span className="w-0.5 h-3.5 bg-[#FF4600] animate-pulse delay-75" />
-                    <span className="w-0.5 h-1.5 bg-[#FF4600] animate-pulse delay-150" />
+                    <span className="w-0.5 h-2 bg-[#FF4600]/70 animate-pulse" />
+                    <span className="w-0.5 h-3.5 bg-[#FF4600]/70 animate-pulse delay-75" />
+                    <span className="w-0.5 h-1.5 bg-[#FF4600]/70 animate-pulse delay-150" />
                   </span>
                 )}
               </div>
-              <div className="text-[11px] text-slate-400 mt-0.5">
-                {isMusicOn ? 'Playing energetic arcade funk beat' : 'Click to turn background song on'}
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                {isMusicOn ? 'Now playing' : 'Click to enable'}
               </div>
             </div>
           )}
@@ -876,8 +876,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 onSpectateRoom(displayTables[0].code, playerName, selectedAvatar);
               }
             }}
-            className={`mt-2 p-3.5 rounded-2xl bg-[#111620] border transition-all ${
-              displayTables.length > 0 ? 'border-slate-800 hover:border-[#FF4600]/40 cursor-pointer' : 'border-slate-900 opacity-60 cursor-default'
+            className={`mt-2 p-3.5 rounded-xl bg-white/[0.02] border transition-all ${
+              displayTables.length > 0 ? 'border-white/[0.06] hover:border-white/[0.12] cursor-pointer' : 'border-white/[0.03] opacity-60 cursor-default'
             } group`}
           >
             <div className="flex items-center justify-between mb-1.5">
@@ -896,18 +896,17 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
 
           {/* Bottom Watermark */}
-          <div className="mt-8 pt-6 border-t border-slate-800/40 flex flex-col gap-2">
-            <div className="flex items-center gap-2 opacity-30">
-              <div className="w-6 h-6 rounded-full border border-[#FF4600] flex items-center justify-center text-[#FF4600] font-black text-xs">
+          <div className="mt-8 pt-6 border-t border-white/[0.04] flex flex-col gap-2">
+            <div className="flex items-center gap-2 opacity-25">
+              <div className="w-5 h-5 rounded-full border border-white/20 flex items-center justify-center text-white/40 font-bold text-[10px]">
                 h
               </div>
-              <span className="font-mono text-xs uppercase tracking-widest text-slate-400">
-                Hemi Uno
+              <span className="font-mono text-[10px] uppercase tracking-widest text-slate-500">
+                Hemi Crazy 8
               </span>
             </div>
-            <div className="text-xs font-mono text-slate-500 leading-tight">
-              Same rules.<br />
-              <span className="text-slate-400 font-bold">New vibes.</span>
+            <div className="text-[10px] font-mono text-slate-600 leading-tight">
+              On-chain card game.
             </div>
           </div>
         </div>
@@ -915,18 +914,18 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         {/* ========================================================= */}
         {/* CENTER COLUMN: Hero Banner, Stats, and Open Tables       */}
         {/* ========================================================= */}
-        <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-3 sm:gap-5">
+        <div className="lg:col-span-7 xl:col-span-7 flex flex-col gap-3 sm:gap-4">
           {/* Mobile Profile & Quick Change Name Banner (Mobile Only) */}
           {wallet.address && account && (
-            <div className="lg:hidden p-3 sm:p-4 rounded-2xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-[#FF4600]/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="lg:hidden p-3 sm:p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] rounded-full blur-2xl pointer-events-none" />
 
               {!isEditingNameMobile ? (
                 <div className="flex items-center justify-between gap-2.5 relative z-10">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div
                       onClick={onOpenProfile}
-                      className="w-11 h-11 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-2xl shrink-0 shadow-md shadow-[#FF4600]/20 cursor-pointer active:scale-95 transition-transform overflow-hidden"
+                      className="w-11 h-11 rounded-full bg-white/[0.06] border border-white/[0.12] flex items-center justify-center text-2xl shrink-0 cursor-pointer active:scale-95 transition-transform overflow-hidden"
                       title="Edit Profile & Avatar"
                     >
                       <UserAvatar avatar={selectedAvatar} name={playerName} className="w-full h-full text-2xl rounded-full" />
@@ -961,7 +960,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                         setNameInput(playerName);
                         setNameError(null);
                       }}
-                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FF5500]/20 to-[#FF3700]/20 hover:from-[#FF5500]/30 hover:to-[#FF3700]/30 border border-[#FF4600]/40 text-[#FF4600] hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer shadow-sm"
+                      className="px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] text-slate-300 hover:text-white text-xs font-medium transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                       <span>Change Name</span>
@@ -1043,13 +1042,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           )}
 
           {/* Hero Banner */}
-          <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#121622] via-[#0F131C] to-[#0A0D14] border border-slate-800/90 p-4 sm:p-8 relative overflow-hidden shadow-2xl">
-            <div className="absolute -right-16 -top-16 w-80 h-80 rounded-full bg-[#FF4600]/15 blur-3xl pointer-events-none" />
+          <div className="rounded-2xl sm:rounded-3xl bg-white/[0.02] border border-white/[0.06] p-4 sm:p-8 relative overflow-hidden">
+            <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-[#FF4600]/[0.06] blur-3xl pointer-events-none" />
 
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6 relative z-10">
               <div className="flex-1 min-w-0 text-left">
-                <span className="inline-block text-[10px] sm:text-[11px] font-black font-mono tracking-widest text-[#FF4600] uppercase mb-1 sm:mb-2">
-                  HEMI UNO
+                <span className="inline-block text-[10px] sm:text-[11px] font-bold font-mono tracking-widest text-[#FF4600]/80 uppercase mb-1 sm:mb-2">
+                  HEMI CRAZY 8
                 </span>
 
                 <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight mb-1.5 sm:mb-2">
@@ -1063,14 +1062,14 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                   <button
                     onClick={handleQuickJoinClick}
-                    className="px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-xl shadow-[#FF4600]/30 transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
+                    className="px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-xs sm:text-sm tracking-wide uppercase transition-all active:scale-95 flex items-center gap-2 cursor-pointer"
                   >
                     <span>&lt; QUICK PLAY &gt;</span>
                   </button>
 
                   {/* Playing As info badge with quick Change button */}
                   {wallet.address && account && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-xs">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-xs">
                       <span className="text-slate-400 font-mono text-[10px] sm:text-[11px]">As:</span>
                       <span className="font-bold flex items-center gap-1.5 text-white">
                         <UserAvatar avatar={selectedAvatar} name={playerName} className="w-4 h-4 text-xs rounded-full shrink-0" />
@@ -1084,7 +1083,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                           setNameInput(playerName);
                           setNameError(null);
                         }}
-                        className="text-[10px] sm:text-[11px] font-bold text-[#FF4600] hover:text-white flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FF4600]/10 hover:bg-[#FF4600]/30 transition-colors cursor-pointer"
+                        className="text-[10px] sm:text-[11px] font-medium text-slate-400 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.06] hover:bg-white/[0.1] transition-colors cursor-pointer"
                         title="Change Name"
                       >
                         <Pencil className="w-2.5 h-2.5" />
@@ -1116,11 +1115,11 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
 
           {/* 3 Metrics Counter Row — horizontal scroll on mobile */}
-          <div className="flex gap-2 sm:gap-3.5 overflow-x-auto no-scrollbar scroll-snap-x sm:grid sm:grid-cols-3 sm:overflow-visible">
+          <div className="flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar scroll-snap-x sm:grid sm:grid-cols-3 sm:overflow-visible">
             {/* Open Tables */}
-            <div className="min-w-[140px] sm:min-w-0 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all shrink-0 sm:shrink">
+            <div className="min-w-[140px] sm:min-w-0 p-3 sm:p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between group hover:border-white/[0.1] transition-all shrink-0 sm:shrink">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-[#FF4600]">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-[#FF4600]">
                   <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
                 <div>
@@ -1136,9 +1135,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             </div>
 
             {/* Players Online */}
-            <div className="min-w-[140px] sm:min-w-0 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all shrink-0 sm:shrink">
+            <div className="min-w-[140px] sm:min-w-0 p-3 sm:p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between group hover:border-white/[0.1] transition-all shrink-0 sm:shrink">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-emerald-400">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-emerald-400">
                   <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 </div>
                 <div>
@@ -1154,9 +1153,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             </div>
 
             {/* Games Played */}
-            <div className="min-w-[140px] sm:min-w-0 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0E1218] border border-slate-800/90 flex items-center justify-between group hover:border-slate-700 transition-all shrink-0 sm:shrink">
+            <div className="min-w-[140px] sm:min-w-0 p-3 sm:p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between group hover:border-white/[0.1] transition-all shrink-0 sm:shrink">
               <div className="flex items-center gap-2 sm:gap-3">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-amber-400">
                   <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
                 <div>
@@ -1173,11 +1172,11 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
 
           {/* Open Tables Section */}
-          <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
+          <div className="p-4 sm:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
             {/* Header */}
-            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-800/80 mb-3 sm:mb-4">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-white/[0.05] mb-3 sm:mb-4">
               <div className="flex items-center gap-2 sm:gap-2.5">
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#FF4600]/15 flex items-center justify-center text-[#FF4600]">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-slate-400">
                   <Gamepad2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
                 <div>
@@ -1187,7 +1186,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               </div>
 
               {/* Sort by dropdown */}
-              <div className="text-[10px] sm:text-xs text-slate-400 font-mono flex items-center gap-1 sm:gap-1.5 bg-slate-900 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl border border-slate-800">
+              <div className="text-[10px] sm:text-xs text-slate-400 font-mono flex items-center gap-1 sm:gap-1.5 bg-white/[0.04] px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-white/[0.06]">
                 <span className="hidden sm:inline">Sort by:</span>
                 <select
                   value={sortOption}
@@ -1204,9 +1203,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             {/* Table List */}
             <div className="space-y-2 sm:space-y-2.5">
               {displayTables.length === 0 ? (
-                <div className="py-8 sm:py-10 text-center flex flex-col items-center justify-center gap-2.5 bg-slate-900/40 rounded-2xl border border-slate-800/60 p-4">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
-                    <Gamepad2 className="w-6 h-6 text-slate-500" />
+                <div className="py-8 sm:py-10 text-center flex flex-col items-center justify-center gap-2.5 bg-white/[0.02] rounded-xl border border-white/[0.04] p-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center text-slate-500">
+                    <Gamepad2 className="w-6 h-6 text-slate-600" />
                   </div>
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-slate-200">No public tables open right now</p>
@@ -1215,13 +1214,13 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   <div className="flex items-center gap-2 mt-1">
                     <button
                       onClick={handleQuickJoinClick}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-bold text-xs transition-all active:scale-95 shadow-md shadow-[#FF4600]/20 cursor-pointer"
+                      className="px-4 py-2 rounded-lg bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-xs transition-all active:scale-95 cursor-pointer"
                     >
                       Quick Play
                     </button>
                     <button
                       onClick={handleCreateTableClick}
-                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-all active:scale-95 cursor-pointer border border-slate-700"
+                      className="px-4 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 font-bold text-xs transition-all active:scale-95 cursor-pointer border border-white/[0.08]"
                     >
                       + Create Table
                     </button>
@@ -1231,7 +1230,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 displayTables.map((table) => (
                   <div
                     key={table.code}
-                    className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-all group"
+                    className="p-3 sm:p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-all group"
                   >
                     {/* Top: Mode info */}
                     <div className="flex items-center gap-3 mb-2 sm:mb-0">
@@ -1268,7 +1267,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
                       <button
                         onClick={() => handleJoinTable(table.code)}
-                        className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-black text-[10px] sm:text-xs uppercase tracking-wider transition-all shadow-md shadow-[#FF4600]/20 active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-[10px] sm:text-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
                       >
                         <span>Join</span>
                         <ChevronRight className="w-3 h-3" />
@@ -1287,8 +1286,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
         <div className="lg:col-span-3 xl:col-span-3 flex flex-col gap-3 sm:gap-4">
           {/* User Profile Card / Connect Wallet Card */}
           {!wallet.address || !account ? (
-            <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden text-center">
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#FF4600]/20 to-[#FF8000]/10 border border-[#FF4600]/30 flex items-center justify-center mx-auto mb-3 text-[#FF5500] shadow-lg shadow-[#FF4600]/10">
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] relative overflow-hidden text-center">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center mx-auto mb-3 text-slate-400">
                 <Shield className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
               <h3 className="text-sm sm:text-base font-black text-white mb-1">Web3 Profile</h3>
@@ -1298,25 +1297,25 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
               <button
                 type="button"
                 onClick={onConnectWallet}
-                className="w-full py-2.5 sm:py-3 rounded-xl sm:rounded-2xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] hover:from-[#FF6611] hover:to-[#FF4600] text-white font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-lg shadow-[#FF4600]/25 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2.5 sm:py-3 rounded-xl bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold text-xs sm:text-sm tracking-wide transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Connect Wallet</span>
               </button>
             </div>
           ) : (
-            <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl relative overflow-hidden">
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06] relative overflow-hidden">
               <div className="flex flex-col items-center text-center">
                 {/* Avatar */}
                 <div className="relative mb-2 sm:mb-3">
                   <div
                     onClick={onOpenProfile}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-slate-900 border-2 border-[#FF4600] flex items-center justify-center text-3xl sm:text-4xl shadow-xl shadow-[#FF4600]/20 overflow-hidden cursor-pointer group"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-3xl sm:text-4xl overflow-hidden cursor-pointer group"
                     title="Customize Profile & Picture"
                   >
                     <UserAvatar avatar={selectedAvatar} name={playerName} className="w-full h-full text-3xl sm:text-4xl rounded-full" />
                   </div>
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-md">
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/10 text-white flex items-center justify-center text-[10px] sm:text-xs font-bold border border-white/20">
                     👑
                   </div>
                 </div>
@@ -1342,7 +1341,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                           setNameInput(playerName);
                           setNameError(null);
                         }}
-                        className="p-1 rounded-lg bg-slate-800/80 hover:bg-[#FF4600] text-slate-400 hover:text-white transition-all cursor-pointer shrink-0"
+                        className="p-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-400 hover:text-white transition-all cursor-pointer shrink-0"
                         title="Change Name"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -1356,7 +1355,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                         setNameInput(playerName);
                         setNameError(null);
                       }}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF4600] hover:text-[#ff6622] transition-colors bg-[#FF4600]/10 hover:bg-[#FF4600]/20 px-2.5 py-0.5 rounded-full mt-1 cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 hover:text-white transition-colors bg-white/[0.06] hover:bg-white/[0.1] px-2.5 py-0.5 rounded-full mt-1 cursor-pointer"
                     >
                       <Pencil className="w-2.5 h-2.5" />
                       <span>Change Name</span>
@@ -1379,7 +1378,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     )}
                   </div>
                 ) : (
-                  <div className="w-full mt-1 mb-2 p-2.5 rounded-2xl bg-slate-900 border border-[#FF4600]/60 shadow-inner text-left animate-in fade-in duration-150">
+                  <div className="w-full mt-1 mb-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-left animate-in fade-in duration-150">
                     <div className="flex items-center justify-between text-[10px] font-mono font-bold text-slate-400 mb-1">
                       <span className="text-[#FF4600] flex items-center gap-1">
                         <Pencil className="w-3 h-3" />
@@ -1408,12 +1407,12 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                         }}
                         maxLength={16}
                         placeholder="Your nickname..."
-                        className="flex-1 bg-slate-950 border border-slate-700 focus:border-[#FF4600] rounded-xl px-2.5 py-1.5 text-xs font-bold text-white outline-none ring-2 ring-[#FF4600]/20"
+                        className="flex-1 bg-[#08090C] border border-white/[0.08] focus:border-[#FF4600]/60 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => handleSaveName()}
-                        className="p-2 rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 text-white font-bold transition-all cursor-pointer shadow-sm"
+                        className="p-2 rounded-xl bg-[#FF4600] hover:bg-[#FF5500] text-white font-bold transition-all cursor-pointer"
                         title="Save Name"
                       >
                         <Check className="w-3.5 h-3.5" />
@@ -1425,7 +1424,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                           setNameInput(playerName);
                           setNameError(null);
                         }}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
+                        className="p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-slate-400 hover:text-white transition-all cursor-pointer"
                         title="Cancel"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -1450,7 +1449,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
 
                 <button
                   onClick={handleCopyWalletAddress}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-[10px] sm:text-xs font-mono transition-all mb-3 sm:mb-4 cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:border-white/[0.1] text-slate-300 text-[10px] sm:text-xs font-mono transition-all mb-3 sm:mb-4 cursor-pointer"
                   title="Copy address"
                 >
                   <span>{formatAddress(wallet.address)}</span>
@@ -1462,7 +1461,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 </button>
 
                 {/* Avatar Selector Row */}
-                <div className="w-full pt-2.5 sm:pt-3 border-t border-slate-800/80">
+                <div className="w-full pt-2.5 sm:pt-3 border-t border-white/[0.06]">
                   <div className="text-[9px] sm:text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-1.5 sm:mb-2 text-left">
                     Choose Avatar
                   </div>
@@ -1474,10 +1473,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                           key={emoji}
                           type="button"
                           onClick={() => handleAvatarSelect(emoji)}
-                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center text-base sm:text-lg transition-all cursor-pointer ${
+                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-base sm:text-lg transition-all cursor-pointer ${
                             active
-                              ? 'bg-[#FF4600]/20 border-2 border-[#FF4600] scale-105'
-                              : 'bg-slate-900 border border-slate-800 hover:border-slate-700'
+                              ? 'bg-[#FF4600]/15 border-2 border-[#FF4600] scale-105'
+                              : 'bg-white/[0.04] border border-white/[0.06] hover:border-white/[0.12]'
                           }`}
                         >
                           {emoji}
@@ -1487,7 +1486,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                     <button
                       type="button"
                       onClick={onOpenProfile}
-                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.06] hover:border-white/[0.1] flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
                       title="More Avatars & Profile Settings"
                     >
                       <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1501,10 +1500,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           {/* Create Table Card */}
           <div
             onClick={handleCreateTableClick}
-            className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gradient-to-r from-[#FF5500] via-[#FF4600] to-[#E03A00] text-white shadow-xl shadow-[#FF4600]/25 transition-all hover:brightness-105 active:scale-98 cursor-pointer flex items-center justify-between"
+            className="p-4 sm:p-5 rounded-2xl bg-[#FF4600] text-white transition-all hover:bg-[#FF5500] active:scale-98 cursor-pointer flex items-center justify-between"
           >
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-black/20 flex items-center justify-center text-white shrink-0 mt-0.5">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-black/20 flex items-center justify-center text-white shrink-0 mt-0.5">
                 <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div>
@@ -1518,9 +1517,9 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
 
           {/* Join by Code Card */}
-          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
+          <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
             <div className="flex items-center gap-2 sm:gap-2.5 mb-2">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-blue-400">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/[0.06] border border-white/[0.06] flex items-center justify-center text-slate-400">
                 <Code2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div>
@@ -1536,12 +1535,12 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
                 placeholder="Enter room code..."
                 maxLength={6}
-                className="flex-1 bg-slate-900 border border-slate-800 rounded-lg sm:rounded-xl px-3 py-2 text-xs font-mono font-bold text-white placeholder-slate-600 uppercase focus:border-[#FF4600] outline-none transition-colors"
+                className="flex-1 bg-[#08090C] border border-white/[0.08] rounded-lg px-3 py-2 text-xs font-mono font-bold text-white placeholder-slate-600 uppercase focus:border-[#FF4600]/60 outline-none transition-colors"
               />
               <button
                 type="submit"
                 disabled={joinCodeInput.trim().length < 4}
-                className="px-3 sm:px-4 py-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-[#FF5500] to-[#FF3700] hover:brightness-110 disabled:opacity-40 disabled:hover:brightness-100 text-white font-black text-xs uppercase tracking-wider transition-all shrink-0 flex items-center gap-1 cursor-pointer"
+                className="px-3 sm:px-4 py-2 rounded-lg bg-[#FF4600] hover:bg-[#FF5500] disabled:opacity-40 text-white font-bold text-xs transition-all shrink-0 flex items-center gap-1 cursor-pointer"
               >
                 <span>Join</span>
                 <ChevronRight className="w-3 h-3" />
@@ -1556,8 +1555,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 onSpectateRoom(displayTables[0].code, playerName, selectedAvatar);
               }
             }}
-            className={`p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[#0E1218] border transition-all ${
-              displayTables.length > 0 ? 'border-slate-800/90 shadow-xl hover:border-slate-700 cursor-pointer' : 'border-slate-800/50 opacity-70 cursor-default'
+            className={`p-3.5 sm:p-4 rounded-2xl bg-white/[0.02] border transition-all ${
+              displayTables.length > 0 ? 'border-white/[0.06] hover:border-white/[0.1] cursor-pointer' : 'border-white/[0.03] opacity-70 cursor-default'
             } group`}
           >
             <div className="flex items-center justify-between mb-1">
@@ -1581,8 +1580,8 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
 
           {/* Friends Online Card */}
-          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl">
-            <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-slate-800/80 mb-2.5 sm:mb-3">
+          <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+            <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-white/[0.05] mb-2.5 sm:mb-3">
               <div className="text-xs font-black text-white">Friends Online</div>
               <button
                 onClick={onOpenFriends}
@@ -1603,10 +1602,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                       title={`${f.name} (${f.status})`}
                     >
                       <div className="relative">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-900 border border-slate-800 group-hover:border-[#FF4600] flex items-center justify-center text-sm sm:text-lg transition-colors overflow-hidden">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/[0.04] border border-white/[0.06] group-hover:border-white/[0.15] flex items-center justify-center text-sm sm:text-lg transition-colors overflow-hidden">
                           <UserAvatar avatar={f.avatar} name={f.name} className="w-full h-full text-sm sm:text-lg rounded-full" />
                         </div>
-                        <span className={`absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border-2 border-[#0E1218] ${f.status === 'in_game' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                        <span className={`absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full border-2 border-[#08090C] ${f.status === 'in_game' ? 'bg-amber-400' : 'bg-emerald-400'}`} />
                       </div>
                       <span className="text-[9px] sm:text-[10px] text-slate-300 font-medium truncate max-w-[48px]">
                         {f.name}
@@ -1622,7 +1621,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   <button
                     type="button"
                     onClick={onOpenFriends}
-                    className="mt-1.5 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-[10px] text-[#FF4600] hover:text-white font-bold transition-all inline-flex items-center gap-1 cursor-pointer"
+                    className="mt-1.5 px-3 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-[10px] text-slate-300 hover:text-white font-medium transition-all inline-flex items-center gap-1 cursor-pointer"
                   >
                     <UserPlus className="w-3 h-3" />
                     <span>Find & Add Friends</span>
@@ -1635,10 +1634,10 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           {/* New here? Tips Card */}
           <div
             onClick={onOpenRules}
-            className="p-3.5 sm:p-4 rounded-2xl sm:rounded-3xl bg-[#0E1218] border border-slate-800/90 shadow-xl hover:border-slate-700 transition-all cursor-pointer flex items-center justify-between group"
+            className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.1] transition-all cursor-pointer flex items-center justify-between group"
           >
             <div className="flex items-start gap-2.5 sm:gap-3">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/[0.06] flex items-center justify-center text-amber-400/70 shrink-0 mt-0.5">
                 <Lightbulb className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
               <div>
@@ -1654,7 +1653,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       </div>
 
       {/* Mobile Bottom Navigation — replaces hidden left sidebar */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-[#0E1217]/95 backdrop-blur-xl border-t border-slate-800/80 safe-bottom">
+      <div className="fixed bottom-0 left-0 right-0 z-30 lg:hidden bg-[#0C0F14]/95 backdrop-blur-xl border-t border-white/[0.06] safe-bottom">
         <div className="flex items-center justify-around py-2 px-2 max-w-md mx-auto">
           <button
             type="button"
